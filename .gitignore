@@ -1,0 +1,3 @@
+bin/
+.cozo_repl_history
+cozo.db.*
