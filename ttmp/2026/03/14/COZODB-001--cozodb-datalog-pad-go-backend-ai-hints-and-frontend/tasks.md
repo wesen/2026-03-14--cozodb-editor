@@ -9,5 +9,5 @@
 - [x] Write CozoDB Backend Guide document
 - [x] Write AI Hint Engine Guide document (pinocchio/geppetto + SEM)
 - [x] Write Frontend Architecture document
-- [ ] Create CozoDB experiment scripts in scripts/ folder
+- [x] Create CozoDB experiment scripts in scripts/ folder
 - [ ] Upload documents to reMarkable
