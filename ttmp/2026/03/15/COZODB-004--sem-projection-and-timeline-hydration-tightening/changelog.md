@@ -2,6 +2,13 @@
 
 ## 2026-03-15
 
+- Implemented the prompt/config cleanup slice in commit `f47083f` (`backend(prompts): remove synthetic id examples`).
+- Removed synthetic `hint_id`, `suggestion_id`, and `doc_ref_id` examples from the extraction config and clarified there that request anchor metadata can be attached by the backend.
+- Re-ran `env GOTOOLCHAIN=auto GOCACHE=/tmp/cozodb-go-build-cache-004b go test ./pkg/hints` to validate the extraction example cleanup against the structured parser tests.
+- Implemented the frontend projector slice in commit `3587339` (`frontend(sem): group threads by bundle metadata`).
+- Added explicit `cozo_bundle` entities, relation-based bundle thread selectors, and a temporary adjacency fallback for legacy events that still lack bundle metadata.
+- Verified that `DatalogPad.jsx` continues to key collapse and dismiss state by `thread.id`, which now resolves to bundle IDs for explicit Cozo threads without adding new projection logic to the screen component.
+- Added frontend coverage for parent-based grouping, interleaved bundle separation, child-before-hint ordering, preview-to-final merge stability, fallback compatibility, and bundle-keyed renderer summaries.
 - Implemented the backend contract slice in commit `99f18ac` (`backend(sem): stabilize bundle metadata and anchors`).
 - Added request-level `anchorLine` and bundle-level `stream_id` plumbing in the websocket API so one response can be correlated as one SEM bundle.
 - Added `ProjectionDefaults` and deterministic bundle/child ID helpers, then threaded those defaults through preview extraction and authoritative structured parsing.

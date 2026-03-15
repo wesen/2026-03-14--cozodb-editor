@@ -51,40 +51,40 @@
 - [x] Backend 7.4: Expand `wrapCozoSEMEvent()` payloads with `mode`
 - [x] Backend 7.5: Expand `wrapCozoSEMEvent()` payloads with `anchor`
 - [x] Backend 7.6: Set `stream_id` to `bundleId` in translated `cozo.*` SEM envelopes if the team accepts the optional cleanup
-- [ ] Backend 8.1: Remove or de-emphasize `hint_id` in prompt examples if it is no longer meaningful
-- [ ] Backend 8.2: Remove or de-emphasize `suggestion_id` in prompt examples if it is no longer meaningful
-- [ ] Backend 8.3: Remove or de-emphasize `doc_ref_id` in prompt examples if it is no longer meaningful
-- [ ] Backend 8.4: Clarify in prompt/config docs that request anchor is backend-authoritative
-- [ ] Frontend 1.1: Add `ENTITY_KIND_COZO_BUNDLE` to `frontend/src/sem/semProjection.js`
-- [ ] Frontend 1.2: Extend projected Cozo leaf entities with `bundleId`
-- [ ] Frontend 1.3: Extend projected Cozo leaf entities with `parentId`
-- [ ] Frontend 1.4: Extend projected Cozo leaf entities with `ordinal`
-- [ ] Frontend 1.5: Extend projected Cozo leaf entities with `mode`
-- [ ] Frontend 1.6: Add bundle upsert helpers to the projector
-- [ ] Frontend 1.7: Ensure bundle IDs are appended to `state.order` on first sighting
-- [ ] Frontend 2.1: Replace adjacency-first `buildSemThreads()` logic with relation-based bundle selectors
-- [ ] Frontend 2.2: Add `getOrderedCozoBundles(...)`
-- [ ] Frontend 2.3: Add `getBundleChildren(...)`
-- [ ] Frontend 2.4: Add `buildBundleThread(...)`
-- [ ] Frontend 2.5: Keep `getInlineSemThreads(...)` as the external selector name
-- [ ] Frontend 2.6: Keep `getTrailingSemThreads(...)` as the external selector name
-- [ ] Frontend 2.7: Add one temporary fallback path for old events that lack bundle metadata
-- [ ] Frontend 3.1: Update `CozoSemRenderer.jsx` to treat `thread.id` as a bundle ID
-- [ ] Frontend 3.2: Update thread summary logic to prefer hint text, then first child label/title
-- [ ] Frontend 3.3: Ensure line labels come from bundle anchor, not inferred child state
-- [ ] Frontend 3.4: Keep collapse/dismiss state keyed by bundle ID in `DatalogPad.jsx`
-- [ ] Frontend 3.5: Keep `DatalogPad.jsx` free of new projection logic beyond selector calls
+- [x] Backend 8.1: Remove or de-emphasize `hint_id` in prompt examples if it is no longer meaningful
+- [x] Backend 8.2: Remove or de-emphasize `suggestion_id` in prompt examples if it is no longer meaningful
+- [x] Backend 8.3: Remove or de-emphasize `doc_ref_id` in prompt examples if it is no longer meaningful
+- [x] Backend 8.4: Clarify in prompt/config docs that request anchor is backend-authoritative
+- [x] Frontend 1.1: Add `ENTITY_KIND_COZO_BUNDLE` to `frontend/src/sem/semProjection.js`
+- [x] Frontend 1.2: Extend projected Cozo leaf entities with `bundleId`
+- [x] Frontend 1.3: Extend projected Cozo leaf entities with `parentId`
+- [x] Frontend 1.4: Extend projected Cozo leaf entities with `ordinal`
+- [x] Frontend 1.5: Extend projected Cozo leaf entities with `mode`
+- [x] Frontend 1.6: Add bundle upsert helpers to the projector
+- [x] Frontend 1.7: Ensure bundle IDs are appended to `state.order` on first sighting
+- [x] Frontend 2.1: Replace adjacency-first `buildSemThreads()` logic with relation-based bundle selectors
+- [x] Frontend 2.2: Add `getOrderedCozoBundles(...)`
+- [x] Frontend 2.3: Add `getBundleChildren(...)`
+- [x] Frontend 2.4: Add `buildBundleThread(...)`
+- [x] Frontend 2.5: Keep `getInlineSemThreads(...)` as the external selector name
+- [x] Frontend 2.6: Keep `getTrailingSemThreads(...)` as the external selector name
+- [x] Frontend 2.7: Add one temporary fallback path for old events that lack bundle metadata
+- [x] Frontend 3.1: Update `CozoSemRenderer.jsx` to treat `thread.id` as a bundle ID
+- [x] Frontend 3.2: Update thread summary logic to prefer hint text, then first child label/title
+- [x] Frontend 3.3: Ensure line labels come from bundle anchor, not inferred child state
+- [x] Frontend 3.4: Keep collapse/dismiss state keyed by bundle ID in `DatalogPad.jsx`
+- [x] Frontend 3.5: Keep `DatalogPad.jsx` free of new projection logic beyond selector calls
 - [x] Testing 1.1: Add backend tests for request anchor preservation
 - [x] Testing 1.2: Add backend tests for preview/final child ID equality
 - [x] Testing 1.3: Add backend tests for one-bundle-per-response grouping
 - [x] Testing 1.4: Add backend tests for doc ref anchor injection
 - [x] Testing 1.5: Add backend tests for failed item bundle metadata
 - [x] Testing 1.6: Add backend tests for same-anchor concurrent bundle separation
-- [ ] Testing 2.1: Add frontend tests for parentId-based grouping
-- [ ] Testing 2.2: Add frontend tests for interleaved bundle separation
-- [ ] Testing 2.3: Add frontend tests for child-before-hint ordering inside a bundle
-- [ ] Testing 2.4: Add frontend tests for bundle anchor deciding inline vs trailing placement
-- [ ] Testing 2.5: Add frontend tests for preview-to-extracted merge on the same child ID
+- [x] Testing 2.1: Add frontend tests for parentId-based grouping
+- [x] Testing 2.2: Add frontend tests for interleaved bundle separation
+- [x] Testing 2.3: Add frontend tests for child-before-hint ordering inside a bundle
+- [x] Testing 2.4: Add frontend tests for bundle anchor deciding inline vs trailing placement
+- [x] Testing 2.5: Add frontend tests for preview-to-extracted merge on the same child ID
 - [ ] Testing 2.6: Add frontend tests for bundle-ID-based collapse and dismiss state
 - [ ] Testing 2.7: Add temporary compatibility tests for old payloads without bundle metadata
 - [ ] Cleanup 1.1: Remove the adjacency fallback after backend rollout stabilizes

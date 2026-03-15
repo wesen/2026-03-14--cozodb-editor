@@ -24,7 +24,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-cozodb-streaming-improvements.md
 Summary: Chronological record for COZODB-004 covering proposal import, proposal-versus-code verification, and production of a local-only SEM projection and hydration-readiness refactor guide.
-LastUpdated: 2026-03-15T15:22:00-04:00
+LastUpdated: 2026-03-15T15:42:00-04:00
 WhatFor: Record how the imported proposal was checked against the local codebase and how the final design and task plan were produced.
 WhenToUse: Use when continuing COZODB-004 or reviewing which parts of the imported proposal were accepted, narrowed, or deferred.
 ---
@@ -351,6 +351,147 @@ The key design constraint in this step was to avoid changing the transport shape
   - translated `cozo.*` SEM envelopes now carry enough metadata for deterministic bundle grouping on the client.
 - Validation command that passed:
   - `env GOTOOLCHAIN=auto GOCACHE=/tmp/cozodb-go-build-cache-004a go test ./pkg/hints ./pkg/api`
+
+## Step 5: Implement the frontend projector and bundle-thread selectors
+
+With the backend contract in place, I moved to the frontend slice. The goal here was to make the projector treat one response as one explicit bundle when the metadata is present, while preserving one temporary compatibility path for older events that still arrive without bundle metadata.
+
+I deliberately kept this work inside the projector and tests instead of spreading it into `DatalogPad.jsx`. The screen component already had the right control surface from the earlier decomposition work: it calls selectors, renders returned threads, and keys collapse/dismiss state by `thread.id`. That meant the main frontend job was to make `thread.id` become the synthetic bundle ID for explicit Cozo bundles.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, work on it task by task, as you go, commit at appropriate intervals, write a diary."
+
+**Assistant interpretation:** Continue with the next coherent implementation slice, commit it separately, and record the architectural reasoning and validation.
+
+**Inferred user intent:** Keep backend/frontend milestones reviewable and independently reversible.
+
+### What I did
+- Extended the projector state and event readers:
+  - `frontend/src/sem/semProjection.js`
+- Added and updated projector tests:
+  - `frontend/src/sem/semProjection.test.js`
+- Tightened renderer tests around bundle-keyed threads:
+  - `frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`
+- Re-read the consuming screen to verify no extra projection logic was being pulled into it:
+  - `frontend/src/DatalogPad.jsx`
+- Validated the frontend slice:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+- Committed the frontend slice:
+  - `git commit -m "frontend(sem): group threads by bundle metadata"`
+  - Commit: `3587339`
+
+### Why
+- The core bug from the imported proposal is adjacency-based grouping. Fixing that required explicit relation-based bundle selectors in the projector, not a renderer workaround.
+- Keeping `DatalogPad.jsx` stable reduces integration risk because the screen remains a consumer of selector output rather than a second source of grouping truth.
+
+### What worked
+- The projector now creates explicit `cozo_bundle` entities when `bundleId`/`parentId` metadata is present.
+- Thread selectors now group explicit Cozo threads by `parentId` and sort children by `ordinal`, which makes child-before-hint arrival safe.
+- The compatibility path still supports old events that do not carry bundle metadata.
+- The existing `DatalogPad.jsx` state shape already worked for bundle-keyed collapse and dismiss behavior because it keys everything off `thread.id`.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The earlier frontend decomposition paid off here. The bundle migration mostly stayed inside the projector and tests because the rendering surface had already been split into sensible modules.
+- Renderer changes were smaller than expected because the grouped-thread interface was already close to the desired final shape.
+
+### What was tricky to build
+- The main subtlety was preserving backward compatibility for legacy events while making explicit bundle grouping the primary path. The safest answer was to keep the external selector names and let them internally combine bundle-first grouping with a narrow adjacency fallback.
+
+### What warrants a second pair of eyes
+- The adjacency fallback should not be allowed to live indefinitely. It is useful for rollout, but it is also technical debt by design.
+- There is still no dedicated `DatalogPad` component test for bundle-keyed dismiss/collapse state. The behavior is simple and was verified by direct code inspection, but an app-level regression test could still be added later if this area changes again.
+
+### What should be done in the future
+- Remove the compatibility fallback once the backend contract is universal.
+- Decide whether a dedicated screen-level test is worth the extra harness cost after the fallback is removed.
+
+### Code review instructions
+- Start with the projector:
+  - `frontend/src/sem/semProjection.js`
+- Then check the bundle-focused tests:
+  - `frontend/src/sem/semProjection.test.js`
+  - `frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`
+- Finally confirm the consumer stays thin:
+  - `frontend/src/DatalogPad.jsx`
+
+### Technical details
+- New frontend projector facts after commit `3587339`:
+  - `cozo.*` leaves can now retain `bundleId`, `parentId`, `ordinal`, and `mode`.
+  - explicit `cozo_bundle` entities are inserted into projection state and ordered by first sighting.
+  - bundle thread construction is relation-based and ordinal-aware.
+  - legacy adjacency grouping remains only as a compatibility fallback.
+- Validation commands that passed:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+
+## Step 6: Clean up the extraction examples so they match the new contract
+
+Once the backend and frontend runtime slices were in place, the remaining low-risk cleanup was to make the extraction examples stop teaching the model to invent synthetic IDs. The runtime still accepts legacy identifier fields for compatibility, but the examples should not imply that those fields are primary anymore because bundle-scoped identity is now assigned by the backend.
+
+This was intentionally a separate commit. It changes the instruction surface, not the live runtime behavior, and that separation makes it easier to review prompt/config drift independently from projector or transport logic.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, work on it task by task, as you go, commit at appropriate intervals, write a diary."
+
+**Assistant interpretation:** Finish the remaining cleanup tasks that are small, coherent, and directly related to the landed refactor.
+
+**Inferred user intent:** Leave the ticket in a consistent state, not with runtime code saying one thing and examples saying another.
+
+### What I did
+- Updated extraction examples and descriptions:
+  - `backend/pkg/hints/extraction_config.yaml`
+- Simplified parser test fixtures to match the new example style:
+  - `backend/pkg/hints/structured_parser_test.go`
+- Re-ran the hint package tests:
+  - `env GOTOOLCHAIN=auto GOCACHE=/tmp/cozodb-go-build-cache-004b go test ./pkg/hints`
+- Committed the cleanup:
+  - `git commit -m "backend(prompts): remove synthetic id examples"`
+  - Commit: `f47083f`
+
+### Why
+- The new deterministic identity contract is backend-owned. Keeping old synthetic IDs in the examples would encourage the model to produce fields that no longer carry architectural weight.
+- Prompt/example cleanup is cheap now and more annoying later once people start cargo-culting the old examples.
+
+### What worked
+- The extraction config now emphasizes user-visible payload content plus optional anchor metadata.
+- The hint package tests still pass with the leaner examples.
+
+### What didn't work
+- The test rerun again spent noticeable time compiling sqlite and transitive dependencies under a fresh cache. That was expected overhead, not a semantic failure, but it is still worth remembering when budgeting iteration time.
+
+### What I learned
+- The highest-leverage place to clean up prompt drift was the extraction config, not the top-level prompt wrapper. That config is what actually renders the structured output instructions shown to the model.
+
+### What was tricky to build
+- There was no real code complexity here. The main discipline was just keeping the cleanup isolated so it did not get hidden inside the larger frontend commit.
+
+### What warrants a second pair of eyes
+- The runtime structs still keep legacy identifier fields for compatibility. That is fine for now, but they may become cleanup candidates once the rollout window closes.
+
+### What should be done in the future
+- Decide whether the compatibility identifier fields in `structured_types.go` should be deprecated more aggressively or removed during the fallback-removal phase.
+
+### Code review instructions
+- Review:
+  - `backend/pkg/hints/extraction_config.yaml`
+  - `backend/pkg/hints/structured_parser_test.go`
+- Then compare the rendered instruction source with the earlier ticket guidance in:
+  - `ttmp/2026/03/15/COZODB-004--sem-projection-and-timeline-hydration-tightening/design-doc/01-sem-projection-and-timeline-hydration-refactor-guide.md`
+
+### Technical details
+- New instruction-surface facts after commit `f47083f`:
+  - synthetic ID fields are no longer highlighted in example payloads.
+  - extraction docs now explicitly mention backend-owned anchor metadata.
+- Validation command that passed:
+  - `env GOTOOLCHAIN=auto GOCACHE=/tmp/cozodb-go-build-cache-004b go test ./pkg/hints`
 
 ### What I learned
 - The most valuable contribution of the imported proposal was its insistence on deterministic grouping metadata.
