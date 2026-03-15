@@ -41,6 +41,7 @@ The first implementation slice is now in place in the application code: the app 
 - **Related Files**: See frontmatter RelatedFiles field
 - **External Sources**: See frontmatter ExternalSources field
 - **Design guide**: [design-doc/01-cozodb-notebook-playground-architecture-and-intern-guide.md](./design-doc/01-cozodb-notebook-playground-architecture-and-intern-guide.md)
+- **UX brief**: [design-doc/02-ux-brief-phase-3-notebook-runtime-and-authoring.md](./design-doc/02-ux-brief-phase-3-notebook-runtime-and-authoring.md)
 - **Diary**: [reference/01-investigation-diary.md](./reference/01-investigation-diary.md)
 - **Tasks**: [tasks.md](./tasks.md)
 

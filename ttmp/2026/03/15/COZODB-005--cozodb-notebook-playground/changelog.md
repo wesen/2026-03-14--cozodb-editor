@@ -2,6 +2,10 @@
 
 ## 2026-03-15
 
+- Added a dedicated UX brief for the designer covering the current notebook state, the real phase 3 runtime/staleness goals, and the next authoring-flow problems to solve.
+
+## 2026-03-15
+
 - Started the real phase 3 runtime work.
 - Added frontend notebook execution-state derivation for dirty and stale cell badges.
 - Implemented conservative stale propagation based on notebook order, upstream dirty cells, and risky earlier reruns.
