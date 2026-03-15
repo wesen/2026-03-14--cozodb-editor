@@ -65,6 +65,63 @@ describe("semProjection", () => {
     });
   });
 
+  it("promotes previews to finals for every cozo widget family", () => {
+    const cases = [
+      {
+        previewType: "cozo.hint.preview",
+        finalType: "cozo.hint.extracted",
+        itemId: "hint-family-1",
+        expectedKind: "cozo_hint",
+        finalData: { text: "final hint" },
+      },
+      {
+        previewType: "cozo.query_suggestion.preview",
+        finalType: "cozo.query_suggestion.extracted",
+        itemId: "query-family-1",
+        expectedKind: "cozo_query_suggestion",
+        finalData: { label: "Add filter", code: "?[x] := x > 1" },
+      },
+      {
+        previewType: "cozo.doc_ref.preview",
+        finalType: "cozo.doc_ref.extracted",
+        itemId: "doc-family-1",
+        expectedKind: "cozo_doc_ref",
+        finalData: { title: "Inline rules", body: "Rules define returned variables." },
+      },
+    ];
+
+    cases.forEach(({ previewType, finalType, itemId, expectedKind, finalData }) => {
+      let state = createSemProjectionState();
+
+      state = applySemEvent(state, {
+        type: previewType,
+        id: `${itemId}-preview`,
+        data: {
+          itemId,
+          transient: true,
+          data: finalData,
+        },
+      });
+      state = applySemEvent(state, {
+        type: finalType,
+        id: `${itemId}-final`,
+        data: {
+          itemId,
+          transient: false,
+          data: finalData,
+        },
+      });
+
+      expect(state.entities[itemId]).toMatchObject({
+        id: itemId,
+        kind: expectedKind,
+        status: "complete",
+        transient: false,
+        data: finalData,
+      });
+    });
+  });
+
   it("routes anchored entities inline and unanchored entities to the trailing selector", () => {
     let state = createSemProjectionState();
 
