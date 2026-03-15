@@ -18,9 +18,10 @@ type DocRef struct {
 
 // HintRequest is a request for AI assistance.
 type HintRequest struct {
-	Question string   `json:"question"`
-	Schema   string   `json:"schema"`
-	History  []string `json:"history,omitempty"`
+	Question   string   `json:"question"`
+	Schema     string   `json:"schema"`
+	History    []string `json:"history,omitempty"`
+	AnchorLine *int     `json:"anchorLine,omitempty"`
 }
 
 // DiagnosisRequest is a request for AI error diagnosis.

@@ -92,11 +92,12 @@ func (p *QuerySuggestionPayload) Identifier() string {
 }
 
 type DocRefPayload struct {
-	DocRefID string `json:"doc_ref_id,omitempty" yaml:"doc_ref_id,omitempty"`
-	Title    string `json:"title" yaml:"title"`
-	Section  string `json:"section,omitempty" yaml:"section,omitempty"`
-	Body     string `json:"body" yaml:"body"`
-	URL      string `json:"url,omitempty" yaml:"url,omitempty"`
+	DocRefID string         `json:"doc_ref_id,omitempty" yaml:"doc_ref_id,omitempty"`
+	Title    string         `json:"title" yaml:"title"`
+	Section  string         `json:"section,omitempty" yaml:"section,omitempty"`
+	Body     string         `json:"body" yaml:"body"`
+	URL      string         `json:"url,omitempty" yaml:"url,omitempty"`
+	Anchor   *AnchorPayload `json:"anchor,omitempty" yaml:"anchor,omitempty"`
 }
 
 func (p *DocRefPayload) Normalize() {
@@ -108,6 +109,9 @@ func (p *DocRefPayload) Normalize() {
 	p.Section = strings.TrimSpace(p.Section)
 	p.Body = strings.TrimSpace(p.Body)
 	p.URL = strings.TrimSpace(p.URL)
+	if p.Anchor != nil {
+		p.Anchor.Normalize()
+	}
 }
 
 func (p *DocRefPayload) IsValid() bool {

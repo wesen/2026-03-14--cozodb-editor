@@ -30,7 +30,7 @@ func (e *payloadExtractor[T]) TagType() string    { return e.family }
 func (e *payloadExtractor[T]) TagVersion() string { return TagVersionV1 }
 
 func (e *payloadExtractor[T]) NewSession(
-	_ context.Context,
+	ctx context.Context,
 	meta gepevents.EventMetadata,
 	itemID string,
 ) structuredsink.ExtractorSession {
@@ -38,6 +38,8 @@ func (e *payloadExtractor[T]) NewSession(
 		extractor: e,
 		meta:      meta,
 		itemID:    itemID,
+		ordinal:   ParseStructuredOrdinal(itemID),
+		defaults:  ProjectionDefaultsFromContext(ctx),
 	}
 }
 
@@ -45,6 +47,8 @@ type payloadExtractorSession[T any] struct {
 	extractor        *payloadExtractor[T]
 	meta             gepevents.EventMetadata
 	itemID           string
+	ordinal          int
+	defaults         ProjectionDefaults
 	ctrl             *parsehelpers.YAMLController[T]
 	lastPreviewSHA16 string
 }
@@ -85,7 +89,9 @@ func (s *payloadExtractorSession[T]) OnRaw(_ context.Context, chunk []byte) []ge
 		return nil
 	}
 	s.lastPreviewSHA16 = sha16
-	return []gepevents.Event{NewCozoPayloadPreview(s.meta, s.itemID, s.extractor.family, *snapshot)}
+
+	itemID, projectionMeta := s.projectSnapshot(snapshot)
+	return []gepevents.Event{NewCozoPayloadPreview(s.meta, itemID, s.extractor.family, *snapshot, projectionMeta)}
 }
 
 func (s *payloadExtractorSession[T]) OnCompleted(context.Context, []byte, bool, error) []gepevents.Event {
@@ -99,4 +105,22 @@ func NewCozoExtractors() []structuredsink.Extractor {
 		newPayloadExtractor(TagTypeQuerySuggestion, func(p *QuerySuggestionPayload) { p.Normalize() }, func(p *QuerySuggestionPayload) bool { return p.IsValid() }),
 		newPayloadExtractor(TagTypeDocRef, func(p *DocRefPayload) { p.Normalize() }, func(p *DocRefPayload) bool { return p.IsValid() }),
 	}
+}
+
+func (s *payloadExtractorSession[T]) projectSnapshot(snapshot *T) (string, CozoProjectionMeta) {
+	if snapshot == nil {
+		return CanonicalChildEntityID(s.defaults, s.extractor.family, s.ordinal, s.itemID), ProjectionMetaFromDefaults(s.defaults, nil, s.ordinal)
+	}
+
+	var anchor *AnchorPayload
+	switch payload := any(snapshot).(type) {
+	case *HintPayload:
+		anchor = ApplyProjectionDefaultsToHintPayload(payload, s.defaults)
+	case *QuerySuggestionPayload:
+		anchor = ApplyProjectionDefaultsToQuerySuggestionPayload(payload, s.defaults)
+	case *DocRefPayload:
+		anchor = ApplyProjectionDefaultsToDocRefPayload(payload, s.defaults)
+	}
+
+	return CanonicalChildEntityID(s.defaults, s.extractor.family, s.ordinal, s.itemID), ProjectionMetaFromDefaults(s.defaults, anchor, s.ordinal)
 }

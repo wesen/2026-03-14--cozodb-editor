@@ -58,60 +58,65 @@ func (r StructuredParseResult) ToHintResponse() *HintResponse {
 }
 
 type structuredBlock struct {
-	Family string
-	Raw    string
-	ItemID string
+	Family  string
+	Raw     string
+	Ordinal int
 }
 
-func ParseStructuredResponse(meta gepevents.EventMetadata, fullText string) StructuredParseResult {
-	visible, blocks, malformed := scanStructuredBlocks(meta, fullText)
+func ParseStructuredResponse(meta gepevents.EventMetadata, fullText string, defaults ProjectionDefaults) StructuredParseResult {
+	visible, blocks, malformed := scanStructuredBlocks(meta, fullText, defaults)
 	result := StructuredParseResult{
 		VisibleText: strings.TrimSpace(visible),
 	}
 
 	for _, block := range blocks {
+		fallbackID := structuredItemID(meta, block.Ordinal)
+		itemID := CanonicalChildEntityID(defaults, block.Family, block.Ordinal, fallbackID)
 		switch block.Family {
 		case TagTypeHint:
 			var payload HintPayload
 			if err := yaml.Unmarshal([]byte(block.Raw), &payload); err != nil {
-				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, err.Error(), block.Raw))
+				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, err.Error(), block.Raw, ProjectionMetaFromDefaults(defaults, nil, block.Ordinal)))
 				continue
 			}
 			payload.Normalize()
+			anchor := ApplyProjectionDefaultsToHintPayload(&payload, defaults)
 			if !payload.IsValid() {
-				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, "invalid hint payload", block.Raw))
+				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, "invalid hint payload", block.Raw, ProjectionMetaFromDefaults(defaults, anchor, block.Ordinal)))
 				continue
 			}
 			result.Hints = append(result.Hints, payload)
-			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadExtracted(meta, block.ItemID, block.Family, payload))
+			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadExtracted(meta, itemID, block.Family, payload, ProjectionMetaFromDefaults(defaults, anchor, block.Ordinal)))
 		case TagTypeQuerySuggestion:
 			var payload QuerySuggestionPayload
 			if err := yaml.Unmarshal([]byte(block.Raw), &payload); err != nil {
-				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, err.Error(), block.Raw))
+				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, err.Error(), block.Raw, ProjectionMetaFromDefaults(defaults, nil, block.Ordinal)))
 				continue
 			}
 			payload.Normalize()
+			anchor := ApplyProjectionDefaultsToQuerySuggestionPayload(&payload, defaults)
 			if !payload.IsValid() {
-				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, "invalid query suggestion payload", block.Raw))
+				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, "invalid query suggestion payload", block.Raw, ProjectionMetaFromDefaults(defaults, anchor, block.Ordinal)))
 				continue
 			}
 			result.QuerySuggestions = append(result.QuerySuggestions, payload)
-			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadExtracted(meta, block.ItemID, block.Family, payload))
+			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadExtracted(meta, itemID, block.Family, payload, ProjectionMetaFromDefaults(defaults, anchor, block.Ordinal)))
 		case TagTypeDocRef:
 			var payload DocRefPayload
 			if err := yaml.Unmarshal([]byte(block.Raw), &payload); err != nil {
-				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, err.Error(), block.Raw))
+				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, err.Error(), block.Raw, ProjectionMetaFromDefaults(defaults, nil, block.Ordinal)))
 				continue
 			}
 			payload.Normalize()
+			anchor := ApplyProjectionDefaultsToDocRefPayload(&payload, defaults)
 			if !payload.IsValid() {
-				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, "invalid doc ref payload", block.Raw))
+				result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, "invalid doc ref payload", block.Raw, ProjectionMetaFromDefaults(defaults, anchor, block.Ordinal)))
 				continue
 			}
 			result.DocRefs = append(result.DocRefs, payload)
-			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadExtracted(meta, block.ItemID, block.Family, payload))
+			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadExtracted(meta, itemID, block.Family, payload, ProjectionMetaFromDefaults(defaults, anchor, block.Ordinal)))
 		default:
-			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, block.ItemID, block.Family, "unsupported structured family", block.Raw))
+			result.AuthoritativeEvents = append(result.AuthoritativeEvents, NewCozoPayloadFailed(meta, itemID, block.Family, "unsupported structured family", block.Raw, ProjectionMetaFromDefaults(defaults, nil, block.Ordinal)))
 		}
 	}
 
@@ -119,7 +124,7 @@ func ParseStructuredResponse(meta gepevents.EventMetadata, fullText string) Stru
 	return result
 }
 
-func scanStructuredBlocks(meta gepevents.EventMetadata, fullText string) (string, []structuredBlock, []gepevents.Event) {
+func scanStructuredBlocks(meta gepevents.EventMetadata, fullText string, defaults ProjectionDefaults) (string, []structuredBlock, []gepevents.Event) {
 	var visible strings.Builder
 	blocks := []structuredBlock{}
 	malformed := []gepevents.Event{}
@@ -157,7 +162,8 @@ func scanStructuredBlocks(meta gepevents.EventMetadata, fullText string) (string
 		closeRel := strings.Index(fullText[payloadStart:], closeTag)
 		if closeRel < 0 {
 			seq++
-			malformed = append(malformed, NewCozoPayloadFailed(meta, structuredItemID(meta, seq), family, "unterminated structured block", fullText[start:]))
+			itemID := CanonicalChildEntityID(defaults, family, seq, structuredItemID(meta, seq))
+			malformed = append(malformed, NewCozoPayloadFailed(meta, itemID, family, "unterminated structured block", fullText[start:], ProjectionMetaFromDefaults(defaults, nil, seq)))
 			cursor = len(fullText)
 			break
 		}
@@ -165,9 +171,9 @@ func scanStructuredBlocks(meta gepevents.EventMetadata, fullText string) (string
 		seq++
 		payloadEnd := payloadStart + closeRel
 		blocks = append(blocks, structuredBlock{
-			Family: family,
-			Raw:    strings.TrimSpace(fullText[payloadStart:payloadEnd]),
-			ItemID: structuredItemID(meta, seq),
+			Family:  family,
+			Raw:     strings.TrimSpace(fullText[payloadStart:payloadEnd]),
+			Ordinal: seq,
 		})
 		cursor = payloadEnd + len(closeTag)
 	}

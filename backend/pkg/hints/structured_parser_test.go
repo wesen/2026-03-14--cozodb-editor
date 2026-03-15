@@ -20,6 +20,11 @@ func (s *captureSink) PublishEvent(event gepevents.Event) error {
 
 func TestParseStructuredResponseBuildsCompatibilityResponse(t *testing.T) {
 	meta := gepevents.EventMetadata{ID: uuid.MustParse("11111111-1111-1111-1111-111111111111")}
+	defaults := ProjectionDefaults{
+		BundleID: "bundle-1",
+		Source:   "hint.request",
+		Mode:     "hint",
+	}
 	fullText := `Use an inline rule and return the variables you want.
 
 <cozo:hint:v1>
@@ -48,7 +53,7 @@ section: §2.1
 body: The ?[vars] := body pattern defines an inline rule.
 </cozo:doc_ref:v1>`
 
-	result := ParseStructuredResponse(meta, fullText)
+	result := ParseStructuredResponse(meta, fullText, defaults)
 	if result.VisibleText != "Use an inline rule and return the variables you want." {
 		t.Fatalf("unexpected visible text: %q", result.VisibleText)
 	}
@@ -83,8 +88,14 @@ body: The ?[vars] := body pattern defines an inline rule.
 func TestFilteringSinkEmitsCozoPreviewEvents(t *testing.T) {
 	meta := gepevents.EventMetadata{ID: uuid.MustParse("22222222-2222-2222-2222-222222222222")}
 	capture := &captureSink{}
+	line := 4
 	sink := structuredsink.NewFilteringSinkWithContext(
-		context.Background(),
+		WithProjectionDefaults(context.Background(), ProjectionDefaults{
+			BundleID:   "bundle-preview",
+			AnchorLine: &line,
+			Source:     "hint.request",
+			Mode:       "hint",
+		}),
 		capture,
 		structuredsink.Options{Malformed: structuredsink.MalformedErrorEvents},
 		NewCozoExtractors()...,
@@ -106,6 +117,15 @@ func TestFilteringSinkEmitsCozoPreviewEvents(t *testing.T) {
 			foundPreview = true
 			if ev.Family != TagTypeHint {
 				t.Fatalf("unexpected preview family: %s", ev.Family)
+			}
+			if ev.ItemID != "cozo-item:bundle-preview:hint:1" {
+				t.Fatalf("unexpected preview item id: %s", ev.ItemID)
+			}
+			if ev.BundleID != "bundle-preview" || ev.ParentID != "cozo-bundle:bundle-preview" {
+				t.Fatalf("unexpected preview projection meta: %#v", ev.CozoProjectionMeta)
+			}
+			if ev.Anchor == nil || ev.Anchor.Line == nil || *ev.Anchor.Line != 4 {
+				t.Fatalf("expected injected anchor line, got %#v", ev.Anchor)
 			}
 		case *gepevents.EventPartialCompletion:
 			foundFilteredPartial = true

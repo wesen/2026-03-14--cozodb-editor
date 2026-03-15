@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
@@ -94,17 +95,27 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 	// Get current schema
 	schema, _ := h.DB.GetSchema()
 
+	bundleID := uuid.NewString()
+	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
+		BundleID:   bundleID,
+		AnchorLine: req.AnchorLine,
+		Source:     "hint.request",
+		Mode:       "hint",
+	})
+
 	hintReq := hints.HintRequest{
-		Question: req.Question,
-		Schema:   schema,
-		History:  req.History,
+		Question:   req.Question,
+		Schema:     schema,
+		History:    req.History,
+		AnchorLine: req.AnchorLine,
 	}
 
 	if h.Engine == nil {
 		// No AI engine — send a fallback response
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
-			Type: "hint.result",
-			ID:   idStr,
+			Type:     "hint.result",
+			ID:       idStr,
+			StreamID: bundleID,
 			Data: hints.HintResponse{
 				Text:  "AI hints are not available (ANTHROPIC_API_KEY not set). Try writing CozoScript directly!",
 				Chips: []string{"show CozoScript syntax", "create a relation"},
@@ -119,34 +130,37 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 	}
 
 	// Send start event
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr}})
+	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr, StreamID: bundleID}})
 
 	semSink := NewWebSocketSEMSink(writeJSON)
 
 	// Stream deltas
 	hint, err := h.Engine.GenerateHintWithSinks(reqCtx, hintReq, func(delta string) {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
-			Type: "llm.delta",
-			ID:   idStr,
-			Data: delta,
+			Type:     "llm.delta",
+			ID:       idStr,
+			StreamID: bundleID,
+			Data:     delta,
 		}})
 	}, semSink)
 
 	if err != nil {
 		log.Printf("[WS] hint error: %v", err)
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
-			Type: "llm.error",
-			ID:   idStr,
-			Data: err.Error(),
+			Type:     "llm.error",
+			ID:       idStr,
+			StreamID: bundleID,
+			Data:     err.Error(),
 		}})
 		return
 	}
 
 	// Send final result
 	writeJSON(WSMessage{SEM: true, Event: WSEvent{
-		Type: "hint.result",
-		ID:   idStr,
-		Data: hint,
+		Type:     "hint.result",
+		ID:       idStr,
+		StreamID: bundleID,
+		Data:     hint,
 	}})
 }
 
@@ -166,6 +180,13 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 
 	schema, _ := h.DB.GetSchema()
 
+	bundleID := uuid.NewString()
+	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
+		BundleID: bundleID,
+		Source:   "diagnosis.request",
+		Mode:     "diagnosis",
+	})
+
 	diagReq := hints.DiagnosisRequest{
 		Error:  req.Error,
 		Script: req.Script,
@@ -174,8 +195,9 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 
 	if h.Engine == nil {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
-			Type: "hint.result",
-			ID:   idStr,
+			Type:     "hint.result",
+			ID:       idStr,
+			StreamID: bundleID,
 			Data: hints.HintResponse{
 				Text:  "AI diagnosis is not available (ANTHROPIC_API_KEY not set). Check the error message and CozoScript docs.",
 				Chips: []string{"CozoScript syntax help"},
@@ -184,31 +206,34 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		return
 	}
 
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr}})
+	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr, StreamID: bundleID}})
 
 	semSink := NewWebSocketSEMSink(writeJSON)
 
 	hint, err := h.Engine.DiagnoseErrorWithSinks(reqCtx, diagReq, func(delta string) {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
-			Type: "llm.delta",
-			ID:   idStr,
-			Data: delta,
+			Type:     "llm.delta",
+			ID:       idStr,
+			StreamID: bundleID,
+			Data:     delta,
 		}})
 	}, semSink)
 
 	if err != nil {
 		log.Printf("[WS] diagnosis error: %v", err)
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
-			Type: "llm.error",
-			ID:   idStr,
-			Data: err.Error(),
+			Type:     "llm.error",
+			ID:       idStr,
+			StreamID: bundleID,
+			Data:     err.Error(),
 		}})
 		return
 	}
 
 	writeJSON(WSMessage{SEM: true, Event: WSEvent{
-		Type: "hint.result",
-		ID:   idStr,
-		Data: hint,
+		Type:     "hint.result",
+		ID:       idStr,
+		StreamID: bundleID,
+		Data:     hint,
 	}})
 }

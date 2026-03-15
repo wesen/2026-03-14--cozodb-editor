@@ -44,15 +44,17 @@ type WSMessage struct {
 
 // WSEvent is a WebSocket event.
 type WSEvent struct {
-	Type string `json:"type"`
-	ID   string `json:"id,omitempty"`
-	Data any    `json:"data,omitempty"`
+	Type     string `json:"type"`
+	ID       string `json:"id,omitempty"`
+	StreamID string `json:"stream_id,omitempty"`
+	Data     any    `json:"data,omitempty"`
 }
 
 // HintRequest is a request for AI hints over WebSocket.
 type HintRequest struct {
-	Question string   `json:"question"`
-	History  []string `json:"history,omitempty"`
+	Question   string   `json:"question"`
+	History    []string `json:"history,omitempty"`
+	AnchorLine *int     `json:"anchorLine,omitempty"`
 }
 
 // DiagnosisRequest is a request for AI error diagnosis over WebSocket.

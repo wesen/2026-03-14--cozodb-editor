@@ -142,7 +142,7 @@ func (e *Engine) runInference(
 		return nil, fmt.Errorf("inference produced no assistant text")
 	}
 
-	parsed := ParseStructuredResponse(sink.Metadata(), fullText)
+	parsed := ParseStructuredResponse(sink.Metadata(), fullText, ProjectionDefaultsFromContext(ctx))
 	if len(externalSinks) > 0 && len(parsed.AuthoritativeEvents) > 0 {
 		derivedSink := &fanoutSink{sinks: externalSinks}
 		for _, event := range parsed.AuthoritativeEvents {
