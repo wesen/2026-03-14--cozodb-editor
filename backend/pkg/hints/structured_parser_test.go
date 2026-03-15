@@ -25,10 +25,9 @@ func TestParseStructuredResponseBuildsCompatibilityResponse(t *testing.T) {
 		Source:   "hint.request",
 		Mode:     "hint",
 	}
-	fullText := `Use an inline rule and return the variables you want.
+fullText := `Use an inline rule and return the variables you want.
 
 <cozo:hint:v1>
-hint_id: primary
 text: Use an inline rule and return the variables you want.
 code: |
   ?[name, age] := *users{name, age}
@@ -39,7 +38,6 @@ warning: Check the relation name and selected columns.
 </cozo:hint:v1>
 
 <cozo:query_suggestion:v1>
-suggestion_id: filter-age
 label: Filter to age > 30
 code: |
   ?[name, age] := *users{name, age}, age > 30
@@ -47,7 +45,6 @@ reason: Add a comparison directly in the rule body.
 </cozo:query_suggestion:v1>
 
 <cozo:doc_ref:v1>
-doc_ref_id: inline-rules
 title: Inline rules
 section: §2.1
 body: The ?[vars] := body pattern defines an inline rule.
