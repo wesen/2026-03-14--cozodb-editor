@@ -2,6 +2,9 @@
 
 ## 2026-03-15
 
+- Implemented the structured extraction backend slice for COZODB-002 in commit `9ef88f6` (`backend(sem): add structured extraction event pipeline`).
+- Added Cozo YAML payload schemas, preview extractors, authoritative final parsing, pinocchio SEM handler registration, a websocket SEM sink, prompt/config updates, and backend tests covering extraction and translation.
+- Validated the backend slice with `env GOTOOLCHAIN=auto go mod tidy` and `env GOTOOLCHAIN=auto go test ./...`.
 - Implemented the first backend migration slice for COZODB-002 in commit `9af6a58` (`backend(hints): switch streaming inference to geppetto`).
 - Replaced the direct Anthropic SDK hint path with a geppetto session plus event-sink bridge, preserved the existing websocket delta/result contract, and made websocket-driven inference cancel with the connection context.
 - Updated `backend/go.mod` for the geppetto toolchain requirements and validated the backend with `env GOTOOLCHAIN=auto go mod tidy` and `env GOTOOLCHAIN=auto go test ./...`.

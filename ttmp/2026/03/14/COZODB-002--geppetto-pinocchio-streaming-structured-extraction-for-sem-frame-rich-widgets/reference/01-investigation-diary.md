@@ -28,16 +28,25 @@ RelatedFiles:
     - Path: backend/pkg/api/websocket.go
       Note: Diary evidence for missing cancellation and current transport
     - Path: backend/pkg/api/websocket.go:Validated request lifecycle, ad-hoc SEM envelope, and missing cancellation
+    - Path: backend/pkg/api/ws_sem_sink.go
+      Note: Bridges custom extraction events into websocket SEM envelopes using pinocchio's event translator
     - Path: backend/pkg/hints/engine.go:Validated the local inference path and JSON-only contract
+    - Path: backend/pkg/hints/sem_registry.go
+      Note: Registers custom pinocchio SEM handlers for cozo.hint/query_suggestion/doc_ref events
     - Path: backend/pkg/hints/streaming_sink.go
       Note: Captures the first geppetto event sink used to bridge partial text into the existing websocket contract
+    - Path: backend/pkg/hints/structured_extractors.go
+      Note: Implements the FilteringSink preview extractors for Cozo YAML families
+    - Path: backend/pkg/hints/structured_parser.go
+      Note: Performs authoritative final-response extraction and compatibility response synthesis
     - Path: frontend/src/DatalogPad.jsx:Validated frontend websocket handling and lack of projection layer
 ExternalSources: []
 Summary: Chronological investigation record for COZODB-002 covering repository validation, code-review findings, reference-pattern verification, and ticket deliverable preparation.
-LastUpdated: 2026-03-15T01:57:50-04:00
+LastUpdated: 2026-03-15T02:08:15-04:00
 WhatFor: Record what was validated, what patterns were confirmed, which commands were run, and how the final deliverable was produced.
 WhenToUse: Use this diary when reviewing the ticket deliverable or continuing implementation from the design document.
 ---
+
 
 
 
@@ -329,6 +338,125 @@ The key constraint in this step was preserving observable behavior while changin
   - base URL: `https://api.anthropic.com`
   - env override for model: `ANTHROPIC_MODEL`
 - Validation command that passed:
+  - `env GOTOOLCHAIN=auto go test ./...`
+
+## Step 5: Add the structured extraction and SEM translation pipeline behind the existing websocket UX
+
+Once the runtime was geppetto-backed, the next job was to make the output stream carry real structured Cozo artifacts instead of only plain deltas and a final compatibility card. I kept the old `hint.result` path alive for the existing frontend, but added the actual extraction pipeline underneath it: tagged YAML blocks in the prompt contract, preview extraction through `FilteringSink`, authoritative extraction from the final assistant text, and websocket SEM forwarding through pinocchio for the new `cozo.*` event families.
+
+The most important design choice in this step was to split preview and authoritative extraction exactly the way the reference repos do. The `FilteringSink` sessions only emit transient preview events while the model is still streaming, and the final parsed assistant text produces the authoritative `extracted` or `failed` events after inference completes. That keeps the system honest about what is and is not durable.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue implementing the next backend tasks in order, commit a coherent extraction/SEM slice, and keep the ticket record detailed enough for continuation.
+
+**Inferred user intent:** Turn the design doc into a real streaming/extraction backend rather than stopping at the engine swap.
+
+**Commit (code):** `9ef88f6` — `backend(sem): add structured extraction event pipeline`
+
+### What I did
+- Added Cozo payload schemas in `backend/pkg/hints/structured_types.go`:
+  - `HintPayload`
+  - `QuerySuggestionPayload`
+  - `DocRefPayload`
+  - optional `AnchorPayload`
+- Added generic Cozo extraction event types in `backend/pkg/hints/structured_events.go` for:
+  - preview
+  - extracted
+  - failed
+- Implemented typed preview extractors in `backend/pkg/hints/structured_extractors.go` using the same `ContextPayloadExtractor[T]` shape as the `temporal-relationships` reference.
+- Added authoritative full-text parsing in `backend/pkg/hints/structured_parser.go`, which:
+  - strips `<cozo:...:v1>` blocks from visible text
+  - parses YAML payloads into typed structs
+  - emits `extracted` or `failed` events
+  - synthesizes the legacy `HintResponse` for the current frontend
+- Added `backend/pkg/hints/extraction_config.yaml` plus `backend/pkg/hints/extraction_config.go` and rewrote `backend/pkg/hints/prompt.go` to instruct the model to emit tagged YAML blocks instead of final JSON.
+- Updated `backend/pkg/hints/engine.go` to:
+  - wrap the stream in `FilteringSink`
+  - send preview events during streaming
+  - parse the final assistant text authoritatively
+  - forward extracted/failed events to downstream sinks
+- Added pinocchio SEM registration in `backend/pkg/hints/sem_registry.go` for:
+  - `cozo.hint.preview|extracted|failed`
+  - `cozo.query_suggestion.preview|extracted|failed`
+  - `cozo.doc_ref.preview|extracted|failed`
+- Added `backend/pkg/api/ws_sem_sink.go` and wired it into `backend/pkg/api/websocket.go` so custom extraction events are translated into websocket SEM envelopes using pinocchio's `EventTranslator`.
+- Added backend tests:
+  - `backend/pkg/hints/structured_parser_test.go`
+  - `backend/pkg/hints/sem_registry_test.go`
+- Ran:
+  - `gofmt -w backend/pkg/hints/*.go backend/pkg/api/*.go`
+  - `env GOTOOLCHAIN=auto go mod tidy`
+  - `env GOTOOLCHAIN=auto go test ./...`
+
+### Why
+- The migration would not become UI-ready until the backend emitted stable semantic artifacts rather than one opaque final blob.
+- Prompt changes, preview extraction, authoritative parsing, and SEM registration belong together because they define one contract.
+- Keeping the existing `hint.result` compatibility response avoids coupling this backend milestone to the later frontend SEM migration.
+
+### What worked
+- The backend now emits custom Cozo semantic event families over the websocket without breaking the current frontend.
+- Preview extraction happens during streaming, while final extraction happens from the completed assistant text, matching the reference architecture.
+- `env GOTOOLCHAIN=auto go test ./...` passed with the new pinocchio dependency and the added backend tests.
+
+### What didn't work
+- After introducing the actual pinocchio imports, the backend failed until the module graph was normalized:
+  - Command: `env GOTOOLCHAIN=auto go test ./...`
+  - Error: `module github.com/go-go-golems/pinocchio provides package ... and is replaced but not required; to add it: go get github.com/go-go-golems/pinocchio`
+- That required a second normalization pass:
+  - Command: `env GOTOOLCHAIN=auto go mod tidy`
+- The prompt migration also forced a compatibility rewrite: the old JSON parser could no longer be kept once tagged YAML became the source of truth.
+
+### What I learned
+- The cleanest way to preserve the old UI while moving to structured extraction is to derive the legacy `HintResponse` from the authoritative extracted payloads rather than trying to keep two prompt formats alive.
+- pinocchio can be introduced incrementally if the websocket sink forwards only the new custom extraction event types for now and leaves the legacy `llm.*` transport untouched.
+- The Cozo families are small enough that an explicit typed parser is more maintainable than a fully generic reflection-heavy approach.
+
+### What was tricky to build
+- The hardest part was identity consistency between preview and final events. The `FilteringSink` assigns `item_id`s based on stream order, so the final parser had to mirror that ordering scheme to make preview-to-final replacement possible later in the frontend projection layer.
+- Another sharp edge was avoiding duplicated `llm.*` events. pinocchio's default handlers would happily translate start, delta, and final model events too, but the current frontend still expects the older hand-written shapes. The websocket SEM sink therefore only forwards the new custom Cozo events in this slice.
+
+### What warrants a second pair of eyes
+- The prompt contract is now materially different: it depends on the model reliably producing valid tagged YAML blocks. Reviewers should read the extraction config and prompt text together, not in isolation.
+- The compatibility path from extracted payloads back into `HintResponse` is intentionally temporary. It should be reviewed to ensure it does not become the permanent source of truth once the frontend SEM widgets land.
+
+### What should be done in the future
+- Implement the frontend SEM projection and Cozo widget rendering next so the new `cozo.*` events become visible in the UI.
+- Retire the legacy `hint.result` path once the frontend can consume `llm.final` plus `cozo.*.extracted` directly.
+- Add frontend tests for preview-to-final merges using the item IDs now emitted by the backend.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/hints/structured_extractors.go`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/hints/structured_parser.go`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/hints/sem_registry.go`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/api/ws_sem_sink.go`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/hints/prompt.go`
+- Then validate:
+  - `env GOTOOLCHAIN=auto go test ./...`
+- Review the tests to confirm both the extraction and translation behavior:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/hints/structured_parser_test.go`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/hints/sem_registry_test.go`
+
+### Technical details
+- Structured family tags introduced in this slice:
+  - `<cozo:hint:v1>`
+  - `<cozo:query_suggestion:v1>`
+  - `<cozo:doc_ref:v1>`
+- New websocket semantic event types introduced:
+  - `cozo.hint.preview`
+  - `cozo.hint.extracted`
+  - `cozo.hint.failed`
+  - `cozo.query_suggestion.preview`
+  - `cozo.query_suggestion.extracted`
+  - `cozo.query_suggestion.failed`
+  - `cozo.doc_ref.preview`
+  - `cozo.doc_ref.extracted`
+  - `cozo.doc_ref.failed`
+- Validation commands that passed:
+  - `env GOTOOLCHAIN=auto go mod tidy`
   - `env GOTOOLCHAIN=auto go test ./...`
 
 ## Step 3: Update the COZODB-002 UI plan after the frontend decomposition landed

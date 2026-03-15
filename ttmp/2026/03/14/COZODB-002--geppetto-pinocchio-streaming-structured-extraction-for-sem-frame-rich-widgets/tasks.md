@@ -10,18 +10,18 @@
 - [x] Add geppetto Go module dependency and align the backend toolchain in `backend/go.mod`
 - [x] Replace hints.Engine with geppetto engine builder + step controller
 - [x] Propagate websocket request context into hint and diagnosis inference runs
+- [x] Finish pinocchio Go module dependency wiring in backend/go.mod when the SEM translation sink is introduced
+- [x] Define CozoScript extraction payload types (HintPayload, DocRefPayload, QuerySuggestionPayload)
+- [x] Implement extractors using ContextPayloadExtractor[T] pattern from temporal-relationships
+- [x] Wire FilteringSink with CozoScript extractors in sink chain
+- [x] Register SEM handlers for custom extraction events (cozo.hint/query/docref)
+- [x] Implement WebSocketSEMSink using pinocchio EventTranslator
+- [x] Update system prompts to emit tagged YAML blocks for structured extraction
+- [x] Create extraction config YAML for cozodb-editor hint engine
+- [x] Add backend tests for Cozo extractor families and SEM translation
 
 ## TODO
 
-- [ ] Finish pinocchio Go module dependency wiring in backend/go.mod when the SEM translation sink is introduced
-- [ ] Define CozoScript extraction payload types (HintPayload, DocRefPayload, QuerySuggestionPayload)
-- [ ] Implement extractors using ContextPayloadExtractor[T] pattern from temporal-relationships
-- [ ] Wire FilteringSink with CozoScript extractors in sink chain
-- [ ] Register SEM handlers for custom extraction events (cozo.hint/query/docref)
-- [ ] Implement WebSocketSEMSink using pinocchio EventTranslator
-- [ ] Update system prompts to emit tagged YAML blocks for structured extraction
-- [ ] Create extraction config YAML for cozodb-editor hint engine
-- [ ] Add backend tests for Cozo extractor families and SEM translation
 - [ ] UI 1.1: Keep `frontend/src/transport/hintsSocket.js` as the websocket seam and adapt envelope parsing only if pinocchio transport details differ
 - [ ] UI 1.2: Add `frontend/src/sem/registerDefaultSemHandlers.js` for `llm.start`, `llm.delta`, `llm.final`, and `llm.error`
 - [ ] UI 1.3: Add `frontend/src/sem/registerCozoSemHandlers.js` for `cozo.hint.*`, `cozo.query_suggestion.*`, and `cozo.doc_ref.*`
