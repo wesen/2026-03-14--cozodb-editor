@@ -9,9 +9,10 @@ import { QueryResultsTable } from "./features/query-results/QueryResultsTable";
 import {
   applySemEvent,
   createSemProjectionState,
-  getInlineSemEntities,
+  getAllSemThreads,
+  getInlineSemThreads,
   getStreamingEntries,
-  getTrailingSemEntities,
+  getTrailingSemThreads,
 } from "./sem/semProjection";
 import { registerCozoSemHandlers } from "./sem/registerCozoSemHandlers";
 import { registerDefaultSemHandlers } from "./sem/registerDefaultSemHandlers";
@@ -113,6 +114,8 @@ export default function DatalogPad() {
   const [running, setRunning] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
   const [semProjection, setSemProjection] = useState(() => createSemProjectionState());
+  const [collapsedSemThreads, setCollapsedSemThreads] = useState({});
+  const [dismissedSemThreads, setDismissedSemThreads] = useState({});
 
   const ws = useHintsSocket();
 
@@ -189,6 +192,16 @@ export default function DatalogPad() {
     setCollapsedBlocks(prev => ({ ...prev, [lineIdx]: !prev[lineIdx] }));
   };
 
+  const toggleSemThreadCollapse = useCallback((threadId) => {
+    setCollapsedSemThreads((prev) => ({ ...prev, [threadId]: !prev[threadId] }));
+  }, []);
+
+  const dismissSemThread = useCallback((threadId) => {
+    setDismissedSemThreads((prev) => ({ ...prev, [threadId]: true }));
+  }, []);
+
+  const isSemThreadVisible = useCallback((thread) => !dismissedSemThreads[thread.id], [dismissedSemThreads]);
+
   const handleRun = async () => {
     const code = lines.filter(l => !l.startsWith("#")).join("\n").trim();
     if (!code || running) return;
@@ -246,8 +259,9 @@ export default function DatalogPad() {
 
   // Collect all streaming blocks for display
   const activeStreams = getStreamingEntries(semProjection);
-  const trailingSemEntities = getTrailingSemEntities(semProjection);
-  const aiResponseCount = Object.keys(mockAiBlocks).length + trailingSemEntities.length;
+  const trailingSemThreads = getTrailingSemThreads(semProjection).filter(isSemThreadVisible);
+  const visibleSemThreadCount = getAllSemThreads(semProjection).filter(isSemThreadVisible).length;
+  const aiResponseCount = Object.keys(mockAiBlocks).length + visibleSemThreadCount + activeStreams.length;
 
   return (
     <div className="cozo-pad-root">
@@ -388,12 +402,15 @@ export default function DatalogPad() {
               />
             ) : null}
 
-            {getInlineSemEntities(semProjection, idx).map((entity) => (
+            {getInlineSemThreads(semProjection, idx).filter(isSemThreadVisible).map((thread) => (
               <CozoSemRenderer
-                key={entity.id}
-                entity={entity}
+                key={thread.id}
+                collapsed={Boolean(collapsedSemThreads[thread.id])}
                 onAskQuestion={handleChipClick}
+                onDismiss={() => dismissSemThread(thread.id)}
                 onInsertCode={handleInsert}
+                onToggleCollapse={() => toggleSemThreadCollapse(thread.id)}
+                thread={thread}
               />
             ))}
           </>
@@ -403,12 +420,15 @@ export default function DatalogPad() {
           <StreamingMessageCard key={id} text={text} />
         ))}
 
-        {trailingSemEntities.map((entity) => (
+        {trailingSemThreads.map((thread) => (
           <CozoSemRenderer
-            key={entity.id}
-            entity={entity}
+            key={thread.id}
+            collapsed={Boolean(collapsedSemThreads[thread.id])}
             onAskQuestion={handleChipClick}
+            onDismiss={() => dismissSemThread(thread.id)}
             onInsertCode={handleInsert}
+            onToggleCollapse={() => toggleSemThreadCollapse(thread.id)}
+            thread={thread}
           />
         ))}
       </PadEditor>

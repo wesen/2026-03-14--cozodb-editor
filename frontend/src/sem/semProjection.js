@@ -143,6 +143,48 @@ function isCozoKind(kind) {
   );
 }
 
+function trimTrailingDisplayWhitespace(text) {
+  return typeof text === "string" ? text.replace(/[ \t\r\n]+$/u, "") : "";
+}
+
+function getOrderedSemEntities(state, predicate) {
+  return state.order
+    .map((entityId) => state.entities[entityId])
+    .filter((entity) => isCozoKind(entity?.kind) && predicate(entity));
+}
+
+function buildSemThreads(entities) {
+  const threads = [];
+  let currentThread = null;
+
+  entities.forEach((entity) => {
+    if (entity.kind === ENTITY_KIND_COZO_HINT) {
+      currentThread = {
+        id: entity.id,
+        hint: entity,
+        children: [],
+        anchorLine: entity.anchorLine ?? null,
+      };
+      threads.push(currentThread);
+      return;
+    }
+
+    if (currentThread) {
+      currentThread.children.push(entity);
+      return;
+    }
+
+    threads.push({
+      id: entity.id,
+      hint: null,
+      children: [entity],
+      anchorLine: entity.anchorLine ?? null,
+    });
+  });
+
+  return threads;
+}
+
 export function createSemProjectionState() {
   return {
     entities: {},
@@ -187,7 +229,7 @@ export function applySemEvent(state, event) {
         ...entity,
         kind: ENTITY_KIND_LLM_TEXT_STREAM,
         status: "complete",
-        finalText: extractLLMFinalText(event),
+        finalText: trimTrailingDisplayWhitespace(extractLLMFinalText(event)),
       };
       break;
     case LLM_ERROR_EVENT:
@@ -236,7 +278,7 @@ export function getStreamingEntries(state) {
   return state.order
     .map((entityId) => state.entities[entityId])
     .filter((entity) => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming")
-    .map((entity) => [entity.id, entity.text]);
+    .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
 }
 
 export function getCompletedHintEntries(state) {
@@ -247,13 +289,21 @@ export function getCompletedHintEntries(state) {
 }
 
 export function getInlineSemEntities(state, lineIdx) {
-  return state.order
-    .map((entityId) => state.entities[entityId])
-    .filter((entity) => isCozoKind(entity?.kind) && entity?.anchorLine === lineIdx);
+  return getOrderedSemEntities(state, (entity) => entity?.anchorLine === lineIdx);
 }
 
 export function getTrailingSemEntities(state) {
-  return state.order
-    .map((entityId) => state.entities[entityId])
-    .filter((entity) => isCozoKind(entity?.kind) && entity?.anchorLine == null);
+  return getOrderedSemEntities(state, (entity) => entity?.anchorLine == null);
+}
+
+export function getInlineSemThreads(state, lineIdx) {
+  return buildSemThreads(getInlineSemEntities(state, lineIdx));
+}
+
+export function getTrailingSemThreads(state) {
+  return buildSemThreads(getTrailingSemEntities(state));
+}
+
+export function getAllSemThreads(state) {
+  return buildSemThreads(getOrderedSemEntities(state, () => true));
 }

@@ -4,8 +4,10 @@ import {
   createSemProjectionState,
   getCompletedHintEntries,
   getInlineSemEntities,
+  getInlineSemThreads,
   getStreamingEntries,
   getTrailingSemEntities,
+  getTrailingSemThreads,
 } from "./semProjection";
 
 describe("semProjection", () => {
@@ -17,6 +19,15 @@ describe("semProjection", () => {
     state = applySemEvent(state, { type: "llm.delta", id: "hint-1", data: " world" });
 
     expect(getStreamingEntries(state)).toEqual([["hint-1", "hello world"]]);
+  });
+
+  it("trims trailing whitespace from streaming text for display", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, { type: "llm.start", id: "hint-2" });
+    state = applySemEvent(state, { type: "llm.delta", id: "hint-2", data: "hello world\n\n" });
+
+    expect(getStreamingEntries(state)).toEqual([["hint-2", "hello world"]]);
   });
 
   it("preserves compatibility hint entries until the legacy path is retired", () => {
@@ -151,6 +162,74 @@ describe("semProjection", () => {
 
     expect(getInlineSemEntities(state, 3).map((entity) => entity.id)).toEqual(["suggestion-1"]);
     expect(getTrailingSemEntities(state).map((entity) => entity.id)).toEqual(["doc-1"]);
+  });
+
+  it("groups hint threads with their structured child entities", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "hint-event",
+      data: {
+        itemId: "hint-1",
+        data: {
+          text: "Use an inline rule.",
+          anchor: { line: 4 },
+        },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.query_suggestion.extracted",
+      id: "query-event",
+      data: {
+        itemId: "query-1",
+        data: {
+          label: "Add a filter",
+          code: "?[name] := *users{name}, age > 30",
+          anchor: { line: 4 },
+        },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.doc_ref.extracted",
+      id: "doc-event",
+      data: {
+        itemId: "doc-1",
+        data: {
+          title: "Inline rules",
+          body: "Rules define returned variables.",
+          anchor: { line: 4 },
+        },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.doc_ref.extracted",
+      id: "trailing-doc-event",
+      data: {
+        itemId: "doc-2",
+        data: {
+          title: "Global reference",
+          body: "Applies across the notebook.",
+        },
+      },
+    });
+
+    expect(getInlineSemThreads(state, 4)).toEqual([
+      {
+        id: "hint-1",
+        hint: state.entities["hint-1"],
+        children: [state.entities["query-1"], state.entities["doc-1"]],
+        anchorLine: 4,
+      },
+    ]);
+    expect(getTrailingSemThreads(state)).toEqual([
+      {
+        id: "doc-2",
+        hint: null,
+        children: [state.entities["doc-2"]],
+        anchorLine: null,
+      },
+    ]);
   });
 
   it("keeps errored cozo entities in the projection for widget-level error rendering", () => {
