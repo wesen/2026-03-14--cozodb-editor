@@ -58,8 +58,8 @@ describe("runtimeState", () => {
 
     const state = buildNotebookExecutionState(cells, runtimeByCell, []);
 
-    expect(state.cell_a.stale).toBe(false);
-    expect(state.cell_b.stale).toBe(true);
+    expect(state.cell_a!.stale).toBe(false);
+    expect(state.cell_b!.stale).toBe(true);
   });
 
   it("marks downstream cells stale when an upstream cell is dirty", () => {
@@ -74,7 +74,7 @@ describe("runtimeState", () => {
 
     const state = buildNotebookExecutionState(cells, runtimeByCell, ["cell_a"]);
 
-    expect(state.cell_a.dirty).toBe(true);
-    expect(state.cell_b.stale).toBe(true);
+    expect(state.cell_a!.dirty).toBe(true);
+    expect(state.cell_b!.stale).toBe(true);
   });
 });

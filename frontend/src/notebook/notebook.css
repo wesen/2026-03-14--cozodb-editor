@@ -32,6 +32,11 @@
 /* ===== Cell Card ===== */
 .mac-cell-card {
   margin-bottom: 12px;
+  transition: box-shadow 0.1s ease;
+}
+
+.mac-cell-card.is-active {
+  box-shadow: 3px 3px 0px #000;
 }
 
 .mac-cell-card .mac-window__titlebar {
@@ -76,6 +81,18 @@
   color: #4a3f99;
 }
 
+.mac-cell-status.is-ai {
+  border-color: #3377aa;
+  background: #e0eef8;
+  color: #225588;
+}
+
+.mac-cell-timestamp {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .mac-cell-body {
   padding: 8px;
 }
@@ -95,6 +112,92 @@
 
 .mac-cell-editor:focus {
   box-shadow: 0 0 0 2px #000 inset;
+}
+
+/* ===== Markdown Preview ===== */
+.mac-md-preview {
+  padding: 8px;
+  cursor: text;
+  min-height: 32px;
+  font-size: 13px;
+  line-height: 1.6;
+  border: 1px dashed #ccc;
+}
+
+.mac-md-preview:hover {
+  border-color: #999;
+  background: #fafafa;
+}
+
+.mac-md-preview .mac-md-h {
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+
+.mac-md-preview h1.mac-md-h { font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+.mac-md-preview h2.mac-md-h { font-size: 17px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+.mac-md-preview h3.mac-md-h { font-size: 15px; }
+.mac-md-preview h4.mac-md-h { font-size: 13px; }
+
+.mac-md-preview .mac-md-p {
+  margin: 4px 0;
+}
+
+.mac-md-preview .mac-md-ul {
+  margin: 4px 0 4px 20px;
+}
+
+.mac-md-preview .mac-md-code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  background: #eee;
+  border: 1px solid #ccc;
+  padding: 1px 4px;
+}
+
+.mac-md-preview .mac-md-pre {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  background: var(--bg-code);
+  border: 1px solid var(--border-code);
+  padding: 8px;
+  margin: 6px 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.mac-md-preview a {
+  color: var(--doc-link);
+}
+
+.mac-md-preview em {
+  font-style: italic;
+}
+
+/* ===== Output Section ===== */
+.mac-cell-output {
+  position: relative;
+}
+
+.mac-cell-output.is-dimmed {
+  opacity: 0.5;
+}
+
+.mac-cell-output.is-dimmed::before {
+  content: "output may be outdated";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 9px;
+  color: var(--text-muted);
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 0 4px;
+  z-index: 1;
+}
+
+.mac-cell-output__toggle {
+  margin: 6px 0 2px;
 }
 
 /* ===== Cell Error ===== */
@@ -171,7 +274,7 @@
   justify-content: center;
 }
 
-/* ===== Legacy compat: notebook badges/actions ===== */
+/* ===== Legacy compat ===== */
 .cozo-notebook-root {
   min-height: 100vh;
 }

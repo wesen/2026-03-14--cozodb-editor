@@ -144,21 +144,21 @@
 
 ## Phase 3: Notebook Ergonomics
 
-- [ ] UX 3.1: Render markdown cells as formatted output when not actively editing
-- [ ] UX 3.2: Add explicit active-cell state with stronger visual indication
-- [ ] UX 3.3: Add notebook keyboard navigation between cells
+- [x] UX 3.1: Render markdown cells as formatted output when not actively editing
+- [x] UX 3.2: Add explicit active-cell state with stronger visual indication
+- [x] UX 3.3: Add notebook keyboard navigation between cells (j/k, Ctrl+Shift+arrows, Enter to edit)
 - [ ] UX 3.4: Add command-style insertion shortcuts for code and markdown cells
-- [ ] UX 3.5: Add per-cell edit/preview mode for markdown cells
-- [ ] UX 3.6: Add per-cell output collapse for large result or AI sections
-- [ ] UX 3.7: Add stable focus behavior after inserting cells from toolbar and AI suggestions
+- [x] UX 3.5: Add per-cell edit/preview mode for markdown cells (click to edit, Esc to preview)
+- [x] UX 3.6: Add per-cell output collapse for large result or AI sections
+- [x] UX 3.7: Add stable focus behavior after inserting cells from toolbar and AI suggestions
 - [ ] UX 3.8: Add notebook-level “run next code cell” / “insert below and focus” convenience flow
 - [ ] UX 3.9: Add frontend tests covering active-cell movement, markdown preview, and insert-below focus retention
 
 ## Phase 3: Runtime UX
 
-- [ ] Runtime 3.1: Surface latest run timestamp or execution badge details per cell
+- [x] Runtime 3.1: Surface latest run timestamp per cell
 - [x] Runtime 3.2: Add a lightweight “dirty since last run” indicator for edited code cells
-- [ ] Runtime 3.3: Add a lightweight “AI attached to this run” indicator when a cell has bundles or fallback responses
+- [x] Runtime 3.3: Add a lightweight “AI attached to this run” indicator when a cell has bundles or fallback responses
 - [ ] Runtime 3.4: Decide whether latest-output-only remains sufficient or whether a small per-cell run history affordance is needed next
 - [x] Runtime 3.5: Add conservative downstream staleness derived from notebook order, upstream dirty state, and risky earlier reruns
 - [x] Runtime 3.6: Add frontend tests for conservative dirty and stale state derivation

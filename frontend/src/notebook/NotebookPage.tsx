@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NotebookCellCard } from "./NotebookCellCard";
 import { useNotebookDocument } from "./useNotebookDocument";
 import { createSemProjectionState, applySemEvent } from "../sem/semProjection";
@@ -33,6 +33,8 @@ export default function NotebookPage() {
   const [collapsedThreads, setCollapsedThreads] = useState<Record<string, boolean>>({});
   const [dismissedThreads, setDismissedThreads] = useState<Record<string, boolean>>({});
   const [aiPrompts, setAIPrompts] = useState<Record<string, string>>({});
+  const [rawActiveCellIndex, setActiveCellIndex] = useState(0);
+  const activeCellIndex = document ? Math.min(rawActiveCellIndex, Math.max(0, document.cells.length - 1)) : 0;
 
   useEffect(() => {
     const onProject = (event: SemEvent) => {
@@ -48,6 +50,46 @@ export default function NotebookPage() {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [ws]);
+
+  // Keyboard navigation at notebook level
+  const handleNotebookKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
+    if (!document) return;
+    const target = event.target as HTMLElement;
+    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT";
+
+    // Ctrl+Shift+ArrowUp/Down: move between cells even when in editor
+    if (event.ctrlKey && event.shiftKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+      event.preventDefault();
+      setActiveCellIndex((current) => {
+        const max = document.cells.length - 1;
+        return event.key === "ArrowUp" ? Math.max(0, current - 1) : Math.min(max, current + 1);
+      });
+      return;
+    }
+
+    // Don't intercept keys when typing in an input
+    if (isInInput) return;
+
+    // Arrow keys: navigate cells
+    if (event.key === "ArrowUp" || event.key === "k") {
+      event.preventDefault();
+      setActiveCellIndex((current) => Math.max(0, current - 1));
+    } else if (event.key === "ArrowDown" || event.key === "j") {
+      event.preventDefault();
+      setActiveCellIndex((current) => Math.min(document.cells.length - 1, current + 1));
+    } else if (event.key === "Enter") {
+      // Enter: focus editor of active cell
+      event.preventDefault();
+      const card = window.document.querySelector(`.mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview`);
+      if (card instanceof HTMLElement) card.click();
+      if (card instanceof HTMLTextAreaElement) card.focus();
+    }
+  }, [document]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleNotebookKeyDown);
+    return () => window.removeEventListener("keydown", handleNotebookKeyDown);
+  }, [handleNotebookKeyDown]);
 
   function setAIPrompt(cellId: string, value: string) {
     setAIPrompts((current) => ({ ...current, [cellId]: value }));
@@ -101,11 +143,20 @@ export default function NotebookPage() {
   }
 
   async function handleInsertCodeBelow(cellId: string, source = "") {
-    await insertCellAfter(cellId, "code", source);
+    const newCell = await insertCellAfter(cellId, "code", source);
+    if (newCell && document) {
+      // Focus the new cell
+      const idx = document.cells.findIndex((c) => c.id === cellId);
+      if (idx >= 0) setActiveCellIndex(idx + 1);
+    }
   }
 
   async function handleInsertMarkdownBelow(cellId: string) {
-    await insertCellAfter(cellId, "markdown", "");
+    const newCell = await insertCellAfter(cellId, "markdown", "");
+    if (newCell && document) {
+      const idx = document.cells.findIndex((c) => c.id === cellId);
+      if (idx >= 0) setActiveCellIndex(idx + 1);
+    }
   }
 
   if (loading) {
@@ -153,6 +204,7 @@ export default function NotebookPage() {
         <span className="mac-menubar__item">Cell</span>
         <span className="mac-menubar__item">Runtime</span>
         <span className="mac-menubar__spacer" />
+        <span className="mac-menubar__hint">j/k nav | Enter edit | Shift+Enter run</span>
         <span className={`mac-menubar__status ${ws.connected ? "is-connected" : ""}`}>
           {ws.connected ? "Connected" : "Offline"}
         </span>
@@ -188,6 +240,7 @@ export default function NotebookPage() {
               aiPrompt={aiPrompts[cell.id] || ""}
               cell={cell}
               cellIndex={index}
+              isActive={index === activeCellIndex}
               collapsedThreads={collapsedThreads}
               dismissedThreads={dismissedThreads}
               onAskAI={handleAskAI}
@@ -195,6 +248,7 @@ export default function NotebookPage() {
               onDelete={removeCell}
               onDiagnose={handleDiagnose}
               onDismissThread={(threadId: string) => setDismissedThreads((current) => ({ ...current, [threadId]: true }))}
+              onFocus={setActiveCellIndex}
               onInsertCodeBelow={handleInsertCodeBelow}
               onInsertMarkdownBelow={handleInsertMarkdownBelow}
               onMoveDown={moveCell}

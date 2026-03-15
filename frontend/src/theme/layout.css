@@ -48,6 +48,13 @@
   content: "@ ";
 }
 
+.mac-menubar__hint {
+  font-size: 10px;
+  color: #999;
+  font-weight: 400;
+  margin-right: 12px;
+}
+
 /* ===== Window ===== */
 .mac-window {
   background: var(--bg-window);
