@@ -51,6 +51,23 @@ export default function NotebookPage() {
     };
   }, [ws]);
 
+  // Run active cell and advance focus to the next code cell
+  async function handleRunAndAdvance(cellId: string) {
+    const runtime = await runCell(cellId);
+    if (runtime) {
+      setCellRuntime((current) => ({ ...current, [cellId]: runtime }));
+    }
+    if (!document) return;
+    // Advance to next code cell, or stay if none
+    const currentIdx = document.cells.findIndex((c) => c.id === cellId);
+    for (let i = currentIdx + 1; i < document.cells.length; i++) {
+      if (document.cells[i]?.kind === "code") {
+        setActiveCellIndex(i);
+        return;
+      }
+    }
+  }
+
   // Keyboard navigation at notebook level
   const handleNotebookKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
     if (!document) return;
@@ -67,24 +84,60 @@ export default function NotebookPage() {
       return;
     }
 
-    // Don't intercept keys when typing in an input
+    // Ctrl+Enter in editor: run and advance
+    if (event.ctrlKey && event.key === "Enter" && isInInput) {
+      event.preventDefault();
+      const activeCell = document.cells[activeCellIndex];
+      if (activeCell?.kind === "code") {
+        handleRunAndAdvance(activeCell.id);
+      }
+      return;
+    }
+
+    // Don't intercept other keys when typing in an input
     if (isInInput) return;
 
-    // Arrow keys: navigate cells
+    // Arrow keys / j/k: navigate cells
     if (event.key === "ArrowUp" || event.key === "k") {
       event.preventDefault();
       setActiveCellIndex((current) => Math.max(0, current - 1));
     } else if (event.key === "ArrowDown" || event.key === "j") {
       event.preventDefault();
       setActiveCellIndex((current) => Math.min(document.cells.length - 1, current + 1));
+    } else if (event.key === "Enter" && event.shiftKey) {
+      // Shift+Enter outside editor: run active cell and advance
+      event.preventDefault();
+      const activeCell = document.cells[activeCellIndex];
+      if (activeCell?.kind === "code") {
+        handleRunAndAdvance(activeCell.id);
+      }
     } else if (event.key === "Enter") {
       // Enter: focus editor of active cell
       event.preventDefault();
       const card = window.document.querySelector(`.mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview`);
       if (card instanceof HTMLElement) card.click();
       if (card instanceof HTMLTextAreaElement) card.focus();
+    } else if (event.key === "a") {
+      // a: insert code cell after active
+      event.preventDefault();
+      const activeCell = document.cells[activeCellIndex];
+      if (activeCell) handleInsertCodeBelow(activeCell.id);
+    } else if (event.key === "m") {
+      // m: insert markdown cell after active
+      event.preventDefault();
+      const activeCell = document.cells[activeCellIndex];
+      if (activeCell) handleInsertMarkdownBelow(activeCell.id);
+    } else if (event.key === "x") {
+      // x: delete active cell
+      event.preventDefault();
+      const activeCell = document.cells[activeCellIndex];
+      if (activeCell) removeCell(activeCell.id);
+    } else if (event.key === "Escape") {
+      // Escape: blur any focused element, return to nav mode
+      (window.document.activeElement as HTMLElement)?.blur?.();
     }
-  }, [document]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document, activeCellIndex]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleNotebookKeyDown);
@@ -204,7 +257,7 @@ export default function NotebookPage() {
         <span className="mac-menubar__item">Cell</span>
         <span className="mac-menubar__item">Runtime</span>
         <span className="mac-menubar__spacer" />
-        <span className="mac-menubar__hint">j/k nav | Enter edit | Shift+Enter run</span>
+        <span className="mac-menubar__hint">j/k nav | Enter edit | Shift+Enter run+advance | a +code | m +md | x delete</span>
         <span className={`mac-menubar__status ${ws.connected ? "is-connected" : ""}`}>
           {ws.connected ? "Connected" : "Offline"}
         </span>
