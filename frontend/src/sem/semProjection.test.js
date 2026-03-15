@@ -3,7 +3,9 @@ import {
   applySemEvent,
   createSemProjectionState,
   getCompletedHintEntries,
+  getInlineSemEntities,
   getStreamingEntries,
+  getTrailingSemEntities,
 } from "./semProjection";
 
 describe("semProjection", () => {
@@ -17,54 +19,100 @@ describe("semProjection", () => {
     expect(getStreamingEntries(state)).toEqual([["hint-1", "hello world"]]);
   });
 
-  it("preserves the canonical id across streaming and final updates", () => {
+  it("preserves compatibility hint entries until the legacy path is retired", () => {
     let state = createSemProjectionState();
 
-    state = applySemEvent(state, { type: "llm.start", id: "hint-7" });
-    state = applySemEvent(state, { type: "llm.delta", id: "hint-7", data: "draft" });
     state = applySemEvent(state, {
       type: "hint.result",
       id: "hint-7",
       data: { text: "final", chips: ["next"] },
     });
 
-    expect(getStreamingEntries(state)).toEqual([]);
     expect(getCompletedHintEntries(state)).toEqual([
       ["hint-7", { text: "final", chips: ["next"] }],
     ]);
-    expect(state.order).toEqual(["hint-7"]);
   });
 
-  it("applies final-style merging rules by replacing preview state with a completed result", () => {
+  it("promotes cozo preview entities to final entities using the canonical item id", () => {
     let state = createSemProjectionState();
 
-    state = applySemEvent(state, { type: "llm.start", id: "hint-9" });
-    state = applySemEvent(state, { type: "llm.delta", id: "hint-9", data: "preview" });
     state = applySemEvent(state, {
-      type: "hint.result",
-      id: "hint-9",
-      data: { text: "preview promoted to final", code: "?[x] := x = 1" },
-    });
-
-    expect(state.entities["hint-9"]).toMatchObject({
-      id: "hint-9",
-      status: "complete",
-      text: "preview",
-      response: {
-        text: "preview promoted to final",
-        code: "?[x] := x = 1",
+      type: "cozo.hint.preview",
+      id: "event-preview-id",
+      data: {
+        itemId: "cozo-item-1",
+        transient: true,
+        data: { text: "preview hint" },
       },
     });
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "event-final-id",
+      data: {
+        itemId: "cozo-item-1",
+        transient: false,
+        data: { text: "final hint", code: "?[x] := x = 1" },
+      },
+    });
+
+    expect(state.order).toEqual(["cozo-item-1"]);
+    expect(state.entities["cozo-item-1"]).toMatchObject({
+      id: "cozo-item-1",
+      kind: "cozo_hint",
+      status: "complete",
+      transient: false,
+      data: { text: "final hint", code: "?[x] := x = 1" },
+    });
   });
 
-  it("removes errored streams from the streaming selector", () => {
+  it("routes anchored entities inline and unanchored entities to the trailing selector", () => {
     let state = createSemProjectionState();
 
-    state = applySemEvent(state, { type: "llm.start", id: "hint-err" });
-    state = applySemEvent(state, { type: "llm.delta", id: "hint-err", data: "partial" });
-    state = applySemEvent(state, { type: "llm.error", id: "hint-err" });
+    state = applySemEvent(state, {
+      type: "cozo.query_suggestion.extracted",
+      id: "suggestion-event",
+      data: {
+        itemId: "suggestion-1",
+        data: {
+          label: "Add a filter",
+          code: "?[name] := *users{name}, age > 30",
+          anchor: { line: 3 },
+        },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.doc_ref.extracted",
+      id: "doc-event",
+      data: {
+        itemId: "doc-1",
+        data: {
+          title: "Inline rules",
+          body: "Rules define returned variables.",
+        },
+      },
+    });
 
-    expect(getStreamingEntries(state)).toEqual([]);
-    expect(state.entities["hint-err"].status).toBe("error");
+    expect(getInlineSemEntities(state, 3).map((entity) => entity.id)).toEqual(["suggestion-1"]);
+    expect(getTrailingSemEntities(state).map((entity) => entity.id)).toEqual(["doc-1"]);
+  });
+
+  it("keeps errored cozo entities in the projection for widget-level error rendering", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "cozo.doc_ref.failed",
+      id: "doc-failed-event",
+      data: {
+        itemId: "doc-failed-1",
+        error: "invalid payload",
+      },
+    });
+
+    expect(state.entities["doc-failed-1"]).toMatchObject({
+      id: "doc-failed-1",
+      kind: "cozo_doc_ref",
+      status: "error",
+      error: "invalid payload",
+    });
   });
 });

@@ -1,22 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { PadEditor } from "./editor/PadEditor";
 import { usePadDocument } from "./editor/usePadDocument";
+import { CozoSemRenderer } from "./features/cozo-sem/CozoSemRenderer";
 import { DiagnosisCard } from "./features/diagnosis/DiagnosisCard";
 import { HintResponseCard } from "./features/hints/HintResponseCard";
 import { StreamingMessageCard } from "./features/hints/StreamingMessageCard";
 import { QueryResultsTable } from "./features/query-results/QueryResultsTable";
 import {
-  HINT_RESULT_EVENT,
-  LLM_DELTA_EVENT,
-  LLM_ERROR_EVENT,
-  LLM_START_EVENT,
-} from "./sem/semEventTypes";
-import {
   applySemEvent,
   createSemProjectionState,
-  getCompletedHintEntries,
+  getInlineSemEntities,
   getStreamingEntries,
+  getTrailingSemEntities,
 } from "./sem/semProjection";
+import { registerCozoSemHandlers } from "./sem/registerCozoSemHandlers";
+import { registerDefaultSemHandlers } from "./sem/registerDefaultSemHandlers";
 import "./theme/cards.css";
 import "./theme/layout.css";
 import "./theme/tokens.css";
@@ -120,47 +118,41 @@ export default function DatalogPad() {
 
   // Set up WebSocket event handlers
   useEffect(() => {
-    const unsubStart = ws.on(LLM_START_EVENT, (event) => {
+    const onProject = (event) => {
       setSemProjection((current) => applySemEvent(current, event));
-    });
+    };
 
-    const unsubDelta = ws.on(LLM_DELTA_EVENT, (event) => {
-      setSemProjection((current) => applySemEvent(current, event));
-    });
-
-    const unsubResult = ws.on(HINT_RESULT_EVENT, (event) => {
-      setSemProjection((current) => applySemEvent(current, event));
-
-      const response = event.data;
-      if (event.id.startsWith("diag-")) {
-        // Diagnosis result — update error block
-        setErrorBlock(prev => prev ? {
-          ...prev,
-          fix: {
-            text: response.text || "See the suggested fix.",
-            code: response.code || null,
-          },
-        } : null);
-        setDiagnosing(false);
-      }
-    });
-
-    const unsubError = ws.on(LLM_ERROR_EVENT, (event) => {
-      setSemProjection((current) => applySemEvent(current, event));
-      setDiagnosing(false);
-    });
+    const unsubscribers = [
+      ...registerDefaultSemHandlers(ws, {
+        onError: () => {
+          setDiagnosing(false);
+        },
+        onHintResult: (event) => {
+          const response = event.data;
+          if (event.id.startsWith("diag-")) {
+            setErrorBlock(prev => prev ? {
+              ...prev,
+              fix: {
+                text: response.text || "See the suggested fix.",
+                code: response.code || null,
+              },
+            } : null);
+            setDiagnosing(false);
+          }
+        },
+        onProject,
+      }),
+      ...registerCozoSemHandlers(ws, { onProject }),
+    ];
 
     return () => {
-      unsubStart();
-      unsubDelta();
-      unsubResult();
-      unsubError();
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [ws]);
 
   const requestHint = useCallback((question, lineIdx) => {
     // Try WebSocket first
-    const sent = ws.send("hint.request", { question, history: [] });
+    const sent = ws.send("hint.request", { question, history: [], anchorLine: lineIdx });
     if (!sent) {
       // Fallback to mock
       const response = matchResponse(question);
@@ -254,8 +246,8 @@ export default function DatalogPad() {
 
   // Collect all streaming blocks for display
   const activeStreams = getStreamingEntries(semProjection);
-  const completedHints = getCompletedHintEntries(semProjection);
-  const aiResponseCount = Object.keys(mockAiBlocks).length + completedHints.length;
+  const trailingSemEntities = getTrailingSemEntities(semProjection);
+  const aiResponseCount = Object.keys(mockAiBlocks).length + trailingSemEntities.length;
 
   return (
     <div className="cozo-pad-root">
@@ -385,29 +377,38 @@ export default function DatalogPad() {
         onLineChange={handleLineChange}
         onLineClick={selectLine}
         renderAfterLine={(idx) => (
-          mockAiBlocks[`mock-${idx}`] ? (
-            <HintResponseCard
-              response={mockAiBlocks[`mock-${idx}`]}
-              collapsed={!!collapsedBlocks[idx]}
-              onToggleCollapse={() => toggleCollapse(idx)}
-              onChipClick={handleChipClick}
-              onInsert={handleInsert}
-            />
-          ) : null
+          <>
+            {mockAiBlocks[`mock-${idx}`] ? (
+              <HintResponseCard
+                response={mockAiBlocks[`mock-${idx}`]}
+                collapsed={!!collapsedBlocks[idx]}
+                onToggleCollapse={() => toggleCollapse(idx)}
+                onChipClick={handleChipClick}
+                onInsert={handleInsert}
+              />
+            ) : null}
+
+            {getInlineSemEntities(semProjection, idx).map((entity) => (
+              <CozoSemRenderer
+                key={entity.id}
+                entity={entity}
+                onAskQuestion={handleChipClick}
+                onInsertCode={handleInsert}
+              />
+            ))}
+          </>
         )}
       >
         {activeStreams.map(([id, text]) => (
           <StreamingMessageCard key={id} text={text} />
         ))}
 
-        {completedHints.map(([key, response]) => (
-          <HintResponseCard
-            key={key}
-            response={response}
-            collapsed={!!collapsedBlocks[key]}
-            onToggleCollapse={() => toggleCollapse(key)}
-            onChipClick={handleChipClick}
-            onInsert={handleInsert}
+        {trailingSemEntities.map((entity) => (
+          <CozoSemRenderer
+            key={entity.id}
+            entity={entity}
+            onAskQuestion={handleChipClick}
+            onInsertCode={handleInsert}
           />
         ))}
       </PadEditor>
