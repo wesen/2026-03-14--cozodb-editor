@@ -17,6 +17,7 @@ export default function NotebookPage() {
   const {
     document,
     error,
+    executionStateByCell,
     loading,
     runtimeByCell,
     insertCellAfter,
@@ -202,6 +203,7 @@ export default function NotebookPage() {
               onRun={handleRunCell}
               onSetAIPrompt={setAIPrompt}
               onToggleThreadCollapse={(threadId: string) => setCollapsedThreads((current) => ({ ...current, [threadId]: !current[threadId] }))}
+              executionState={executionStateByCell[cell.id]}
               runtime={runtimeByCell[cell.id]}
               semProjection={semProjection}
               wsConnected={ws.connected}

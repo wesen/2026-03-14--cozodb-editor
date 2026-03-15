@@ -14,6 +14,7 @@ import type {
   NotebookDocument,
   UpdateCellPayload,
 } from "../transport/httpClient";
+import { buildNotebookExecutionState, type NotebookExecutionState } from "./runtimeState";
 
 function reorderCells(cells: NotebookCell[], cellId: string, targetIndex: number): NotebookCell[] {
   const currentIndex = cells.findIndex((cell) => cell.id === cellId);
@@ -30,6 +31,7 @@ function reorderCells(cells: NotebookCell[], cellId: string, targetIndex: number
 export interface UseNotebookDocumentResult {
   document: NotebookDocument | null;
   error: string | null;
+  executionStateByCell: Record<string, NotebookExecutionState>;
   loading: boolean;
   runtimeByCell: Record<string, CellRuntime>;
   insertCellAfter: (afterCellId: string, kind: "code" | "markdown", source?: string) => Promise<NotebookCell | null>;
@@ -46,6 +48,7 @@ export interface UseNotebookDocumentResult {
 export function useNotebookDocument(): UseNotebookDocumentResult {
   const [document, setDocument] = useState<NotebookDocument | null>(null);
   const [runtimeByCell, setRuntimeByCell] = useState<Record<string, CellRuntime>>({});
+  const [localDirtyCellIds, setLocalDirtyCellIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +63,7 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
 
     setDocument(response as NotebookDocument);
     setRuntimeByCell((response as NotebookDocument).runtime || {});
+    setLocalDirtyCellIds(new Set());
     setError(null);
     setLoading(false);
   }
@@ -80,6 +84,7 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
       }
       setDocument(response as NotebookDocument);
       setRuntimeByCell((response as NotebookDocument).runtime || {});
+      setLocalDirtyCellIds(new Set());
       setError(null);
       setLoading(false);
     })();
@@ -94,9 +99,14 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
       ...current,
       cells: current.cells.map((cell) => cell.id === cellId ? { ...cell, source } : cell),
     } : current);
+    setLocalDirtyCellIds((current) => new Set(current).add(cellId));
   }
 
   async function persistCell(cellId: string, updates: UpdateCellPayload): Promise<NotebookCell | null> {
+    if (!localDirtyCellIds.has(cellId)) {
+      const existingCell = document?.cells.find((cell) => cell.id === cellId) || null;
+      return existingCell;
+    }
     const response = await updateNotebookCell(cellId, updates);
     if ("id" in response) {
       const cell = response as NotebookCell;
@@ -104,6 +114,11 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
         ...current,
         cells: current.cells.map((c) => c.id === cellId ? cell : c),
       } : current);
+      setLocalDirtyCellIds((current) => {
+        const next = new Set(current);
+        next.delete(cellId);
+        return next;
+      });
       return cell;
     }
 
@@ -136,6 +151,9 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
         ...current,
         cells: [...current.cells, cell].sort((left, right) => left.position - right.position),
       } : current);
+      if (cell.kind === "code" && cell.source.trim() !== "") {
+        setLocalDirtyCellIds((current) => new Set(current).add(cell.id));
+      }
       return cell;
     }
 
@@ -166,6 +184,11 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
       delete next[cellId];
       return next;
     });
+    setLocalDirtyCellIds((current) => {
+      const next = new Set(current);
+      next.delete(cellId);
+      return next;
+    });
 
     const response = await deleteNotebookCell(cellId);
     if (!("ok" in response) || response.ok !== true) {
@@ -182,6 +205,11 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
         ...current,
         [cellId]: runtime,
       }));
+      setLocalDirtyCellIds((current) => {
+        const next = new Set(current);
+        next.delete(cellId);
+        return next;
+      });
       return runtime;
     }
 
@@ -189,9 +217,14 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
     return null;
   }
 
+  const executionStateByCell = document
+    ? buildNotebookExecutionState(document.cells, runtimeByCell, localDirtyCellIds)
+    : {};
+
   return {
     document,
     error,
+    executionStateByCell,
     loading,
     runtimeByCell,
     insertCellAfter,

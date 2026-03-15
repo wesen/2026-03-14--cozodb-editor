@@ -81,6 +81,8 @@ export interface CellRun {
   notebook_id: string;
   status: "running" | "complete" | "error";
   execution_count: number;
+  started_at_ms?: number;
+  finished_at_ms?: number;
 }
 
 export interface CellRuntime {

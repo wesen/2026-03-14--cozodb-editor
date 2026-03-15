@@ -12,6 +12,7 @@ import {
 } from "../sem/semProjection";
 import type { SemProjectionState } from "../sem/semProjection";
 import type { CellRunOutput, CellRuntime, NotebookCell } from "../transport/httpClient";
+import type { NotebookExecutionState } from "./runtimeState";
 
 interface CellErrorCardProps {
   output: CellRunOutput;
@@ -53,6 +54,7 @@ export interface NotebookCellCardProps {
   onRun: (cellId: string) => void;
   onSetAIPrompt: (cellId: string, value: string) => void;
   onToggleThreadCollapse: (threadId: string) => void;
+  executionState?: NotebookExecutionState;
   runtime?: CellRuntime;
   semProjection: SemProjectionState;
   wsConnected: boolean;
@@ -80,6 +82,7 @@ export function NotebookCellCard({
   aiPrompt,
   onDismissThread,
   onToggleThreadCollapse,
+  executionState,
 }: NotebookCellCardProps) {
   const [showAIForm, setShowAIForm] = useState(false);
   const streams = getStreamingEntriesForCell(semProjection, cell.id);
@@ -90,6 +93,8 @@ export function NotebookCellCard({
   const isCode = cell.kind === "code";
   const runStatus = runtime?.run?.status || "idle";
   const executionCount = runtime?.run?.execution_count;
+  const isDirty = Boolean(executionState?.dirty);
+  const isStale = Boolean(executionState?.stale);
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && event.shiftKey && isCode) {
@@ -111,6 +116,8 @@ export function NotebookCellCard({
           <span className={`mac-cell-status ${statusClass}`}>
             {runStatus}
           </span>
+          {isDirty ? <span className="mac-cell-status is-dirty">dirty</span> : null}
+          {isStale ? <span className="mac-cell-status is-stale">stale</span> : null}
         </div>
         <div className="mac-window__titlebar-right">
           {isCode ? <button className="mac-btn" onClick={() => onRun(cell.id)}>Run</button> : null}

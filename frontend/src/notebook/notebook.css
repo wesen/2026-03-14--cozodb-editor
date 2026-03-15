@@ -64,6 +64,18 @@
   color: #993333;
 }
 
+.mac-cell-status.is-dirty {
+  border-color: #c28a3a;
+  background: #f6ecd2;
+  color: #8a5a00;
+}
+
+.mac-cell-status.is-stale {
+  border-color: #7c6ad1;
+  background: #ebe6ff;
+  color: #4a3f99;
+}
+
 .mac-cell-body {
   padding: 8px;
 }
