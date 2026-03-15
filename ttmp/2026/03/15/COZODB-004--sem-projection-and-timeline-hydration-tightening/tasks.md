@@ -1,0 +1,92 @@
+# Tasks
+
+## Done
+
+- [x] Create COZODB-004 ticket workspace
+- [x] Import `/tmp/cozodb-streaming-improvements.md` into the ticket sources
+- [x] Cross-check the imported proposal against the local backend/frontend code
+- [x] Write a detailed design and implementation guide
+- [x] Write an investigation diary for the ticket
+- [x] Produce a granular implementation task list
+- [x] Validate the ticket with `docmgr doctor --ticket COZODB-004 --stale-after 30`
+- [x] Upload the ticket bundle to reMarkable and verify the remote listing
+
+## TODO
+
+- [x] Backend 1.1: Add `AnchorLine *int` to `backend/pkg/api.HintRequest`
+- [x] Backend 1.2: Add `AnchorLine *int` to `backend/pkg/hints.HintRequest`
+- [x] Backend 1.3: Pass `AnchorLine` through `backend/pkg/api/websocket.go` into `hints.HintRequest`
+- [x] Backend 1.4: Add `StreamID string` to `backend/pkg/api.WSEvent` if the team accepts the optional correlation cleanup
+- [x] Backend 2.1: Create `backend/pkg/hints/projection_defaults.go`
+- [x] Backend 2.2: Define `ProjectionDefaults`
+- [x] Backend 2.3: Add `WithProjectionDefaults(ctx, defaults)` helper
+- [x] Backend 2.4: Add `ProjectionDefaultsFromContext(ctx)` helper
+- [x] Backend 2.5: Add `BundleEntityID(bundleID string)` helper
+- [x] Backend 2.6: Add `ChildEntityID(bundleID, family string, ordinal int)` helper
+- [x] Backend 2.7: Generate one backend bundle ID per hint request
+- [x] Backend 2.8: Generate one backend bundle ID per diagnosis request
+- [x] Backend 2.9: Attach `ProjectionDefaults` to request context before calling the hints engine
+- [x] Backend 3.1: Add `CozoProjectionMeta` to `backend/pkg/hints/structured_events.go`
+- [x] Backend 3.2: Include projection metadata in `EventCozoPayloadPreview`
+- [x] Backend 3.3: Include projection metadata in `EventCozoPayloadExtracted`
+- [x] Backend 3.4: Include projection metadata in `EventCozoPayloadFailed`
+- [x] Backend 3.5: Update preview/extracted/failed constructors to accept projection metadata
+- [x] Backend 4.1: Extend `DocRefPayload` with `Anchor *AnchorPayload`
+- [x] Backend 4.2: Normalize doc ref anchors in `DocRefPayload.Normalize()`
+- [x] Backend 4.3: Keep doc ref validation compatible with anchor injection
+- [x] Backend 5.1: Teach preview extractor sessions to retain `ProjectionDefaults`
+- [x] Backend 5.2: Parse extractor ordinal once per preview session
+- [x] Backend 5.3: Inject default anchors into preview payloads when absent
+- [x] Backend 5.4: Compute deterministic preview child IDs from `(bundleId, family, ordinal)`
+- [ ] Backend 5.5: Emit preview failures with bundle metadata
+- [x] Backend 6.1: Change authoritative parse to accept projection defaults
+- [x] Backend 6.2: Track `Ordinal` in parsed structured blocks
+- [x] Backend 6.3: Compute authoritative child IDs with the same helper as previews
+- [x] Backend 6.4: Inject default anchors into authoritative parsed payloads when absent
+- [x] Backend 6.5: Emit extracted events with bundle metadata
+- [x] Backend 6.6: Emit failed authoritative events with bundle metadata
+- [x] Backend 7.1: Expand `wrapCozoSEMEvent()` payloads with `bundleId`
+- [x] Backend 7.2: Expand `wrapCozoSEMEvent()` payloads with `parentId`
+- [x] Backend 7.3: Expand `wrapCozoSEMEvent()` payloads with `ordinal`
+- [x] Backend 7.4: Expand `wrapCozoSEMEvent()` payloads with `mode`
+- [x] Backend 7.5: Expand `wrapCozoSEMEvent()` payloads with `anchor`
+- [x] Backend 7.6: Set `stream_id` to `bundleId` in translated `cozo.*` SEM envelopes if the team accepts the optional cleanup
+- [ ] Backend 8.1: Remove or de-emphasize `hint_id` in prompt examples if it is no longer meaningful
+- [ ] Backend 8.2: Remove or de-emphasize `suggestion_id` in prompt examples if it is no longer meaningful
+- [ ] Backend 8.3: Remove or de-emphasize `doc_ref_id` in prompt examples if it is no longer meaningful
+- [ ] Backend 8.4: Clarify in prompt/config docs that request anchor is backend-authoritative
+- [ ] Frontend 1.1: Add `ENTITY_KIND_COZO_BUNDLE` to `frontend/src/sem/semProjection.js`
+- [ ] Frontend 1.2: Extend projected Cozo leaf entities with `bundleId`
+- [ ] Frontend 1.3: Extend projected Cozo leaf entities with `parentId`
+- [ ] Frontend 1.4: Extend projected Cozo leaf entities with `ordinal`
+- [ ] Frontend 1.5: Extend projected Cozo leaf entities with `mode`
+- [ ] Frontend 1.6: Add bundle upsert helpers to the projector
+- [ ] Frontend 1.7: Ensure bundle IDs are appended to `state.order` on first sighting
+- [ ] Frontend 2.1: Replace adjacency-first `buildSemThreads()` logic with relation-based bundle selectors
+- [ ] Frontend 2.2: Add `getOrderedCozoBundles(...)`
+- [ ] Frontend 2.3: Add `getBundleChildren(...)`
+- [ ] Frontend 2.4: Add `buildBundleThread(...)`
+- [ ] Frontend 2.5: Keep `getInlineSemThreads(...)` as the external selector name
+- [ ] Frontend 2.6: Keep `getTrailingSemThreads(...)` as the external selector name
+- [ ] Frontend 2.7: Add one temporary fallback path for old events that lack bundle metadata
+- [ ] Frontend 3.1: Update `CozoSemRenderer.jsx` to treat `thread.id` as a bundle ID
+- [ ] Frontend 3.2: Update thread summary logic to prefer hint text, then first child label/title
+- [ ] Frontend 3.3: Ensure line labels come from bundle anchor, not inferred child state
+- [ ] Frontend 3.4: Keep collapse/dismiss state keyed by bundle ID in `DatalogPad.jsx`
+- [ ] Frontend 3.5: Keep `DatalogPad.jsx` free of new projection logic beyond selector calls
+- [x] Testing 1.1: Add backend tests for request anchor preservation
+- [x] Testing 1.2: Add backend tests for preview/final child ID equality
+- [x] Testing 1.3: Add backend tests for one-bundle-per-response grouping
+- [x] Testing 1.4: Add backend tests for doc ref anchor injection
+- [x] Testing 1.5: Add backend tests for failed item bundle metadata
+- [x] Testing 1.6: Add backend tests for same-anchor concurrent bundle separation
+- [ ] Testing 2.1: Add frontend tests for parentId-based grouping
+- [ ] Testing 2.2: Add frontend tests for interleaved bundle separation
+- [ ] Testing 2.3: Add frontend tests for child-before-hint ordering inside a bundle
+- [ ] Testing 2.4: Add frontend tests for bundle anchor deciding inline vs trailing placement
+- [ ] Testing 2.5: Add frontend tests for preview-to-extracted merge on the same child ID
+- [ ] Testing 2.6: Add frontend tests for bundle-ID-based collapse and dismiss state
+- [ ] Testing 2.7: Add temporary compatibility tests for old payloads without bundle metadata
+- [ ] Cleanup 1.1: Remove the adjacency fallback after backend rollout stabilizes
+- [ ] Cleanup 1.2: Remove compatibility-only projector tests after the fallback is deleted
+- [ ] Cleanup 1.3: Revisit whether a local timeline/hydration store is still necessary once the deterministic projector lands
