@@ -34,6 +34,8 @@ This ticket explores how to evolve the current CozoDB editor from a line-oriente
 - Pinocchio's existing timeline store reused unchanged in the same SQLite file,
 - and a deliberately conservative first scope that postpones deeper hydration UI complexity.
 
+The first implementation slice is now in place in the application code: the app boots into a notebook page, notebooks and cells are persisted in SQLite, per-cell runs are tracked and hydrated, and AI widgets render under cells via `ownerCellId`.
+
 ## Key Links
 
 - **Related Files**: See frontmatter RelatedFiles field

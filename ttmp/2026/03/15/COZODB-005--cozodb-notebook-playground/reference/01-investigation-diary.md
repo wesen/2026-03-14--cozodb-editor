@@ -156,6 +156,86 @@ Verified conclusions:
 
 ## Usage Examples
 
+### Step 5: implement notebook phase 1
+
+After the ticket was re-scoped, I implemented a working first notebook slice instead of stopping at planning.
+
+#### Backend work completed
+
+Files added:
+
+- `backend/pkg/notebook/types.go`
+- `backend/pkg/notebook/store.go`
+- `backend/pkg/notebook/service.go`
+- `backend/pkg/notebook/service_test.go`
+- `backend/pkg/api/notebook_handlers.go`
+
+Files updated:
+
+- `backend/main.go`
+- `backend/pkg/api/types.go`
+- `backend/pkg/api/websocket.go`
+- `backend/pkg/hints/projection_defaults.go`
+- `backend/pkg/hints/structured_events.go`
+- `backend/pkg/hints/sem_registry.go`
+
+What changed:
+
+- added notebook-owned SQLite tables `nb_notebooks`, `nb_cells`, `nb_runs`, and `nb_link_timeline_snapshots`
+- added a notebook service that opens Pinocchio's SQLite timeline store against the same application DB file
+- added notebook CRUD endpoints and `POST /api/notebook-cells/{cellId}/run`
+- persisted cell run outputs as notebook-owned timeline entities in Pinocchio
+- added notebook runtime hydration by reading the latest timeline snapshot for each cell conversation
+- changed websocket ownership payloads to carry `notebookId`, `ownerCellId`, and `runId`
+
+The most important implementation choice was to keep notebook runtime translation local to this repo. Pinocchio remains unchanged. The app now uses Pinocchio as a storage primitive, not as the place where notebook concepts live.
+
+#### Frontend work completed
+
+Files added:
+
+- `frontend/src/notebook/useNotebookDocument.js`
+- `frontend/src/notebook/NotebookPage.jsx`
+- `frontend/src/notebook/NotebookCellCard.jsx`
+- `frontend/src/notebook/notebook.css`
+
+Files updated:
+
+- `frontend/src/App.jsx`
+- `frontend/src/transport/httpClient.js`
+- `frontend/src/sem/semProjection.js`
+- `frontend/src/sem/semProjection.test.js`
+
+What changed:
+
+- replaced the app root with a notebook page
+- introduced a document hook for notebook loading, editing, insertion, movement, deletion, and per-cell execution
+- rendered code and markdown cells as first-class notebook units
+- rendered query results and error outputs under cells
+- moved AI attachment from line ownership to `ownerCellId`
+- reused the existing SEM widget renderer under notebook cells
+- added cell-local AI prompt handling and "insert suggestion as new code cell below" behavior
+
+#### Validation and debugging notes
+
+Commands run successfully:
+
+- `go test ./...` in `backend`
+- `npm test`
+- `npm run lint`
+- `npm run build`
+
+Notable issues encountered:
+
+- the backend initially failed with `go: updates to go.mod needed`, which was resolved by running `go mod tidy`
+- the first notebook service test failed with `proto: invalid type: []string`, which revealed that timeline entity props need `[]any`-compatible values before passing them into `structpb.NewStruct`
+- the first frontend lint pass failed because the initial hook implementation used avoidable effect-driven state mirroring and manual memoization that the repo's React rules reject; the fix was to simplify the notebook hook and page rather than fight the linter
+
+#### Commit checkpoints
+
+- `aea7889` `docs(ticket): rescope COZODB-005 for sqlite notebook runtime`
+- `a012a8f` `feat(notebook): add notebook phase 1 runtime and ui`
+
 ### How to use this diary when implementing COZODB-005
 
 1. Read the imported source at `sources/local/cozodb-notebook.md`.
