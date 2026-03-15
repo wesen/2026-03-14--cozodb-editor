@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   applySemEvent,
   createSemProjectionState,
-  getCompletedHintEntries,
   ENTITY_KIND_COZO_BUNDLE,
   getInlineSemEntities,
   getInlineSemThreads,
@@ -31,7 +30,7 @@ describe("semProjection", () => {
     expect(getStreamingEntries(state)).toEqual([["hint-2", "hello world"]]);
   });
 
-  it("preserves compatibility hint entries until the legacy path is retired", () => {
+  it("ignores non-diagnosis hint.result events now that the SEM path is authoritative", () => {
     let state = createSemProjectionState();
 
     state = applySemEvent(state, {
@@ -40,9 +39,7 @@ describe("semProjection", () => {
       data: { text: "final", chips: ["next"] },
     });
 
-    expect(getCompletedHintEntries(state)).toEqual([
-      ["hint-7", { text: "final", chips: ["next"] }],
-    ]);
+    expect(state).toEqual(createSemProjectionState());
   });
 
   it("promotes cozo preview entities to final entities using the canonical item id", () => {
@@ -183,8 +180,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.doc_ref.extracted",
       id: "doc-event",
+      stream_id: "bundle-global",
       data: {
-        itemId: "doc-1",
+        itemId: "cozo-item:bundle-global:doc_ref:1",
+        bundleId: "bundle-global",
+        parentId: "cozo-bundle:bundle-global",
+        ordinal: 1,
         data: {
           title: "Inline rules",
           body: "Rules define returned variables.",
@@ -193,7 +194,7 @@ describe("semProjection", () => {
     });
 
     expect(getInlineSemEntities(state, 3).map((entity) => entity.id)).toEqual(["suggestion-1"]);
-    expect(getTrailingSemEntities(state).map((entity) => entity.id)).toEqual(["doc-1"]);
+    expect(getTrailingSemEntities(state).map((entity) => entity.id)).toEqual(["cozo-item:bundle-global:doc_ref:1"]);
   });
 
   it("groups hint threads with their structured child entities", () => {
@@ -249,8 +250,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.doc_ref.extracted",
       id: "trailing-doc-event",
+      stream_id: "bundle-global",
       data: {
-        itemId: "doc-2",
+        itemId: "cozo-item:bundle-global:doc_ref:1",
+        bundleId: "bundle-global",
+        parentId: "cozo-bundle:bundle-global",
+        ordinal: 1,
         data: {
           title: "Global reference",
           body: "Applies across the notebook.",
@@ -272,9 +277,10 @@ describe("semProjection", () => {
     ]);
     expect(getTrailingSemThreads(state)).toEqual([
       {
-        id: "doc-2",
+        id: "cozo-bundle:bundle-global",
+        bundle: state.entities["cozo-bundle:bundle-global"],
         hint: null,
-        children: [state.entities["doc-2"]],
+        children: [state.entities["cozo-item:bundle-global:doc_ref:1"]],
         anchorLine: null,
       },
     ]);
@@ -418,7 +424,7 @@ describe("semProjection", () => {
     ]);
   });
 
-  it("falls back to adjacency grouping when bundle metadata is absent", () => {
+  it("does not build visible threads for bundleless cozo events anymore", () => {
     let state = createSemProjectionState();
 
     state = applySemEvent(state, {
@@ -438,13 +444,6 @@ describe("semProjection", () => {
       },
     });
 
-    expect(getInlineSemThreads(state, 2)).toEqual([
-      {
-        id: "legacy-hint",
-        hint: state.entities["legacy-hint"],
-        children: [state.entities["legacy-doc"]],
-        anchorLine: 2,
-      },
-    ]);
+    expect(getInlineSemThreads(state, 2)).toEqual([]);
   });
 });

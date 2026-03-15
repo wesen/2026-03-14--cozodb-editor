@@ -20,7 +20,6 @@ export const ENTITY_KIND_COZO_BUNDLE = "cozo_bundle";
 export const ENTITY_KIND_COZO_HINT = "cozo_hint";
 export const ENTITY_KIND_COZO_QUERY_SUGGESTION = "cozo_query_suggestion";
 export const ENTITY_KIND_COZO_DOC_REF = "cozo_doc_ref";
-export const ENTITY_KIND_LEGACY_HINT = "legacy_hint";
 export const ENTITY_KIND_DIAGNOSIS = "diagnosis";
 
 const COZO_EVENT_KIND_BY_TYPE = {
@@ -149,7 +148,7 @@ function kindForEvent(event, entityId) {
   }
 
   if (event.type === HINT_RESULT_EVENT) {
-    return entityId?.startsWith("diag-") ? ENTITY_KIND_DIAGNOSIS : ENTITY_KIND_LEGACY_HINT;
+    return entityId?.startsWith("diag-") ? ENTITY_KIND_DIAGNOSIS : ENTITY_KIND_LLM_TEXT_STREAM;
   }
 
   return COZO_EVENT_KIND_BY_TYPE[event.type] || ENTITY_KIND_LLM_TEXT_STREAM;
@@ -236,10 +235,6 @@ function isCozoLeafKind(kind) {
   );
 }
 
-function hasExplicitBundleMetadata(entity) {
-  return typeof entity?.parentId === "string" && entity.parentId !== "" && typeof entity?.bundleId === "string" && entity.bundleId !== "";
-}
-
 function trimTrailingDisplayWhitespace(text) {
   return typeof text === "string" ? text.replace(/[ \t\r\n]+$/u, "") : "";
 }
@@ -248,38 +243,6 @@ function getOrderedSemEntities(state, predicate) {
   return state.order
     .map((entityId) => state.entities[entityId])
     .filter((entity) => isCozoLeafKind(entity?.kind) && predicate(entity));
-}
-
-function buildSemThreads(entities) {
-  const threads = [];
-  let currentThread = null;
-
-  entities.forEach((entity) => {
-    if (entity.kind === ENTITY_KIND_COZO_HINT) {
-      currentThread = {
-        id: entity.id,
-        hint: entity,
-        children: [],
-        anchorLine: entity.anchorLine ?? null,
-      };
-      threads.push(currentThread);
-      return;
-    }
-
-    if (currentThread) {
-      currentThread.children.push(entity);
-      return;
-    }
-
-    threads.push({
-      id: entity.id,
-      hint: null,
-      children: [entity],
-      anchorLine: entity.anchorLine ?? null,
-    });
-  });
-
-  return threads;
 }
 
 function getOrderedCozoBundles(state, predicate) {
@@ -305,10 +268,6 @@ function buildBundleThread(state, bundle) {
     children: hint ? children.filter((entity) => entity.id !== hint.id) : children,
     anchorLine: bundle.anchorLine ?? null,
   };
-}
-
-function getFallbackSemEntities(state, predicate) {
-  return getOrderedSemEntities(state, (entity) => predicate(entity) && !hasExplicitBundleMetadata(entity));
 }
 
 export function createSemProjectionState() {
@@ -366,6 +325,9 @@ export function applySemEvent(state, event) {
       };
       break;
     case HINT_RESULT_EVENT:
+      if (!entityId.startsWith("diag-")) {
+        return state;
+      }
       nextEntity = {
         ...entity,
         kind: kindForEvent(event, entityId),
@@ -419,13 +381,6 @@ export function getStreamingEntries(state) {
     .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
 }
 
-export function getCompletedHintEntries(state) {
-  return state.order
-    .map((entityId) => state.entities[entityId])
-    .filter((entity) => entity?.kind === ENTITY_KIND_LEGACY_HINT && entity?.status === "complete" && entity.response)
-    .map((entity) => [entity.id, entity.response]);
-}
-
 export function getInlineSemEntities(state, lineIdx) {
   return getOrderedSemEntities(state, (entity) => entity?.anchorLine === lineIdx);
 }
@@ -435,22 +390,13 @@ export function getTrailingSemEntities(state) {
 }
 
 export function getInlineSemThreads(state, lineIdx) {
-  return [
-    ...getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine === lineIdx).map((bundle) => buildBundleThread(state, bundle)),
-    ...buildSemThreads(getFallbackSemEntities(state, (entity) => entity?.anchorLine === lineIdx)),
-  ];
+  return getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine === lineIdx).map((bundle) => buildBundleThread(state, bundle));
 }
 
 export function getTrailingSemThreads(state) {
-  return [
-    ...getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine == null).map((bundle) => buildBundleThread(state, bundle)),
-    ...buildSemThreads(getFallbackSemEntities(state, (entity) => entity?.anchorLine == null)),
-  ];
+  return getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine == null).map((bundle) => buildBundleThread(state, bundle));
 }
 
 export function getAllSemThreads(state) {
-  return [
-    ...getOrderedCozoBundles(state, () => true).map((bundle) => buildBundleThread(state, bundle)),
-    ...buildSemThreads(getFallbackSemEntities(state, () => true)),
-  ];
+  return getOrderedCozoBundles(state, () => true).map((bundle) => buildBundleThread(state, bundle));
 }
