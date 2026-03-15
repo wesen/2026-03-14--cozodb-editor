@@ -86,7 +86,7 @@
 - [x] Testing 2.4: Add frontend tests for bundle anchor deciding inline vs trailing placement
 - [x] Testing 2.5: Add frontend tests for preview-to-extracted merge on the same child ID
 - [ ] Testing 2.6: Add frontend tests for bundle-ID-based collapse and dismiss state
-- [ ] Testing 2.7: Add temporary compatibility tests for old payloads without bundle metadata
-- [ ] Cleanup 1.1: Remove the adjacency fallback after backend rollout stabilizes
-- [ ] Cleanup 1.2: Remove compatibility-only projector tests after the fallback is deleted
+- [x] Testing 2.7: Add temporary compatibility tests for old payloads without bundle metadata
+- [x] Cleanup 1.1: Remove the adjacency fallback after backend rollout stabilizes
+- [x] Cleanup 1.2: Remove compatibility-only projector tests after the fallback is deleted
 - [ ] Cleanup 1.3: Revisit whether a local timeline/hydration store is still necessary once the deterministic projector lands

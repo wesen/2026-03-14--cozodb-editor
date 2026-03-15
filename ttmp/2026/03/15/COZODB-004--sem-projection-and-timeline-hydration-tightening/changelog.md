@@ -2,6 +2,10 @@
 
 ## 2026-03-15
 
+- Removed the remaining legacy frontend compatibility path in a follow-up SEM projector cleanup.
+- Deleted adjacency-based thread synthesis and legacy non-diagnosis `hint.result` projection, so visible Cozo threading now requires bundle metadata from the migrated backend contract.
+- Updated the SEM projection tests so global/trailing Cozo widgets are also bundle-backed and bundleless Cozo payloads no longer render visible threads.
+- Re-ran `npm test`, `npm run lint`, and `npm run build` after removing the fallback path.
 - Implemented the prompt/config cleanup slice in commit `f47083f` (`backend(prompts): remove synthetic id examples`).
 - Removed synthetic `hint_id`, `suggestion_id`, and `doc_ref_id` examples from the extraction config and clarified there that request anchor metadata can be attached by the backend.
 - Re-ran `env GOTOOLCHAIN=auto GOCACHE=/tmp/cozodb-go-build-cache-004b go test ./pkg/hints` to validate the extraction example cleanup against the structured parser tests.

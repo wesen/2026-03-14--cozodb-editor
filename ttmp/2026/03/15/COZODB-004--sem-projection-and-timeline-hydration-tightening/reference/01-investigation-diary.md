@@ -24,7 +24,7 @@ RelatedFiles:
 ExternalSources:
     - local:01-cozodb-streaming-improvements.md
 Summary: Chronological record for COZODB-004 covering proposal import, proposal-versus-code verification, and production of a local-only SEM projection and hydration-readiness refactor guide.
-LastUpdated: 2026-03-15T15:42:00-04:00
+LastUpdated: 2026-03-15T15:39:00-04:00
 WhatFor: Record how the imported proposal was checked against the local codebase and how the final design and task plan were produced.
 WhenToUse: Use when continuing COZODB-004 or reviewing which parts of the imported proposal were accepted, narrowed, or deferred.
 ---
@@ -492,6 +492,73 @@ This was intentionally a separate commit. It changes the instruction surface, no
   - extraction docs now explicitly mention backend-owned anchor metadata.
 - Validation command that passed:
   - `env GOTOOLCHAIN=auto GOCACHE=/tmp/cozodb-go-build-cache-004b go test ./pkg/hints`
+
+## Step 7: Remove the remaining legacy frontend compatibility path
+
+After the migrated backend and prompt cleanup were in place, the remaining legacy surface was entirely in the frontend projector. It still had a compatibility branch for non-diagnosis `hint.result` payloads and an adjacency-based fallback that could synthesize visible SEM threads from bundleless `cozo.*` events.
+
+At this point that fallback was doing more harm than good. The backend contract is now explicit and deterministic, so leaving the old path in place would only preserve a second, weaker interpretation of the event stream. I removed it so the UI has exactly one threading model: bundle-backed Cozo threads plus diagnosis results.
+
+### Prompt Context
+
+**User prompt (verbatim):** "remove legacy."
+
+**Assistant interpretation:** Delete the remaining compatibility path rather than leaving it dormant.
+
+**Inferred user intent:** Finish the migration and stop carrying temporary projector behavior.
+
+### What I did
+- Removed legacy frontend projector branches:
+  - `frontend/src/sem/semProjection.js`
+- Updated projector tests to reflect the strict migrated contract:
+  - `frontend/src/sem/semProjection.test.js`
+- Re-ran frontend validation:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+
+### Why
+- The old compatibility path was explicitly temporary technical debt.
+- Keeping adjacency-based grouping after the deterministic bundle contract lands creates ambiguity about which event interpretation is authoritative.
+- Non-diagnosis `hint.result` payloads are no longer part of the visible SEM UI path.
+
+### What worked
+- The projector now ignores non-diagnosis `hint.result` events.
+- `getInlineSemThreads(...)`, `getTrailingSemThreads(...)`, and `getAllSemThreads(...)` are now bundle-only selectors.
+- Global/trailing Cozo widgets still work as long as they arrive inside a bundle with no anchor line.
+- Frontend tests, lint, and production build all passed after the cleanup.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The strict post-migration contract is simpler than the compatibility period: diagnosis stays on the default path, and everything else visible in the SEM UI is bundle-backed Cozo data.
+
+### What was tricky to build
+- The only real subtlety was making sure “remove legacy” meant removing visible-thread fallbacks, not accidentally breaking diagnosis handling. The diagnosis path remains intact because it still keys off `diag-*` `hint.result` events.
+
+### What warrants a second pair of eyes
+- The only notable remaining frontend follow-up is still the optional app-level test for bundle-keyed collapse and dismiss state in `DatalogPad.jsx`.
+
+### What should be done in the future
+- If desired, add one screen-level regression test around dismiss/collapse state keyed by bundle ID.
+- Otherwise, this ticket’s legacy projector cleanup can be considered complete.
+
+### Code review instructions
+- Review:
+  - `frontend/src/sem/semProjection.js`
+  - `frontend/src/sem/semProjection.test.js`
+- Confirm that no selector now synthesizes visible SEM threads from bundleless Cozo events.
+
+### Technical details
+- New post-cleanup frontend facts:
+  - legacy non-diagnosis `hint.result` projection is removed.
+  - adjacency-based thread synthesis is removed.
+  - bundle metadata is now mandatory for visible Cozo thread rendering.
+- Validation commands that passed:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
 
 ### What I learned
 - The most valuable contribution of the imported proposal was its insistence on deterministic grouping metadata.
