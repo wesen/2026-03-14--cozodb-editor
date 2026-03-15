@@ -8,10 +8,13 @@ import (
 )
 
 type ProjectionDefaults struct {
-	BundleID   string
-	AnchorLine *int
-	Source     string
-	Mode       string
+	BundleID    string
+	AnchorLine  *int
+	Source      string
+	Mode        string
+	NotebookID  string
+	OwnerCellID string
+	RunID       string
 }
 
 type projectionDefaultsKey struct{}
@@ -67,11 +70,14 @@ func CanonicalChildEntityID(defaults ProjectionDefaults, family string, ordinal 
 func ProjectionMetaFromDefaults(defaults ProjectionDefaults, anchor *AnchorPayload, ordinal int) CozoProjectionMeta {
 	defaults = normalizeProjectionDefaults(defaults)
 	return CozoProjectionMeta{
-		BundleID: defaults.BundleID,
-		ParentID: BundleEntityID(defaults.BundleID),
-		Ordinal:  ordinal,
-		Anchor:   anchor,
-		Mode:     defaults.Mode,
+		BundleID:    defaults.BundleID,
+		ParentID:    BundleEntityID(defaults.BundleID),
+		Ordinal:     ordinal,
+		Anchor:      anchor,
+		Mode:        defaults.Mode,
+		NotebookID:  defaults.NotebookID,
+		OwnerCellID: defaults.OwnerCellID,
+		RunID:       defaults.RunID,
 	}
 }
 
@@ -142,6 +148,9 @@ func normalizeProjectionDefaults(d ProjectionDefaults) ProjectionDefaults {
 	d.BundleID = strings.TrimSpace(d.BundleID)
 	d.Source = strings.TrimSpace(d.Source)
 	d.Mode = strings.TrimSpace(d.Mode)
+	d.NotebookID = strings.TrimSpace(d.NotebookID)
+	d.OwnerCellID = strings.TrimSpace(d.OwnerCellID)
+	d.RunID = strings.TrimSpace(d.RunID)
 	if d.AnchorLine != nil && *d.AnchorLine < 0 {
 		d.AnchorLine = nil
 	}

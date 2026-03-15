@@ -22,16 +22,19 @@ func RegisterCozoSemHandlers() {
 		})
 		semregistry.RegisterByType[*EventCozoPayloadFailed](func(ev *EventCozoPayloadFailed) ([][]byte, error) {
 			payload := map[string]any{
-				"family":   ev.Family,
-				"itemId":   strings.TrimSpace(ev.ItemID),
-				"bundleId": strings.TrimSpace(ev.BundleID),
-				"parentId": strings.TrimSpace(ev.ParentID),
-				"ordinal":  ev.Ordinal,
-				"mode":     strings.TrimSpace(ev.Mode),
-				"anchor":   ev.Anchor,
-				"error":    strings.TrimSpace(ev.Error),
-				"raw":      ev.Raw,
-				"status":   "extraction_failed",
+				"family":      ev.Family,
+				"itemId":      strings.TrimSpace(ev.ItemID),
+				"bundleId":    strings.TrimSpace(ev.BundleID),
+				"parentId":    strings.TrimSpace(ev.ParentID),
+				"ordinal":     ev.Ordinal,
+				"mode":        strings.TrimSpace(ev.Mode),
+				"anchor":      ev.Anchor,
+				"error":       strings.TrimSpace(ev.Error),
+				"raw":         ev.Raw,
+				"status":      "extraction_failed",
+				"notebookId":  strings.TrimSpace(ev.NotebookID),
+				"ownerCellId": strings.TrimSpace(ev.OwnerCellID),
+				"runId":       strings.TrimSpace(ev.RunID),
 			}
 			return wrapCozoSEMFrame("failed", ev.Family, ev.ItemID, payload, ev.CozoProjectionMeta)
 		})
@@ -40,15 +43,18 @@ func RegisterCozoSemHandlers() {
 
 func wrapCozoSEMEvent(stage string, family string, itemID string, data any, transient bool, projectionMeta CozoProjectionMeta) ([][]byte, error) {
 	payload := map[string]any{
-		"family":    family,
-		"itemId":    strings.TrimSpace(itemID),
-		"bundleId":  strings.TrimSpace(projectionMeta.BundleID),
-		"parentId":  strings.TrimSpace(projectionMeta.ParentID),
-		"ordinal":   projectionMeta.Ordinal,
-		"mode":      strings.TrimSpace(projectionMeta.Mode),
-		"anchor":    projectionMeta.Anchor,
-		"data":      data,
-		"transient": transient,
+		"family":      family,
+		"itemId":      strings.TrimSpace(itemID),
+		"bundleId":    strings.TrimSpace(projectionMeta.BundleID),
+		"parentId":    strings.TrimSpace(projectionMeta.ParentID),
+		"ordinal":     projectionMeta.Ordinal,
+		"mode":        strings.TrimSpace(projectionMeta.Mode),
+		"anchor":      projectionMeta.Anchor,
+		"data":        data,
+		"transient":   transient,
+		"notebookId":  strings.TrimSpace(projectionMeta.NotebookID),
+		"ownerCellId": strings.TrimSpace(projectionMeta.OwnerCellID),
+		"runId":       strings.TrimSpace(projectionMeta.RunID),
 	}
 	return wrapCozoSEMFrame(stage, family, itemID, payload, projectionMeta)
 }

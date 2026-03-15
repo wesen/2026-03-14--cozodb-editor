@@ -9,11 +9,14 @@ const (
 )
 
 type CozoProjectionMeta struct {
-	BundleID string         `json:"bundle_id,omitempty"`
-	ParentID string         `json:"parent_id,omitempty"`
-	Ordinal  int            `json:"ordinal,omitempty"`
-	Anchor   *AnchorPayload `json:"anchor,omitempty"`
-	Mode     string         `json:"mode,omitempty"`
+	BundleID    string         `json:"bundle_id,omitempty"`
+	ParentID    string         `json:"parent_id,omitempty"`
+	Ordinal     int            `json:"ordinal,omitempty"`
+	Anchor      *AnchorPayload `json:"anchor,omitempty"`
+	Mode        string         `json:"mode,omitempty"`
+	NotebookID  string         `json:"notebook_id,omitempty"`
+	OwnerCellID string         `json:"owner_cell_id,omitempty"`
+	RunID       string         `json:"run_id,omitempty"`
 }
 
 type EventCozoPayloadPreview struct {

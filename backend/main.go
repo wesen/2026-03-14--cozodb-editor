@@ -11,12 +11,14 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/api"
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
+	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
 	engine := flag.String("engine", "mem", "CozoDB engine (mem, sqlite)")
 	dbPath := flag.String("db-path", "", "CozoDB database path (for sqlite engine)")
+	appDBPath := flag.String("app-db-path", "./data/cozodb-editor-app.sqlite", "Application SQLite database path for notebooks and timeline state")
 	viteURL := flag.String("vite", "http://localhost:5173", "Vite dev server URL (empty to disable proxy)")
 	flag.Parse()
 
@@ -49,7 +51,17 @@ func main() {
 	}
 
 	// Set up HTTP handlers
-	srv := &api.Server{DB: db}
+	notebookSvc, err := notebook.OpenService(*appDBPath, db)
+	if err != nil {
+		log.Fatalf("Failed to open notebook service: %v", err)
+	}
+	defer func() {
+		if err := notebookSvc.Close(); err != nil {
+			log.Printf("[MAIN] notebook service close error: %v", err)
+		}
+	}()
+
+	srv := &api.Server{DB: db, Notebook: notebookSvc}
 	wsHandler := &api.WSHandler{DB: db, Engine: hintEngine}
 
 	mux := http.NewServeMux()
@@ -65,6 +77,10 @@ func main() {
 		srv.HandleSchema(w, r)
 	})
 	mux.HandleFunc("/api/schema/", srv.HandleSchemaDetail)
+	mux.HandleFunc("/api/notebooks", srv.HandleCreateNotebook)
+	mux.HandleFunc("/api/notebooks/bootstrap", srv.HandleBootstrapNotebook)
+	mux.HandleFunc("/api/notebooks/", srv.HandleNotebook)
+	mux.HandleFunc("/api/notebook-cells/", srv.HandleNotebookCell)
 
 	// WebSocket
 	mux.HandleFunc("/ws/hints", wsHandler.HandleWS)

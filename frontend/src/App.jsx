@@ -1,7 +1,7 @@
-import DatalogPad from './DatalogPad'
+import NotebookPage from './notebook/NotebookPage'
 
 function App() {
-  return <DatalogPad />
+  return <NotebookPage />
 }
 
 export default App

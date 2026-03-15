@@ -5,7 +5,9 @@ import {
   ENTITY_KIND_COZO_BUNDLE,
   getInlineSemEntities,
   getInlineSemThreads,
+  getSemThreadsForCell,
   getStreamingEntries,
+  getStreamingEntriesForCell,
   getTrailingSemEntities,
   getTrailingSemThreads,
 } from "./semProjection";
@@ -28,6 +30,60 @@ describe("semProjection", () => {
     state = applySemEvent(state, { type: "llm.delta", id: "hint-2", data: "hello world\n\n" });
 
     expect(getStreamingEntries(state)).toEqual([["hint-2", "hello world"]]);
+  });
+
+  it("groups streaming entries and threads by ownerCellId for notebook rendering", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "llm.start",
+      id: "hint-cell-1",
+      data: { ownerCellId: "cell_a", notebookId: "nbk_a", runId: "run_a" },
+    });
+    state = applySemEvent(state, {
+      type: "llm.delta",
+      id: "hint-cell-1",
+      data: { delta: "explain this query\n", ownerCellId: "cell_a", notebookId: "nbk_a", runId: "run_a" },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "hint-cell-a",
+      stream_id: "bundle-cell-a",
+      data: {
+        itemId: "cozo-item:bundle-cell-a:hint:1",
+        bundleId: "bundle-cell-a",
+        parentId: "cozo-bundle:bundle-cell-a",
+        ordinal: 1,
+        ownerCellId: "cell_a",
+        notebookId: "nbk_a",
+        runId: "run_a",
+        data: {
+          text: "Use a rule head to project your variables.",
+        },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "hint-cell-b",
+      stream_id: "bundle-cell-b",
+      data: {
+        itemId: "cozo-item:bundle-cell-b:hint:1",
+        bundleId: "bundle-cell-b",
+        parentId: "cozo-bundle:bundle-cell-b",
+        ordinal: 1,
+        ownerCellId: "cell_b",
+        notebookId: "nbk_a",
+        runId: "run_b",
+        data: {
+          text: "This belongs to another cell.",
+        },
+      },
+    });
+
+    expect(getStreamingEntriesForCell(state, "cell_a")).toEqual([["hint-cell-1", "explain this query"]]);
+    expect(getStreamingEntriesForCell(state, "cell_b")).toEqual([]);
+    expect(getSemThreadsForCell(state, "cell_a").map((thread) => thread.id)).toEqual(["cozo-bundle:bundle-cell-a"]);
+    expect(getSemThreadsForCell(state, "cell_b").map((thread) => thread.id)).toEqual(["cozo-bundle:bundle-cell-b"]);
   });
 
   it("ignores non-diagnosis hint.result events now that the SEM path is authoritative", () => {

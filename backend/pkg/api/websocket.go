@@ -97,10 +97,13 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 
 	bundleID := uuid.NewString()
 	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
-		BundleID:   bundleID,
-		AnchorLine: req.AnchorLine,
-		Source:     "hint.request",
-		Mode:       "hint",
+		BundleID:    bundleID,
+		AnchorLine:  req.AnchorLine,
+		Source:      "hint.request",
+		Mode:        "hint",
+		NotebookID:  req.NotebookID,
+		OwnerCellID: req.OwnerCellID,
+		RunID:       req.RunID,
 	})
 
 	hintReq := hints.HintRequest{
@@ -116,21 +119,33 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 			Type:     "hint.result",
 			ID:       idStr,
 			StreamID: bundleID,
-			Data: hints.HintResponse{
-				Text:  "AI hints are not available (ANTHROPIC_API_KEY not set). Try writing CozoScript directly!",
-				Chips: []string{"show CozoScript syntax", "create a relation"},
-				Docs: []hints.DocRef{{
+			Data: map[string]any{
+				"text":  "AI hints are not available (ANTHROPIC_API_KEY not set). Try writing CozoScript directly!",
+				"chips": []string{"show CozoScript syntax", "create a relation"},
+				"docs": []hints.DocRef{{
 					Title:   "CozoScript basics",
 					Section: "§1.0",
 					Body:    "CozoScript uses Datalog syntax: ?[vars] := *relation{cols} for queries, :create/:put/:rm for mutations.",
 				}},
+				"notebookId":  req.NotebookID,
+				"ownerCellId": req.OwnerCellID,
+				"runId":       req.RunID,
 			},
 		}})
 		return
 	}
 
 	// Send start event
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr, StreamID: bundleID}})
+	writeJSON(WSMessage{SEM: true, Event: WSEvent{
+		Type:     "llm.start",
+		ID:       idStr,
+		StreamID: bundleID,
+		Data: map[string]any{
+			"notebookId":  req.NotebookID,
+			"ownerCellId": req.OwnerCellID,
+			"runId":       req.RunID,
+		},
+	}})
 
 	semSink := NewWebSocketSEMSink(writeJSON)
 
@@ -140,7 +155,12 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 			Type:     "llm.delta",
 			ID:       idStr,
 			StreamID: bundleID,
-			Data:     delta,
+			Data: map[string]any{
+				"delta":       delta,
+				"notebookId":  req.NotebookID,
+				"ownerCellId": req.OwnerCellID,
+				"runId":       req.RunID,
+			},
 		}})
 	}, semSink)
 
@@ -150,7 +170,12 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 			Type:     "llm.error",
 			ID:       idStr,
 			StreamID: bundleID,
-			Data:     err.Error(),
+			Data: map[string]any{
+				"error":       err.Error(),
+				"notebookId":  req.NotebookID,
+				"ownerCellId": req.OwnerCellID,
+				"runId":       req.RunID,
+			},
 		}})
 		return
 	}
@@ -160,7 +185,16 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 		Type:     "hint.result",
 		ID:       idStr,
 		StreamID: bundleID,
-		Data:     hint,
+		Data: map[string]any{
+			"text":        hint.Text,
+			"code":        hint.Code,
+			"chips":       hint.Chips,
+			"docs":        hint.Docs,
+			"warning":     hint.Warning,
+			"notebookId":  req.NotebookID,
+			"ownerCellId": req.OwnerCellID,
+			"runId":       req.RunID,
+		},
 	}})
 }
 
@@ -182,9 +216,12 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 
 	bundleID := uuid.NewString()
 	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
-		BundleID: bundleID,
-		Source:   "diagnosis.request",
-		Mode:     "diagnosis",
+		BundleID:    bundleID,
+		Source:      "diagnosis.request",
+		Mode:        "diagnosis",
+		NotebookID:  req.NotebookID,
+		OwnerCellID: req.OwnerCellID,
+		RunID:       req.RunID,
 	})
 
 	diagReq := hints.DiagnosisRequest{
@@ -198,15 +235,27 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 			Type:     "hint.result",
 			ID:       idStr,
 			StreamID: bundleID,
-			Data: hints.HintResponse{
-				Text:  "AI diagnosis is not available (ANTHROPIC_API_KEY not set). Check the error message and CozoScript docs.",
-				Chips: []string{"CozoScript syntax help"},
+			Data: map[string]any{
+				"text":        "AI diagnosis is not available (ANTHROPIC_API_KEY not set). Check the error message and CozoScript docs.",
+				"chips":       []string{"CozoScript syntax help"},
+				"notebookId":  req.NotebookID,
+				"ownerCellId": req.OwnerCellID,
+				"runId":       req.RunID,
 			},
 		}})
 		return
 	}
 
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr, StreamID: bundleID}})
+	writeJSON(WSMessage{SEM: true, Event: WSEvent{
+		Type:     "llm.start",
+		ID:       idStr,
+		StreamID: bundleID,
+		Data: map[string]any{
+			"notebookId":  req.NotebookID,
+			"ownerCellId": req.OwnerCellID,
+			"runId":       req.RunID,
+		},
+	}})
 
 	semSink := NewWebSocketSEMSink(writeJSON)
 
@@ -215,7 +264,12 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 			Type:     "llm.delta",
 			ID:       idStr,
 			StreamID: bundleID,
-			Data:     delta,
+			Data: map[string]any{
+				"delta":       delta,
+				"notebookId":  req.NotebookID,
+				"ownerCellId": req.OwnerCellID,
+				"runId":       req.RunID,
+			},
 		}})
 	}, semSink)
 
@@ -225,7 +279,12 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 			Type:     "llm.error",
 			ID:       idStr,
 			StreamID: bundleID,
-			Data:     err.Error(),
+			Data: map[string]any{
+				"error":       err.Error(),
+				"notebookId":  req.NotebookID,
+				"ownerCellId": req.OwnerCellID,
+				"runId":       req.RunID,
+			},
 		}})
 		return
 	}
@@ -234,6 +293,15 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		Type:     "hint.result",
 		ID:       idStr,
 		StreamID: bundleID,
-		Data:     hint,
+		Data: map[string]any{
+			"text":        hint.Text,
+			"code":        hint.Code,
+			"chips":       hint.Chips,
+			"docs":        hint.Docs,
+			"warning":     hint.Warning,
+			"notebookId":  req.NotebookID,
+			"ownerCellId": req.OwnerCellID,
+			"runId":       req.RunID,
+		},
 	}})
 }

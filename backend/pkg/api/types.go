@@ -52,13 +52,42 @@ type WSEvent struct {
 
 // HintRequest is a request for AI hints over WebSocket.
 type HintRequest struct {
-	Question   string   `json:"question"`
-	History    []string `json:"history,omitempty"`
-	AnchorLine *int     `json:"anchorLine,omitempty"`
+	Question    string   `json:"question"`
+	History     []string `json:"history,omitempty"`
+	AnchorLine  *int     `json:"anchorLine,omitempty"`
+	NotebookID  string   `json:"notebookId,omitempty"`
+	OwnerCellID string   `json:"ownerCellId,omitempty"`
+	RunID       string   `json:"runId,omitempty"`
 }
 
 // DiagnosisRequest is a request for AI error diagnosis over WebSocket.
 type DiagnosisRequest struct {
-	Error  string `json:"error"`
-	Script string `json:"script"`
+	Error       string `json:"error"`
+	Script      string `json:"script"`
+	NotebookID  string `json:"notebookId,omitempty"`
+	OwnerCellID string `json:"ownerCellId,omitempty"`
+	RunID       string `json:"runId,omitempty"`
+}
+
+type CreateNotebookRequest struct {
+	Title string `json:"title"`
+}
+
+type UpdateNotebookRequest struct {
+	Title string `json:"title"`
+}
+
+type InsertCellRequest struct {
+	AfterCellID string `json:"after_cell_id,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Source      string `json:"source,omitempty"`
+}
+
+type UpdateCellRequest struct {
+	Kind   string `json:"kind,omitempty"`
+	Source string `json:"source,omitempty"`
+}
+
+type MoveCellRequest struct {
+	TargetIndex int `json:"target_index"`
 }

@@ -7,11 +7,13 @@ import (
 	"strings"
 
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
+	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
 // Server holds the HTTP API handlers.
 type Server struct {
-	DB *cozo.DB
+	DB       *cozo.DB
+	Notebook *notebook.Service
 }
 
 // HandleQuery handles POST /api/query — execute CozoScript.

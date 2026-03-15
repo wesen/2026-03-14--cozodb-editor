@@ -114,6 +114,18 @@ function extractCozoMode(event) {
   return typeof event?.data?.mode === "string" && event.data.mode.trim() !== "" ? event.data.mode.trim() : null;
 }
 
+function extractNotebookId(event) {
+  return typeof event?.data?.notebookId === "string" && event.data.notebookId.trim() !== "" ? event.data.notebookId.trim() : null;
+}
+
+function extractOwnerCellId(event) {
+  return typeof event?.data?.ownerCellId === "string" && event.data.ownerCellId.trim() !== "" ? event.data.ownerCellId.trim() : null;
+}
+
+function extractRunId(event) {
+  return typeof event?.data?.runId === "string" && event.data.runId.trim() !== "" ? event.data.runId.trim() : null;
+}
+
 function extractLLMDelta(event) {
   if (typeof event?.data === "string") {
     return event.data;
@@ -170,6 +182,9 @@ function createEntity(event, entityId) {
     bundleId: null,
     ordinal: null,
     mode: null,
+    notebookId: null,
+    ownerCellId: null,
+    runId: null,
   };
 }
 
@@ -186,6 +201,9 @@ function createBundleEntity(bundleEntityId) {
     bundleId: null,
     mode: null,
     error: null,
+    notebookId: null,
+    ownerCellId: null,
+    runId: null,
   };
 }
 
@@ -195,6 +213,9 @@ function projectCozoEntity(entity, event, status) {
   const bundleId = extractCozoBundleId(event);
   const ordinal = extractCozoOrdinal(event);
   const mode = extractCozoMode(event);
+  const notebookId = extractNotebookId(event);
+  const ownerCellId = extractOwnerCellId(event);
+  const runId = extractRunId(event);
 
   return {
     ...entity,
@@ -208,6 +229,9 @@ function projectCozoEntity(entity, event, status) {
     bundleId: bundleId ?? entity.bundleId,
     ordinal: ordinal ?? entity.ordinal,
     mode: mode ?? entity.mode,
+    notebookId: notebookId ?? entity.notebookId,
+    ownerCellId: ownerCellId ?? entity.ownerCellId,
+    runId: runId ?? entity.runId,
   };
 }
 
@@ -215,6 +239,9 @@ function projectBundleEntity(bundle, event, status) {
   const anchorLine = extractAnchorLine(event);
   const bundleId = extractCozoBundleId(event);
   const mode = extractCozoMode(event);
+  const notebookId = extractNotebookId(event);
+  const ownerCellId = extractOwnerCellId(event);
+  const runId = extractRunId(event);
 
   return {
     ...bundle,
@@ -224,6 +251,9 @@ function projectBundleEntity(bundle, event, status) {
     bundleId: bundleId ?? bundle.bundleId,
     mode: mode ?? bundle.mode,
     error: event?.data?.error || null,
+    notebookId: notebookId ?? bundle.notebookId,
+    ownerCellId: ownerCellId ?? bundle.ownerCellId,
+    runId: runId ?? bundle.runId,
   };
 }
 
@@ -260,6 +290,9 @@ function getBundleChildren(state, bundleEntityId) {
 function buildBundleThread(state, bundle) {
   const children = getBundleChildren(state, bundle.id);
   const hint = children.find((entity) => entity.kind === ENTITY_KIND_COZO_HINT) || null;
+  const ownerCellId = bundle.ownerCellId ?? hint?.ownerCellId ?? null;
+  const notebookId = bundle.notebookId ?? hint?.notebookId ?? null;
+  const runId = bundle.runId ?? hint?.runId ?? null;
 
   return {
     id: bundle.id,
@@ -267,6 +300,9 @@ function buildBundleThread(state, bundle) {
     hint,
     children: hint ? children.filter((entity) => entity.id !== hint.id) : children,
     anchorLine: bundle.anchorLine ?? null,
+    ...(ownerCellId ? { ownerCellId } : {}),
+    ...(notebookId ? { notebookId } : {}),
+    ...(runId ? { runId } : {}),
   };
 }
 
@@ -300,6 +336,9 @@ export function applySemEvent(state, event) {
         status: "streaming",
         text: "",
         finalText: "",
+        notebookId: extractNotebookId(event) ?? entity.notebookId,
+        ownerCellId: extractOwnerCellId(event) ?? entity.ownerCellId,
+        runId: extractRunId(event) ?? entity.runId,
       };
       break;
     case LLM_DELTA_EVENT:
@@ -308,6 +347,9 @@ export function applySemEvent(state, event) {
         kind: ENTITY_KIND_LLM_TEXT_STREAM,
         status: "streaming",
         text: `${entity.text || ""}${extractLLMDelta(event)}`,
+        notebookId: extractNotebookId(event) ?? entity.notebookId,
+        ownerCellId: extractOwnerCellId(event) ?? entity.ownerCellId,
+        runId: extractRunId(event) ?? entity.runId,
       };
       break;
     case LLM_FINAL_EVENT:
@@ -316,12 +358,18 @@ export function applySemEvent(state, event) {
         kind: ENTITY_KIND_LLM_TEXT_STREAM,
         status: "complete",
         finalText: trimTrailingDisplayWhitespace(extractLLMFinalText(event)),
+        notebookId: extractNotebookId(event) ?? entity.notebookId,
+        ownerCellId: extractOwnerCellId(event) ?? entity.ownerCellId,
+        runId: extractRunId(event) ?? entity.runId,
       };
       break;
     case LLM_ERROR_EVENT:
       nextEntity = {
         ...entity,
         status: "error",
+        notebookId: extractNotebookId(event) ?? entity.notebookId,
+        ownerCellId: extractOwnerCellId(event) ?? entity.ownerCellId,
+        runId: extractRunId(event) ?? entity.runId,
       };
       break;
     case HINT_RESULT_EVENT:
@@ -333,6 +381,9 @@ export function applySemEvent(state, event) {
         kind: kindForEvent(event, entityId),
         response: event.data || null,
         status: "complete",
+        notebookId: extractNotebookId(event) ?? entity.notebookId,
+        ownerCellId: extractOwnerCellId(event) ?? entity.ownerCellId,
+        runId: extractRunId(event) ?? entity.runId,
       };
       break;
     case COZO_HINT_PREVIEW_EVENT:
@@ -381,6 +432,13 @@ export function getStreamingEntries(state) {
     .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
 }
 
+export function getStreamingEntriesForCell(state, ownerCellId) {
+  return state.order
+    .map((entityId) => state.entities[entityId])
+    .filter((entity) => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming" && entity?.ownerCellId === ownerCellId)
+    .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
+}
+
 export function getInlineSemEntities(state, lineIdx) {
   return getOrderedSemEntities(state, (entity) => entity?.anchorLine === lineIdx);
 }
@@ -399,4 +457,8 @@ export function getTrailingSemThreads(state) {
 
 export function getAllSemThreads(state) {
   return getOrderedCozoBundles(state, () => true).map((bundle) => buildBundleThread(state, bundle));
+}
+
+export function getSemThreadsForCell(state, ownerCellId) {
+  return getOrderedCozoBundles(state, (bundle) => bundle?.ownerCellId === ownerCellId).map((bundle) => buildBundleThread(state, bundle));
 }
