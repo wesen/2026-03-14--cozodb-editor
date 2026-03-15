@@ -258,6 +258,48 @@ What I learned:
 
 #### TypeScript port approach
 
+The key lesson from this phase is that porting to TypeScript and changing the chrome does not by itself finish the semantic notebook pivot. The app can look like a notebook and still leak line-oriented assumptions in the projector and fallback rendering paths.
+
+### Step 7: finish notebook AI ownership in the phase 2 UI
+
+After the TypeScript and System 7 pass, I reviewed the notebook AI path again and found a remaining ownership bug:
+
+- notebook requests were already sent with `ownerCellId`
+- structured Cozo threads were already selectable by cell
+- but line/global selectors still picked up cell-owned events because they only checked `anchorLine`
+- and fallback `hint.result` / diagnosis payloads could still disappear because the notebook UI only rendered structured Cozo threads plus live streaming deltas
+
+That meant ownership was only partially migrated.
+
+Files updated:
+
+- `frontend/src/sem/semProjection.ts`
+- `frontend/src/sem/semProjection.test.ts`
+- `frontend/src/notebook/NotebookCellCard.tsx`
+- `frontend/src/features/cozo-sem/CozoSemRenderer.tsx`
+
+What changed:
+
+- line/global selectors now explicitly ignore entities and bundles that already have `ownerCellId`
+- notebook-only selectors remain responsible for cell-owned threads and streaming entries
+- non-structured `hint.result` payloads are now retained for cell-owned notebook requests instead of being dropped unconditionally
+- diagnosis entities are now selectable by `ownerCellId`
+- the notebook cell renderer now shows fallback hint cards and diagnosis cards under the owning cell when no structured thread exists
+- SEM thread chrome now says "Attached to cell" when ownership is cell-based instead of pretending everything is still line/global
+
+Why this matters:
+
+- the notebook path now owns notebook AI semantically, not just transport-wise
+- fallback AI answers no longer vanish simply because structured extraction did not yield a visible thread
+- legacy line-based views can still exist without stealing notebook-owned events
+
+Validation:
+
+- `npm test`
+- `npm run lint`
+- `npm run build`
+- `go test ./...`
+
 I ported files bottom-up in dependency order:
 
 1. Pure constants: `semEventTypes.ts` (no changes needed, just rename)

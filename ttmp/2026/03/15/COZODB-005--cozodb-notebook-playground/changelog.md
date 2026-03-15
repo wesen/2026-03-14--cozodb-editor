@@ -2,6 +2,14 @@
 
 ## 2026-03-15
 
+- Tightened notebook AI ownership for phase 2.
+- Updated the SEM projector so cell-owned events no longer leak into line/global selectors.
+- Added cell-owned fallback rendering for non-structured hint responses and diagnosis results in the notebook UI.
+- Updated SEM thread chrome to present notebook attachment semantics instead of line/global labels when `ownerCellId` is present.
+- Added projector coverage for cell-owned fallback hints and diagnosis entities.
+
+## 2026-03-15
+
 - Implemented notebook phase 1 in the application code.
 - Added a notebook-owned SQLite store, run tracking, snapshot links, and a shared-database Pinocchio timeline store bootstrap.
 - Added notebook CRUD endpoints and a per-cell run endpoint.

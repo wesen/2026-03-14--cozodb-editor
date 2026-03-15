@@ -134,11 +134,19 @@
 - [ ] UI 2.5: Add cell focus management and active cell indicator
 - [x] UI 2.6: Better empty state when notebook has no cells
 
+## Phase 2: AI Ownership
+
+- [x] AI 2.1: Keep cell-owned AI events out of line/global SEM selectors
+- [x] AI 2.2: Render fallback non-structured `hint.result` responses under the owning cell
+- [x] AI 2.3: Render diagnosis results under the owning cell instead of leaving them orphaned in projection state
+- [x] AI 2.4: Update SEM thread chrome to present notebook attachment semantics rather than line/global semantics when `ownerCellId` is present
+- [x] AI 2.5: Add projector coverage for cell-owned fallback hints and diagnosis entities
+
 ## Cleanup and Follow-up
 
 - [ ] Cleanup 1.1: Decide when to retire `DatalogPad` from the main route entirely
 - [ ] Cleanup 1.2: Decide when to retire `usePadDocument` from the main path entirely
-- [ ] Cleanup 1.3: Decide when to retire line-anchor-only notebook assumptions from SEM projection
+- [x] Cleanup 1.3: Retire line-anchor-only notebook assumptions from the notebook SEM path
 - [ ] Future 1.1: Add notebook snapshot browsing using recorded `nb_link_timeline_snapshots`
 - [ ] Future 1.2: Add a richer notebook timeline viewer without changing Pinocchio internals
 - [ ] Future 1.3: Revisit explicit AI-only cells after attached AI-under-cell flows feel solid
