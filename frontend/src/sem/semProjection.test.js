@@ -3,6 +3,7 @@ import {
   applySemEvent,
   createSemProjectionState,
   getCompletedHintEntries,
+  ENTITY_KIND_COZO_BUNDLE,
   getInlineSemEntities,
   getInlineSemThreads,
   getStreamingEntries,
@@ -50,8 +51,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.hint.preview",
       id: "event-preview-id",
+      stream_id: "bundle-1",
       data: {
         itemId: "cozo-item-1",
+        bundleId: "bundle-1",
+        parentId: "cozo-bundle:bundle-1",
+        ordinal: 1,
         transient: true,
         data: { text: "preview hint" },
       },
@@ -59,19 +64,31 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.hint.extracted",
       id: "event-final-id",
+      stream_id: "bundle-1",
       data: {
         itemId: "cozo-item-1",
+        bundleId: "bundle-1",
+        parentId: "cozo-bundle:bundle-1",
+        ordinal: 1,
         transient: false,
         data: { text: "final hint", code: "?[x] := x = 1" },
       },
     });
 
-    expect(state.order).toEqual(["cozo-item-1"]);
+    expect(state.entities["cozo-bundle:bundle-1"]).toMatchObject({
+      id: "cozo-bundle:bundle-1",
+      kind: ENTITY_KIND_COZO_BUNDLE,
+      bundleId: "bundle-1",
+      status: "complete",
+    });
     expect(state.entities["cozo-item-1"]).toMatchObject({
       id: "cozo-item-1",
       kind: "cozo_hint",
       status: "complete",
       transient: false,
+      parentId: "cozo-bundle:bundle-1",
+      bundleId: "bundle-1",
+      ordinal: 1,
       data: { text: "final hint", code: "?[x] := x = 1" },
     });
   });
@@ -107,8 +124,12 @@ describe("semProjection", () => {
       state = applySemEvent(state, {
         type: previewType,
         id: `${itemId}-preview`,
+        stream_id: `${itemId}-bundle`,
         data: {
           itemId,
+          bundleId: `${itemId}-bundle`,
+          parentId: `cozo-bundle:${itemId}-bundle`,
+          ordinal: 1,
           transient: true,
           data: finalData,
         },
@@ -116,8 +137,12 @@ describe("semProjection", () => {
       state = applySemEvent(state, {
         type: finalType,
         id: `${itemId}-final`,
+        stream_id: `${itemId}-bundle`,
         data: {
           itemId,
+          bundleId: `${itemId}-bundle`,
+          parentId: `cozo-bundle:${itemId}-bundle`,
+          ordinal: 1,
           transient: false,
           data: finalData,
         },
@@ -128,6 +153,9 @@ describe("semProjection", () => {
         kind: expectedKind,
         status: "complete",
         transient: false,
+        bundleId: `${itemId}-bundle`,
+        parentId: `cozo-bundle:${itemId}-bundle`,
+        ordinal: 1,
         data: finalData,
       });
     });
@@ -139,8 +167,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.query_suggestion.extracted",
       id: "suggestion-event",
+      stream_id: "bundle-inline",
       data: {
         itemId: "suggestion-1",
+        bundleId: "bundle-inline",
+        parentId: "cozo-bundle:bundle-inline",
+        ordinal: 1,
         data: {
           label: "Add a filter",
           code: "?[name] := *users{name}, age > 30",
@@ -170,8 +202,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.hint.extracted",
       id: "hint-event",
+      stream_id: "bundle-thread",
       data: {
-        itemId: "hint-1",
+        itemId: "cozo-item:bundle-thread:hint:1",
+        bundleId: "bundle-thread",
+        parentId: "cozo-bundle:bundle-thread",
+        ordinal: 1,
         data: {
           text: "Use an inline rule.",
           anchor: { line: 4 },
@@ -181,8 +217,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.query_suggestion.extracted",
       id: "query-event",
+      stream_id: "bundle-thread",
       data: {
-        itemId: "query-1",
+        itemId: "cozo-item:bundle-thread:query_suggestion:2",
+        bundleId: "bundle-thread",
+        parentId: "cozo-bundle:bundle-thread",
+        ordinal: 2,
         data: {
           label: "Add a filter",
           code: "?[name] := *users{name}, age > 30",
@@ -193,8 +233,12 @@ describe("semProjection", () => {
     state = applySemEvent(state, {
       type: "cozo.doc_ref.extracted",
       id: "doc-event",
+      stream_id: "bundle-thread",
       data: {
-        itemId: "doc-1",
+        itemId: "cozo-item:bundle-thread:doc_ref:3",
+        bundleId: "bundle-thread",
+        parentId: "cozo-bundle:bundle-thread",
+        ordinal: 3,
         data: {
           title: "Inline rules",
           body: "Rules define returned variables.",
@@ -216,9 +260,13 @@ describe("semProjection", () => {
 
     expect(getInlineSemThreads(state, 4)).toEqual([
       {
-        id: "hint-1",
-        hint: state.entities["hint-1"],
-        children: [state.entities["query-1"], state.entities["doc-1"]],
+        id: "cozo-bundle:bundle-thread",
+        bundle: state.entities["cozo-bundle:bundle-thread"],
+        hint: state.entities["cozo-item:bundle-thread:hint:1"],
+        children: [
+          state.entities["cozo-item:bundle-thread:query_suggestion:2"],
+          state.entities["cozo-item:bundle-thread:doc_ref:3"],
+        ],
         anchorLine: 4,
       },
     ]);
@@ -250,5 +298,153 @@ describe("semProjection", () => {
       status: "error",
       error: "invalid payload",
     });
+  });
+
+  it("keeps explicitly grouped bundles separate even when events interleave", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "cozo.query_suggestion.preview",
+      id: "bundle-a-query-preview",
+      stream_id: "bundle-a",
+      data: {
+        itemId: "cozo-item:bundle-a:query_suggestion:2",
+        bundleId: "bundle-a",
+        parentId: "cozo-bundle:bundle-a",
+        ordinal: 2,
+        transient: true,
+        data: { label: "A query", code: "?[x] := x = 1", anchor: { line: 1 } },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.hint.preview",
+      id: "bundle-b-hint-preview",
+      stream_id: "bundle-b",
+      data: {
+        itemId: "cozo-item:bundle-b:hint:1",
+        bundleId: "bundle-b",
+        parentId: "cozo-bundle:bundle-b",
+        ordinal: 1,
+        transient: true,
+        data: { text: "Bundle B hint", anchor: { line: 1 } },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "bundle-a-hint-final",
+      stream_id: "bundle-a",
+      data: {
+        itemId: "cozo-item:bundle-a:hint:1",
+        bundleId: "bundle-a",
+        parentId: "cozo-bundle:bundle-a",
+        ordinal: 1,
+        transient: false,
+        data: { text: "Bundle A hint", anchor: { line: 1 } },
+      },
+    });
+
+    expect(getInlineSemThreads(state, 1)).toEqual([
+      {
+        id: "cozo-bundle:bundle-a",
+        bundle: state.entities["cozo-bundle:bundle-a"],
+        hint: state.entities["cozo-item:bundle-a:hint:1"],
+        children: [state.entities["cozo-item:bundle-a:query_suggestion:2"]],
+        anchorLine: 1,
+      },
+      {
+        id: "cozo-bundle:bundle-b",
+        bundle: state.entities["cozo-bundle:bundle-b"],
+        hint: state.entities["cozo-item:bundle-b:hint:1"],
+        children: [],
+        anchorLine: 1,
+      },
+    ]);
+  });
+
+  it("orders bundle children by ordinal even when the hint arrives after a child", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "cozo.doc_ref.preview",
+      id: "bundle-c-doc-preview",
+      stream_id: "bundle-c",
+      data: {
+        itemId: "cozo-item:bundle-c:doc_ref:3",
+        bundleId: "bundle-c",
+        parentId: "cozo-bundle:bundle-c",
+        ordinal: 3,
+        transient: true,
+        data: { title: "Doc C", body: "Context", anchor: { line: 6 } },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.query_suggestion.preview",
+      id: "bundle-c-query-preview",
+      stream_id: "bundle-c",
+      data: {
+        itemId: "cozo-item:bundle-c:query_suggestion:2",
+        bundleId: "bundle-c",
+        parentId: "cozo-bundle:bundle-c",
+        ordinal: 2,
+        transient: true,
+        data: { label: "Query C", code: "?[x] := x = 1", anchor: { line: 6 } },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "bundle-c-hint-final",
+      stream_id: "bundle-c",
+      data: {
+        itemId: "cozo-item:bundle-c:hint:1",
+        bundleId: "bundle-c",
+        parentId: "cozo-bundle:bundle-c",
+        ordinal: 1,
+        transient: false,
+        data: { text: "Bundle C hint", anchor: { line: 6 } },
+      },
+    });
+
+    expect(getInlineSemThreads(state, 6)).toEqual([
+      {
+        id: "cozo-bundle:bundle-c",
+        bundle: state.entities["cozo-bundle:bundle-c"],
+        hint: state.entities["cozo-item:bundle-c:hint:1"],
+        children: [
+          state.entities["cozo-item:bundle-c:query_suggestion:2"],
+          state.entities["cozo-item:bundle-c:doc_ref:3"],
+        ],
+        anchorLine: 6,
+      },
+    ]);
+  });
+
+  it("falls back to adjacency grouping when bundle metadata is absent", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "cozo.hint.extracted",
+      id: "legacy-hint",
+      data: {
+        itemId: "legacy-hint",
+        data: { text: "Legacy hint", anchor: { line: 2 } },
+      },
+    });
+    state = applySemEvent(state, {
+      type: "cozo.doc_ref.extracted",
+      id: "legacy-doc",
+      data: {
+        itemId: "legacy-doc",
+        data: { title: "Legacy doc", body: "Legacy explanation.", anchor: { line: 2 } },
+      },
+    });
+
+    expect(getInlineSemThreads(state, 2)).toEqual([
+      {
+        id: "legacy-hint",
+        hint: state.entities["legacy-hint"],
+        children: [state.entities["legacy-doc"]],
+        anchorLine: 2,
+      },
+    ]);
   });
 });

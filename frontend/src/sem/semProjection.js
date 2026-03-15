@@ -16,6 +16,7 @@ import {
 } from "./semEventTypes";
 
 export const ENTITY_KIND_LLM_TEXT_STREAM = "llm_text_stream";
+export const ENTITY_KIND_COZO_BUNDLE = "cozo_bundle";
 export const ENTITY_KIND_COZO_HINT = "cozo_hint";
 export const ENTITY_KIND_COZO_QUERY_SUGGESTION = "cozo_query_suggestion";
 export const ENTITY_KIND_COZO_DOC_REF = "cozo_doc_ref";
@@ -59,9 +60,59 @@ function extractStructuredPayload(event) {
 }
 
 function extractAnchorLine(event) {
+  const eventAnchorLine = event?.data?.anchor?.line;
+  if (Number.isInteger(eventAnchorLine) && eventAnchorLine >= 0) {
+    return eventAnchorLine;
+  }
+
   const payload = extractStructuredPayload(event);
   const line = payload?.anchor?.line;
   return Number.isInteger(line) && line >= 0 ? line : null;
+}
+
+function extractCozoBundleId(event) {
+  if (!event?.type?.startsWith("cozo.")) {
+    return null;
+  }
+
+  if (typeof event?.data?.bundleId === "string" && event.data.bundleId.trim() !== "") {
+    return event.data.bundleId.trim();
+  }
+
+  if (typeof event?.stream_id === "string" && event.stream_id.trim() !== "") {
+    return event.stream_id.trim();
+  }
+
+  return null;
+}
+
+function extractCozoParentId(event) {
+  if (typeof event?.data?.parentId === "string" && event.data.parentId.trim() !== "") {
+    return event.data.parentId.trim();
+  }
+
+  const bundleId = extractCozoBundleId(event);
+  return bundleId ? `cozo-bundle:${bundleId}` : null;
+}
+
+function extractCozoOrdinal(event) {
+  const ordinal = event?.data?.ordinal;
+  if (Number.isInteger(ordinal) && ordinal > 0) {
+    return ordinal;
+  }
+
+  const itemId = extractCanonicalId(event);
+  if (typeof itemId !== "string") {
+    return null;
+  }
+
+  const suffix = itemId.split(":").at(-1);
+  const parsed = Number.parseInt(suffix || "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function extractCozoMode(event) {
+  return typeof event?.data?.mode === "string" && event.data.mode.trim() !== "" ? event.data.mode.trim() : null;
 }
 
 function extractLLMDelta(event) {
@@ -116,6 +167,10 @@ function createEntity(event, entityId) {
     error: null,
     anchorLine: null,
     transient: false,
+    parentId: null,
+    bundleId: null,
+    ordinal: null,
+    mode: null,
   };
 }
 
@@ -123,24 +178,66 @@ function ensureEntity(state, event, entityId) {
   return state.entities[entityId] || createEntity(event, entityId);
 }
 
+function createBundleEntity(bundleEntityId) {
+  return {
+    id: bundleEntityId,
+    kind: ENTITY_KIND_COZO_BUNDLE,
+    status: "idle",
+    anchorLine: null,
+    bundleId: null,
+    mode: null,
+    error: null,
+  };
+}
+
 function projectCozoEntity(entity, event, status) {
+  const anchorLine = extractAnchorLine(event);
+  const parentId = extractCozoParentId(event);
+  const bundleId = extractCozoBundleId(event);
+  const ordinal = extractCozoOrdinal(event);
+  const mode = extractCozoMode(event);
+
   return {
     ...entity,
     kind: kindForEvent(event, entity.id),
     status,
     data: extractStructuredPayload(event),
     error: event?.data?.error || null,
-    anchorLine: extractAnchorLine(event),
+    anchorLine: anchorLine ?? entity.anchorLine,
     transient: Boolean(event?.data?.transient),
+    parentId: parentId ?? entity.parentId,
+    bundleId: bundleId ?? entity.bundleId,
+    ordinal: ordinal ?? entity.ordinal,
+    mode: mode ?? entity.mode,
   };
 }
 
-function isCozoKind(kind) {
+function projectBundleEntity(bundle, event, status) {
+  const anchorLine = extractAnchorLine(event);
+  const bundleId = extractCozoBundleId(event);
+  const mode = extractCozoMode(event);
+
+  return {
+    ...bundle,
+    kind: ENTITY_KIND_COZO_BUNDLE,
+    status,
+    anchorLine: anchorLine ?? bundle.anchorLine,
+    bundleId: bundleId ?? bundle.bundleId,
+    mode: mode ?? bundle.mode,
+    error: event?.data?.error || null,
+  };
+}
+
+function isCozoLeafKind(kind) {
   return (
     kind === ENTITY_KIND_COZO_HINT
     || kind === ENTITY_KIND_COZO_QUERY_SUGGESTION
     || kind === ENTITY_KIND_COZO_DOC_REF
   );
+}
+
+function hasExplicitBundleMetadata(entity) {
+  return typeof entity?.parentId === "string" && entity.parentId !== "" && typeof entity?.bundleId === "string" && entity.bundleId !== "";
 }
 
 function trimTrailingDisplayWhitespace(text) {
@@ -150,7 +247,7 @@ function trimTrailingDisplayWhitespace(text) {
 function getOrderedSemEntities(state, predicate) {
   return state.order
     .map((entityId) => state.entities[entityId])
-    .filter((entity) => isCozoKind(entity?.kind) && predicate(entity));
+    .filter((entity) => isCozoLeafKind(entity?.kind) && predicate(entity));
 }
 
 function buildSemThreads(entities) {
@@ -185,6 +282,35 @@ function buildSemThreads(entities) {
   return threads;
 }
 
+function getOrderedCozoBundles(state, predicate) {
+  return state.order
+    .map((entityId) => state.entities[entityId])
+    .filter((entity) => entity?.kind === ENTITY_KIND_COZO_BUNDLE && predicate(entity));
+}
+
+function getBundleChildren(state, bundleEntityId) {
+  return Object.values(state.entities)
+    .filter((entity) => entity?.parentId === bundleEntityId && isCozoLeafKind(entity?.kind))
+    .sort((left, right) => (left.ordinal ?? 0) - (right.ordinal ?? 0));
+}
+
+function buildBundleThread(state, bundle) {
+  const children = getBundleChildren(state, bundle.id);
+  const hint = children.find((entity) => entity.kind === ENTITY_KIND_COZO_HINT) || null;
+
+  return {
+    id: bundle.id,
+    bundle,
+    hint,
+    children: hint ? children.filter((entity) => entity.id !== hint.id) : children,
+    anchorLine: bundle.anchorLine ?? null,
+  };
+}
+
+function getFallbackSemEntities(state, predicate) {
+  return getOrderedSemEntities(state, (entity) => predicate(entity) && !hasExplicitBundleMetadata(entity));
+}
+
 export function createSemProjectionState() {
   return {
     entities: {},
@@ -203,8 +329,9 @@ export function applySemEvent(state, event) {
   }
 
   const entity = ensureEntity(state, event, entityId);
-  const nextOrder = appendOrder(state.order, entityId);
+  let nextOrder = appendOrder(state.order, entityId);
   let nextEntity = entity;
+  let nextEntities = state.entities;
 
   switch (event.type) {
     case LLM_START_EVENT:
@@ -265,11 +392,22 @@ export function applySemEvent(state, event) {
       return state;
   }
 
+  nextEntities = {
+    ...nextEntities,
+    [entityId]: nextEntity,
+  };
+
+  if (event.type.startsWith("cozo.")) {
+    const bundleEntityId = extractCozoParentId(event);
+    if (bundleEntityId) {
+      const bundle = state.entities[bundleEntityId] || createBundleEntity(bundleEntityId);
+      nextEntities[bundleEntityId] = projectBundleEntity(bundle, event, nextEntity.status);
+      nextOrder = appendOrder(nextOrder, bundleEntityId);
+    }
+  }
+
   return {
-    entities: {
-      ...state.entities,
-      [entityId]: nextEntity,
-    },
+    entities: nextEntities,
     order: nextOrder,
   };
 }
@@ -297,13 +435,22 @@ export function getTrailingSemEntities(state) {
 }
 
 export function getInlineSemThreads(state, lineIdx) {
-  return buildSemThreads(getInlineSemEntities(state, lineIdx));
+  return [
+    ...getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine === lineIdx).map((bundle) => buildBundleThread(state, bundle)),
+    ...buildSemThreads(getFallbackSemEntities(state, (entity) => entity?.anchorLine === lineIdx)),
+  ];
 }
 
 export function getTrailingSemThreads(state) {
-  return buildSemThreads(getTrailingSemEntities(state));
+  return [
+    ...getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine == null).map((bundle) => buildBundleThread(state, bundle)),
+    ...buildSemThreads(getFallbackSemEntities(state, (entity) => entity?.anchorLine == null)),
+  ];
 }
 
 export function getAllSemThreads(state) {
-  return buildSemThreads(getOrderedSemEntities(state, () => true));
+  return [
+    ...getOrderedCozoBundles(state, () => true).map((bundle) => buildBundleThread(state, bundle)),
+    ...buildSemThreads(getFallbackSemEntities(state, () => true)),
+  ];
 }
