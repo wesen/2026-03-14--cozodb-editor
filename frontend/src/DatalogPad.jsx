@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
-// --- Backend Configuration ---
-const API_BASE = ""; // same origin when proxied through Go backend
-const WS_URL = `ws://${window.location.host}/ws/hints`;
+import { executeQuery } from "./transport/httpClient";
+import { useHintsSocket } from "./transport/hintsSocket";
 
 // --- CozoScript Mock Responses (fallback when backend unavailable) ---
 const MOCK_RESPONSES = {
@@ -58,93 +56,6 @@ function matchResponse(question) {
   return MOCK_RESPONSES["fallback"];
 }
 
-// --- API Hooks ---
-
-function useWebSocket() {
-  const wsRef = useRef(null);
-  const [connected, setConnected] = useState(false);
-  const handlersRef = useRef({});
-
-  useEffect(() => {
-    let ws;
-    let reconnectTimer;
-
-    function connect() {
-      try {
-        ws = new WebSocket(WS_URL);
-      } catch {
-        return;
-      }
-
-      ws.onopen = () => {
-        wsRef.current = ws;
-        setConnected(true);
-      };
-
-      ws.onclose = () => {
-        wsRef.current = null;
-        setConnected(false);
-        reconnectTimer = setTimeout(connect, 3000);
-      };
-
-      ws.onerror = () => {
-        ws.close();
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.sem && msg.event) {
-            const handler = handlersRef.current[msg.event.type];
-            if (handler) handler(msg.event);
-          }
-        } catch {}
-      };
-    }
-
-    connect();
-
-    return () => {
-      clearTimeout(reconnectTimer);
-      if (ws) ws.close();
-    };
-  }, []);
-
-  const send = useCallback((type, data) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        sem: true,
-        event: { type, data },
-      }));
-      return true;
-    }
-    return false;
-  }, []);
-
-  const on = useCallback((type, handler) => {
-    handlersRef.current[type] = handler;
-  }, []);
-
-  const off = useCallback((type) => {
-    delete handlersRef.current[type];
-  }, []);
-
-  return { connected, send, on, off };
-}
-
-async function executeQuery(script, params = {}) {
-  try {
-    const res = await fetch(`${API_BASE}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ script, params }),
-    });
-    return await res.json();
-  } catch (err) {
-    return { ok: false, message: `Network error: ${err.message}` };
-  }
-}
-
 // --- UI Helpers ---
 
 function formatText(text) {
@@ -155,6 +66,31 @@ function formatText(text) {
     }
     return part;
   });
+}
+
+function stripAnsiCodes(text) {
+  let result = "";
+  let idx = 0;
+
+  while (idx < text.length) {
+    if (text.charCodeAt(idx) === 27 && text[idx + 1] === "[") {
+      let cursor = idx + 2;
+
+      while (cursor < text.length && /[0-9;]/.test(text[cursor])) {
+        cursor += 1;
+      }
+
+      if (text[cursor] === "m") {
+        idx = cursor + 1;
+        continue;
+      }
+    }
+
+    result += text[idx];
+    idx += 1;
+  }
+
+  return result;
 }
 
 // --- Sub-components ---
@@ -475,26 +411,26 @@ export default function DatalogPad() {
   const textareaRef = useRef(null);
   const editorRef = useRef(null);
 
-  const ws = useWebSocket();
+  const ws = useHintsSocket();
 
   // Track streaming text for each hint request
   const streamingTextRef = useRef({});
 
   // Set up WebSocket event handlers
   useEffect(() => {
-    ws.on("llm.start", (event) => {
+    const unsubStart = ws.on("llm.start", (event) => {
       streamingTextRef.current[event.id] = "";
       setStreamingBlocks(prev => ({ ...prev, [event.id]: "" }));
     });
 
-    ws.on("llm.delta", (event) => {
+    const unsubDelta = ws.on("llm.delta", (event) => {
       const text = (streamingTextRef.current[event.id] || "") + event.data;
       streamingTextRef.current[event.id] = text;
       setStreamingBlocks(prev => ({ ...prev, [event.id]: text }));
     });
 
-    ws.on("hint.result", (event) => {
-      const lineIdx = parseInt(event.id.split("-").pop());
+    const unsubResult = ws.on("hint.result", (event) => {
+      const _lineIdx = parseInt(event.id.split("-").pop());
       // Remove streaming block and set final response
       setStreamingBlocks(prev => {
         const next = { ...prev };
@@ -520,7 +456,7 @@ export default function DatalogPad() {
       }
     });
 
-    ws.on("llm.error", (event) => {
+    const unsubError = ws.on("llm.error", (event) => {
       setStreamingBlocks(prev => {
         const next = { ...prev };
         delete next[event.id];
@@ -531,10 +467,10 @@ export default function DatalogPad() {
     });
 
     return () => {
-      ws.off("llm.start");
-      ws.off("llm.delta");
-      ws.off("hint.result");
-      ws.off("llm.error");
+      unsubStart();
+      unsubDelta();
+      unsubResult();
+      unsubError();
     };
   }, [ws]);
 
@@ -632,8 +568,7 @@ export default function DatalogPad() {
       });
     } else {
       // Strip ANSI codes from display message
-      const errorMsg = (result.display || result.message || "Unknown error")
-        .replace(/\x1b\[[0-9;]*m/g, "");
+      const errorMsg = stripAnsiCodes(result.display || result.message || "Unknown error");
       setErrorBlock({
         error: errorMsg,
         script: code,
@@ -671,16 +606,6 @@ export default function DatalogPad() {
     setCursorLine(1);
     setShowOnboarding(false);
     focusTextarea();
-  };
-
-  // Find which AI block to show for a line index
-  const getAiBlock = (idx) => {
-    // Check for completed responses (keyed by hint-N or mock-N)
-    for (const [key, response] of Object.entries(aiBlocks)) {
-      if (key === `mock-${idx}`) return { key, response };
-    }
-    // Also check hint-N keys (from WS) — we map by order received
-    return null;
   };
 
   // Collect all streaming blocks for display
