@@ -2,6 +2,13 @@
 
 ## 2026-03-15
 
+- Started the real phase 3 runtime work.
+- Added frontend notebook execution-state derivation for dirty and stale cell badges.
+- Implemented conservative stale propagation based on notebook order, upstream dirty cells, and risky earlier reruns.
+- Added runtime-state tests for dirty and stale derivation.
+
+## 2026-03-15
+
 - Added an explicit phase 3 plan to COZODB-005.
 - Scoped phase 3 around notebook ergonomics and lightweight runtime UX rather than new backend persistence or hydration complexity.
 - Expanded the design doc, tasks, and diary to reflect the next implementation phase after the cell-ownership pivot.

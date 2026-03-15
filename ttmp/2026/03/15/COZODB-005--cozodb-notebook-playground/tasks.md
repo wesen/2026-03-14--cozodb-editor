@@ -157,9 +157,11 @@
 ## Phase 3: Runtime UX
 
 - [ ] Runtime 3.1: Surface latest run timestamp or execution badge details per cell
-- [ ] Runtime 3.2: Add a lightweight “dirty since last run” indicator for edited code cells
+- [x] Runtime 3.2: Add a lightweight “dirty since last run” indicator for edited code cells
 - [ ] Runtime 3.3: Add a lightweight “AI attached to this run” indicator when a cell has bundles or fallback responses
 - [ ] Runtime 3.4: Decide whether latest-output-only remains sufficient or whether a small per-cell run history affordance is needed next
+- [x] Runtime 3.5: Add conservative downstream staleness derived from notebook order, upstream dirty state, and risky earlier reruns
+- [x] Runtime 3.6: Add frontend tests for conservative dirty and stale state derivation
 
 ## Cleanup and Follow-up
 

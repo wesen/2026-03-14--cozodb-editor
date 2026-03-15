@@ -326,6 +326,47 @@ So phase 3 is defined as two small clusters:
 
 This is intentionally not a replay/hydration phase. That would blur the roadmap and re-open a larger runtime scope before the notebook authoring surface feels solid.
 
+### Step 9: implement the first phase 3 runtime slice
+
+After correcting the roadmap, I implemented the first actual phase 3 slice: dirty and stale notebook state.
+
+Files added:
+
+- `frontend/src/notebook/runtimeState.ts`
+- `frontend/src/notebook/runtimeState.test.ts`
+
+Files updated:
+
+- `frontend/src/transport/httpClient.ts`
+- `frontend/src/notebook/useNotebookDocument.ts`
+- `frontend/src/notebook/NotebookPage.tsx`
+- `frontend/src/notebook/NotebookCellCard.tsx`
+
+What changed:
+
+- the frontend now derives notebook execution state as a separate pure layer instead of scattering dirty/stale rules across components
+- dirty state is driven by local unsaved edits, lack of any prior run, or persisted edits newer than the last run
+- stale state is conservative: if an earlier code cell is dirty or if an earlier risky cell reran after the current cell, downstream cells become stale
+- notebook cell chrome now renders `dirty` and `stale` badges
+
+Important implementation detail:
+
+I kept this phase frontend-derived rather than inventing a new backend stale-propagation subsystem immediately. The backend already exposes enough run metadata for a conservative first pass:
+
+- cell order from the notebook document
+- `execution_count`
+- `finished_at_ms`
+- latest per-cell runtime hydration
+
+That gives the notebook a meaningful run model now, while still leaving room for a later backend-owned stale classifier if the product needs stronger guarantees.
+
+Validation:
+
+- `npm test`
+- `npm run lint`
+- `npm run build`
+- `go test ./...`
+
 I ported files bottom-up in dependency order:
 
 1. Pure constants: `semEventTypes.ts` (no changes needed, just rename)
