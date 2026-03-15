@@ -36,6 +36,9 @@
 - [x] UI 3.2: Preserve `PadEditor` as the editor shell and do not reintroduce raw line-array mutations inside widget components
 - [x] UI 3.3: Keep `DiagnosisCard.jsx` separate from Cozo extraction widgets
 - [x] UI 3.4: Remove the legacy `hint.result` render path once SEM widgets and final text flow are complete
+- [x] UI 3.5: Trim trailing display whitespace from `llm.delta` and `llm.final` projection output so structured extraction does not leave stray newline cards behind
+- [x] UI 3.6: Group semantic hints with their query/doc follow-ups into foldable per-thread render units
+- [x] UI 3.7: Add dismiss controls for semantic threads at the pad shell level without mutating canonical SEM projection state
 - [x] UI 4.1: Extend `frontend/src/sem/semProjection.test.js` for preview-to-final merge behavior per Cozo family
 - [x] UI 4.2: Add projection tests for canonical-id fallback and rekeying
 - [x] UI 4.3: Add projection tests for anchor routing between inline and trailing widget placement
@@ -44,4 +47,6 @@
 ## TODO
 
 - [ ] UI 4.5: Remove or replace `frontend/src/features/hints/HintResponseCard.test.jsx` when the compatibility path is retired
+- [ ] UI 5.1: Add explicit backend thread identifiers if semantic child grouping must survive interleaved event order or split anchors
+- [ ] UI 5.2: Prototype notebook-style editor cells under SEM responses using the existing `renderAfterLine(...)` seam before attempting true in-between-line chat insertion
 - [x] Upload the final COZODB-002 bundle to reMarkable and verify the remote listing

@@ -2,6 +2,9 @@
 
 ## 2026-03-15
 
+- Implemented semantic thread UX refinements in commit `3fd038b` (`frontend(sem): fold and trim semantic threads`).
+- Trimmed trailing streaming/final display whitespace, grouped semantic hint follow-ups into foldable thread render units, added dismiss controls in the pad shell, and expanded projection plus renderer tests.
+- Validated the refinement slice with `npm test`, `npm run lint`, and `npm run build`.
 - Implemented the frontend SEM migration slice in commits `77bcd3a` (`frontend(sem): render cozo extraction widgets`) and `fb16ae0` (`frontend(testing): cover cozo projection families`).
 - Added the frontend semantic projection handlers, canonical Cozo entity projection, inline/trailing selectors, the new Cozo widget renderer stack, and the initial widget tests plus expanded projection tests.
 - Validated the frontend slice with `npm test`, `npm run lint`, and `npm run build`.

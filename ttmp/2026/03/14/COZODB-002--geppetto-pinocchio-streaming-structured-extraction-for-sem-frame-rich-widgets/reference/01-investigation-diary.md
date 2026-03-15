@@ -50,7 +50,7 @@ RelatedFiles:
       Note: Projects llm and cozo semantic events into canonical frontend entities with inline/trailing routing
 ExternalSources: []
 Summary: Chronological investigation record for COZODB-002 covering repository validation, code-review findings, reference-pattern verification, and ticket deliverable preparation.
-LastUpdated: 2026-03-15T02:16:41-04:00
+LastUpdated: 2026-03-15T10:02:00-04:00
 WhatFor: Record what was validated, what patterns were confirmed, which commands were run, and how the final deliverable was produced.
 WhenToUse: Use this diary when reviewing the ticket deliverable or continuing implementation from the design document.
 ---
@@ -668,3 +668,117 @@ This was not just a wording cleanup. The UI section needed to change from a gene
   - `ttmp/2026/03/14/COZODB-002--geppetto-pinocchio-streaming-structured-extraction-for-sem-frame-rich-widgets/design-doc/01-independent-review-and-implementation-guide-for-geppetto-pinocchio-and-sem-extraction-widgets.md`
   - `ttmp/2026/03/14/COZODB-002--geppetto-pinocchio-streaming-structured-extraction-for-sem-frame-rich-widgets/tasks.md`
   - `ttmp/2026/03/14/COZODB-002--geppetto-pinocchio-streaming-structured-extraction-for-sem-frame-rich-widgets/changelog.md`
+
+## Step 7: Refine the semantic widget UX for trimming, folding, dismissing, and notebook follow-up planning
+
+Once the initial semantic widget path was in place, the next gap was usability rather than architecture. The streaming text path was still willing to display trailing extraction whitespace, which produced newline artifacts during structured extraction, and the semantic widgets still rendered as flat cards instead of a hint-led thread that could be folded away or dismissed after use.
+
+I treated this as a focused frontend refinement slice rather than another architecture rewrite. The goal was to fix the visible UX problems with the smallest state-model change that still preserved the clean projection seam from COZODB-003: trimming stays in the projection layer, fold/dismiss state stays in the pad shell, and the renderer becomes thread-aware without mutating canonical entity state.
+
+### Prompt Context
+
+**User prompt (verbatim):** "- strip whitespace from end of llm.text/llm.delta, because otherwise with structured data extraction it leads to newlines.
+- make sem hint and its queries and doc refs (as children or something) foldable. Also make it so they can be dismissed.
+- how easy would it be to have the hints/answers in between editor lines so that we have some kind of chat interface? or other wise put a new editor widget underneath the response, in a notebook kind of interface?"
+
+**Assistant interpretation:** Tighten the new semantic widget UX by trimming stray streaming whitespace, grouping semantic hint follow-ups into foldable dismissible units, and evaluate how hard it would be to evolve the editor into a more notebook-like conversation layout.
+
+**Inferred user intent:** Make the new semantic hint workflow feel usable enough for iterative querying now, and understand the cheapest path toward a richer chat/notebook interaction model.
+
+**Commit (code):** `3fd038b` — `frontend(sem): fold and trim semantic threads`
+
+### What I did
+- Updated `frontend/src/sem/semProjection.js` to:
+  - trim trailing whitespace from streaming display text,
+  - trim trailing whitespace from `llm.final`,
+  - group semantic entities into thread projections via `getInlineSemThreads(...)`, `getTrailingSemThreads(...)`, and `getAllSemThreads(...)`.
+- Reworked `frontend/src/features/cozo-sem/CozoSemRenderer.jsx` from a single-entity dispatcher into a thread renderer that:
+  - shows a hint-led thread header,
+  - renders query suggestions and doc refs as children,
+  - supports fold/expand,
+  - supports dismiss.
+- Updated `frontend/src/DatalogPad.jsx` to:
+  - render semantic threads instead of flat semantic entities,
+  - track local collapsed/dismissed thread state keyed by thread ID,
+  - keep dismiss state in the UI shell instead of deleting projected entities,
+  - include visible semantic threads in the response counter.
+- Expanded tests in:
+  - `frontend/src/sem/semProjection.test.js`
+  - `frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`
+- Added explicit cleanup to the renderer tests so Vitest does not leak DOM state between cases.
+- Ran:
+  - `npm test -- --runInBand`
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+
+### Why
+- Trimming belongs in the projection/display boundary because the underlying deltas may legitimately carry spaces between tokens; trimming on every append would risk destroying word boundaries.
+- Folding and dismissing belong in the shell/UI state rather than the projection state because they are viewer preferences, not part of the semantic event model.
+- A thread-level renderer is the smallest change that lets a semantic hint own its suggestions and references without inventing a second rendering pipeline.
+
+### What worked
+- Streaming cards no longer keep trailing newline artifacts when structured extraction leaves whitespace at the end of the LLM output.
+- Semantic hints now render as grouped threads with child query/doc widgets, which makes the relationship between the cards much clearer.
+- The pad shell can now dismiss or fold threads without mutating the canonical projected entities.
+- `npm test`, `npm run lint`, and `npm run build` all passed after the refinement patch.
+- The notebook follow-up analysis is clearer now that the code has explicit seams:
+  - true "chat between lines" is moderate effort because `PadEditor.jsx` still models the document as a flat `lines[]` array with one active input,
+  - notebook-style editor cells under a response are easier because `renderAfterLine(...)` already gives a stable insertion seam for line-anchored widgets.
+
+### What didn't work
+- My first test rerun repeated the earlier tool mismatch:
+  - Command: `npm test -- --runInBand`
+  - Error: `CACError: Unknown option --runInBand`
+- After switching back to the real Vitest command, the renderer tests still failed once because the file depended on cleanup behavior that was not explicit:
+  - Command: `npm test`
+  - Error excerpt: `TestingLibraryElementError: Found multiple elements with the text: /Use an inline rule/`
+- The fix was to add `afterEach(cleanup)` in `frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`.
+
+### What I learned
+- The current frontend is already well-positioned for notebook-style experimentation because `DatalogPad.jsx` can inject arbitrary UI after a line without changing the editor core.
+- True in-between-line chat insertion is still possible, but it would be more invasive because `usePadDocument.js` and `PadEditor.jsx` assume every document row is fundamentally a text line.
+- Thread grouping is currently inferred from event order plus hint boundaries. That is good enough for the current event stream, but if the backend ever interleaves multiple child families aggressively, an explicit backend thread ID would make the grouping rule much safer.
+
+### What was tricky to build
+- The sharp edge in the trimming fix was preserving legitimate interior spaces while removing only the artifact at the right edge. Doing the trim in the selector/final-text path solves that without corrupting cumulative delta assembly.
+- The tricky part of folding/dismissing was respecting architectural boundaries. It would have been easy to bolt `dismissed` flags into projected entities, but that would mix transient viewer state into the semantic model and make replay/debugging worse.
+- Thread grouping is also only partially authoritative today because the backend does not emit an explicit parent/thread identifier for child widgets. The renderer works by grouping entities in canonical order under the last seen semantic hint per anchor bucket.
+
+### What warrants a second pair of eyes
+- Reviewers should verify that the current inferred thread-grouping rule is acceptable until the backend grows explicit thread IDs.
+- The thread wrapper now nests existing widget cards inside a higher-level SEM container. That is functionally correct, but it deserves a quick browser pass to confirm the visual density feels right.
+- If notebook-style follow-up editing becomes a near-term requirement, review the editor/document invariants in `frontend/src/editor/usePadDocument.js` before expanding the current line-array model.
+
+### What should be done in the future
+- Add explicit backend thread IDs if semantic child grouping needs to survive interleaved child events or split anchor routing.
+- Prototype a notebook-style "editor cell under response" widget using `PadEditor.renderAfterLine(...)` before attempting a true inline chat/notebook document model.
+- Retire the remaining legacy `HintResponseCard` compatibility test once the old compatibility path is fully removed.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semProjection.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/cozo-sem/CozoSemRenderer.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/DatalogPad.jsx`
+- Then validate:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+- Review the focused coverage in:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semProjection.test.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`
+- For the notebook follow-up, inspect:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/editor/PadEditor.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/editor/usePadDocument.js`
+
+### Technical details
+- New projection selectors introduced in this slice:
+  - `getInlineSemThreads(...)`
+  - `getTrailingSemThreads(...)`
+  - `getAllSemThreads(...)`
+- New shell-level UX state introduced in this slice:
+  - `collapsedSemThreads`
+  - `dismissedSemThreads`
+- Notebook-feasibility conclusion:
+  - easiest next step: render a follow-up editor widget beneath a semantic response using `renderAfterLine(...)`,
+  - harder next step: make the editor itself a heterogeneous list of text rows plus widget rows instead of a pure `lines[]` document.
