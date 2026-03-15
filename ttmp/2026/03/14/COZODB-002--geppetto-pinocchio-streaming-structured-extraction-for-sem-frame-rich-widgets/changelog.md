@@ -1,0 +1,25 @@
+# Changelog
+
+## 2026-03-15
+
+- Implemented the first backend migration slice for COZODB-002 in commit `9af6a58` (`backend(hints): switch streaming inference to geppetto`).
+- Replaced the direct Anthropic SDK hint path with a geppetto session plus event-sink bridge, preserved the existing websocket delta/result contract, and made websocket-driven inference cancel with the connection context.
+- Updated `backend/go.mod` for the geppetto toolchain requirements and validated the backend with `env GOTOOLCHAIN=auto go mod tidy` and `env GOTOOLCHAIN=auto go test ./...`.
+- Updated the COZODB-002 design doc and task list after COZODB-003 landed.
+- Added a detailed UI section describing the current decomposed frontend seams, the target SEM widget architecture, the concrete file plan, and granular frontend migration tasks aligned with the actual codebase.
+
+## 2026-03-14
+
+- Initial workspace created
+- Added a primary design doc with an independent review of the current `cozodb-editor` streaming stack, concrete review findings, and a phased implementation guide for geppetto, pinocchio, and Cozo-specific SEM widget families.
+- Added an investigation diary and updated ticket bookkeeping to reflect the validated evidence set and remaining implementation tasks.
+- Validated the ticket cleanly with `docmgr doctor --ticket COZODB-002 --stale-after 30`, dry-ran the bundle upload, uploaded the final PDF to reMarkable at `/ai/2026/03/14/COZODB-002`, and verified the remote listing.
+
+## 2026-03-14
+
+Independently re-validated the local code and reference repos, replaced the stub with a primary design doc, and recorded the investigation diary for the geppetto/pinocchio/SEM migration.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/14/COZODB-002--geppetto-pinocchio-streaming-structured-extraction-for-sem-frame-rich-widgets/design-doc/01-independent-review-and-implementation-guide-for-geppetto-pinocchio-and-sem-extraction-widgets.md — Primary deliverable
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/14/COZODB-002--geppetto-pinocchio-streaming-structured-extraction-for-sem-frame-rich-widgets/reference/01-investigation-diary.md — Chronological investigation record
