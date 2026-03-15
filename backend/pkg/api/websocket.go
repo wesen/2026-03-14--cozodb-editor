@@ -33,6 +33,9 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	wsCtx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	log.Printf("[WS] client connected: %s", r.RemoteAddr)
 
 	var writeMu sync.Mutex
@@ -65,16 +68,19 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 		switch msg.Event.Type {
 		case "hint.request":
-			go h.handleHintRequest(writeJSON, msg.Event, &requestID)
+			go h.handleHintRequest(wsCtx, writeJSON, msg.Event, &requestID)
 		case "diagnosis.request":
-			go h.handleDiagnosisRequest(writeJSON, msg.Event, &requestID)
+			go h.handleDiagnosisRequest(wsCtx, writeJSON, msg.Event, &requestID)
 		default:
 			log.Printf("[WS] unknown event type: %s", msg.Event.Type)
 		}
 	}
 }
 
-func (h *WSHandler) handleHintRequest(writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+	reqCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	id := requestID.Add(1)
 	idStr := fmt.Sprintf("hint-%d", id)
 
@@ -116,7 +122,7 @@ func (h *WSHandler) handleHintRequest(writeJSON func(WSMessage), event WSEvent, 
 	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr}})
 
 	// Stream deltas
-	hint, err := h.Engine.GenerateHint(context.Background(), hintReq, func(delta string) {
+	hint, err := h.Engine.GenerateHint(reqCtx, hintReq, func(delta string) {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
 			Type: "llm.delta",
 			ID:   idStr,
@@ -142,7 +148,10 @@ func (h *WSHandler) handleHintRequest(writeJSON func(WSMessage), event WSEvent, 
 	}})
 }
 
-func (h *WSHandler) handleDiagnosisRequest(writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+	reqCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	id := requestID.Add(1)
 	idStr := fmt.Sprintf("diag-%d", id)
 
@@ -175,7 +184,7 @@ func (h *WSHandler) handleDiagnosisRequest(writeJSON func(WSMessage), event WSEv
 
 	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr}})
 
-	hint, err := h.Engine.DiagnoseError(context.Background(), diagReq, func(delta string) {
+	hint, err := h.Engine.DiagnoseError(reqCtx, diagReq, func(delta string) {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
 			Type: "llm.delta",
 			ID:   idStr,
