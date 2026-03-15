@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { PadEditor } from "./editor/PadEditor";
+import { usePadDocument } from "./editor/usePadDocument";
 import { executeQuery } from "./transport/httpClient";
 import { useHintsSocket } from "./transport/hintsSocket";
 
@@ -398,18 +400,14 @@ function ErrorBlock({ error, fix, onApplyFix, onDiagnose, diagnosing }) {
 // --- Main Component ---
 
 export default function DatalogPad() {
-  const [lines, setLines] = useState([""]);
   const [aiBlocks, setAiBlocks] = useState({});
   const [streamingBlocks, setStreamingBlocks] = useState({});
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
   const [errorBlock, setErrorBlock] = useState(null);
-  const [cursorLine, setCursorLine] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [runResult, setRunResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
-  const textareaRef = useRef(null);
-  const editorRef = useRef(null);
 
   const ws = useHintsSocket();
 
@@ -474,10 +472,6 @@ export default function DatalogPad() {
     };
   }, [ws]);
 
-  const focusTextarea = () => {
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  };
-
   const requestHint = useCallback((question, lineIdx) => {
     // Try WebSocket first
     const sent = ws.send("hint.request", { question, history: [] });
@@ -488,61 +482,30 @@ export default function DatalogPad() {
     }
   }, [ws]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const currentLine = lines[cursorLine] || "";
-      const match = currentLine.match(/^#\?\?\s+(.+)/);
+  const {
+    cursorLine,
+    editorRef,
+    focusInput,
+    handleKeyDown,
+    handleLineChange,
+    inputRef,
+    insertCodeBelowCursor,
+    insertQuestionBelowCursor,
+    lines,
+    loadExampleQuestion,
+    selectLine,
+  } = usePadDocument({
+    onInteract: () => setShowOnboarding(false),
+    onQuestion: requestHint,
+  });
 
-      const newLines = [...lines];
-      newLines.splice(cursorLine + 1, 0, "");
-      setLines(newLines);
+  const handleChipClick = useCallback((chip) => {
+    insertQuestionBelowCursor(chip);
+  }, [insertQuestionBelowCursor]);
 
-      if (match) {
-        const question = match[1].trim();
-        requestHint(question, cursorLine);
-        setShowOnboarding(false);
-      }
-
-      setCursorLine(cursorLine + 1);
-      focusTextarea();
-    }
-  };
-
-  const handleLineChange = (e) => {
-    const val = e.target.value;
-    const newLines = [...lines];
-    newLines[cursorLine] = val;
-    setLines(newLines);
-    if (val.length > 0) setShowOnboarding(false);
-  };
-
-  const handleChipClick = (chip) => {
-    const newQuestion = `#?? ${chip}`;
-    const insertAt = cursorLine + 1;
-    const newLines = [...lines];
-    newLines.splice(insertAt, 0, newQuestion, "");
-    setLines(newLines);
-
-    requestHint(chip, insertAt);
-    setCursorLine(insertAt + 1);
-    focusTextarea();
-  };
-
-  const handleInsert = (code) => {
-    const codeLines = code.split("\n");
-    const insertAt = cursorLine + 1;
-    const newLines = [...lines];
-    newLines.splice(insertAt, 0, ...codeLines);
-    setLines(newLines);
-    setCursorLine(insertAt + codeLines.length - 1);
-    focusTextarea();
-  };
-
-  const handleLineClick = (idx) => {
-    setCursorLine(idx);
-    focusTextarea();
-  };
+  const handleInsert = useCallback((code) => {
+    insertCodeBelowCursor(code);
+  }, [insertCodeBelowCursor]);
 
   const toggleCollapse = (lineIdx) => {
     setCollapsedBlocks(prev => ({ ...prev, [lineIdx]: !prev[lineIdx] }));
@@ -600,12 +563,7 @@ export default function DatalogPad() {
   };
 
   const handleExampleClick = (text) => {
-    const newLines = [`#?? ${text}`, ""];
-    setLines(newLines);
-    requestHint(text, 0);
-    setCursorLine(1);
-    setShowOnboarding(false);
-    focusTextarea();
+    loadExampleQuestion(text);
   };
 
   // Collect all streaming blocks for display
@@ -711,8 +669,10 @@ export default function DatalogPad() {
       </div>
 
       {/* Editor */}
-      <div ref={editorRef} style={{ flex: 1, padding: "16px 0", overflowY: "auto" }} onClick={focusTextarea}>
-        {showOnboarding && lines.length === 1 && lines[0] === "" ? (
+      <PadEditor
+        cursorLine={cursorLine}
+        editorRef={editorRef}
+        emptyState={showOnboarding ? (
           <div style={{ padding: "40px 50px" }}>
             <div style={{
               padding: "28px 32px",
@@ -774,103 +734,40 @@ export default function DatalogPad() {
               </div>
             </div>
           </div>
-        ) : (
-          <div style={{ minHeight: 300 }}>
-            {lines.map((line, idx) => (
-              <div key={idx}>
-                <div
-                  onClick={() => handleLineClick(idx)}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    minHeight: 28,
-                    cursor: "text",
-                    background: cursorLine === idx ? "rgba(255,255,255,0.015)" : "transparent",
-                  }}
-                >
-                  {/* Line number */}
-                  <div style={{
-                    width: 44,
-                    textAlign: "right",
-                    paddingRight: 16,
-                    paddingTop: 4,
-                    fontSize: 12,
-                    color: cursorLine === idx ? "var(--text-line-active)" : "var(--text-line-num)",
-                    userSelect: "none",
-                    flexShrink: 0,
-                  }}>
-                    {idx + 1}
-                  </div>
-
-                  {/* Line content */}
-                  <div style={{ flex: 1, paddingRight: 20 }}>
-                    {cursorLine === idx ? (
-                      <input
-                        ref={textareaRef}
-                        value={line}
-                        onChange={handleLineChange}
-                        onKeyDown={handleKeyDown}
-                        spellCheck={false}
-                        autoFocus
-                        style={{
-                          width: "100%",
-                          background: "transparent",
-                          border: "none",
-                          outline: "none",
-                          color: line.startsWith("#??") ? "var(--text-comment)" : "var(--text-primary)",
-                          fontFamily: "inherit",
-                          fontSize: 14,
-                          lineHeight: "28px",
-                          padding: 0,
-                          caretColor: "var(--accent)",
-                        }}
-                      />
-                    ) : (
-                      <div style={{
-                        fontSize: 14,
-                        lineHeight: "28px",
-                        color: line.startsWith("#??") ? "var(--text-comment)" : line.startsWith("//") || line.startsWith(";") ? "var(--text-muted)" : "var(--text-primary)",
-                        fontStyle: line.startsWith("#??") || line.startsWith("//") || line.startsWith(";") ? "italic" : "normal",
-                        minHeight: 28,
-                        whiteSpace: "pre",
-                      }}>
-                        {line || " "}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* AI response block (mock fallback) */}
-                {aiBlocks[`mock-${idx}`] && (
-                  <AIBlock
-                    response={aiBlocks[`mock-${idx}`]}
-                    collapsed={!!collapsedBlocks[idx]}
-                    onToggleCollapse={() => toggleCollapse(idx)}
-                    onChipClick={handleChipClick}
-                    onInsert={handleInsert}
-                  />
-                )}
-              </div>
-            ))}
-
-            {/* Streaming AI blocks (from WebSocket) */}
-            {activeStreams.map(([id, text]) => (
-              <StreamingText key={id} text={text} />
-            ))}
-
-            {/* Completed AI blocks from WebSocket (shown after editor lines) */}
-            {Object.entries(aiBlocks).filter(([key]) => key.startsWith("hint-")).map(([key, response]) => (
-              <AIBlock
-                key={key}
-                response={response}
-                collapsed={!!collapsedBlocks[key]}
-                onToggleCollapse={() => toggleCollapse(key)}
-                onChipClick={handleChipClick}
-                onInsert={handleInsert}
-              />
-            ))}
-          </div>
+        ) : null}
+        inputRef={inputRef}
+        lines={lines}
+        onBackgroundClick={focusInput}
+        onKeyDown={handleKeyDown}
+        onLineChange={handleLineChange}
+        onLineClick={selectLine}
+        renderAfterLine={(idx) => (
+          aiBlocks[`mock-${idx}`] ? (
+            <AIBlock
+              response={aiBlocks[`mock-${idx}`]}
+              collapsed={!!collapsedBlocks[idx]}
+              onToggleCollapse={() => toggleCollapse(idx)}
+              onChipClick={handleChipClick}
+              onInsert={handleInsert}
+            />
+          ) : null
         )}
+      >
+        {activeStreams.map(([id, text]) => (
+          <StreamingText key={id} text={text} />
+        ))}
+
+        {Object.entries(aiBlocks).filter(([key]) => key.startsWith("hint-")).map(([key, response]) => (
+          <AIBlock
+            key={key}
+            response={response}
+            collapsed={!!collapsedBlocks[key]}
+            onToggleCollapse={() => toggleCollapse(key)}
+            onChipClick={handleChipClick}
+            onInsert={handleInsert}
+          />
+        ))}
+      </PadEditor>
 
         {/* Error block */}
         {errorBlock && (
@@ -881,7 +778,7 @@ export default function DatalogPad() {
               diagnosing={diagnosing}
               onDiagnose={ws.connected ? handleDiagnose : null}
               onApplyFix={() => {
-                if (errorBlock.fix?.code) handleInsert(errorBlock.fix.code);
+                if (errorBlock.fix?.code) insertCodeBelowCursor(errorBlock.fix.code);
                 setErrorBlock(null);
               }}
             />
@@ -942,8 +839,6 @@ export default function DatalogPad() {
             </div>
           </div>
         )}
-      </div>
-
       {/* Status bar */}
       <div style={{
         padding: "6px 20px",

@@ -2,6 +2,11 @@
 
 ## 2026-03-15
 
+- Implemented the second decomposition slice in the frontend editor layer: added `frontend/src/editor/documentCommands.js`, `frontend/src/editor/usePadDocument.js`, and `frontend/src/editor/PadEditor.jsx`, moved line state/cursor state and question-trigger behavior out of `DatalogPad.jsx`, and rewired the screen to render the editor through the new boundary.
+- Re-validated the editor extraction with `npm run lint` and `npm run build` in `frontend/`.
+
+## 2026-03-15
+
 - Implemented the first decomposition slice in the frontend: created the target `app`, `editor`, `transport`, `sem`, `features`, and `theme` folders with ownership notes, extracted HTTP query helpers into `frontend/src/transport/httpClient.js`, extracted websocket lifecycle and event fan-out into `frontend/src/transport/hintsSocket.js`, and rewired `DatalogPad.jsx` to use the new transport boundary without changing visible behavior.
 - Validated the transport extraction with `npm run lint` and `npm run build` in `frontend/`.
 

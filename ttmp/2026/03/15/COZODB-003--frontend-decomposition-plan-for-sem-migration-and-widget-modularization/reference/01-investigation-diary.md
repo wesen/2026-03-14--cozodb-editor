@@ -312,3 +312,110 @@ This step intentionally stayed narrow. I created the target frontend folders, do
   - `frontend/src/DatalogPad.jsx`
   - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/tasks.md`
   - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/changelog.md`
+- Commit created:
+  - `c4fd50d frontend(ticket): add COZODB-003 and extract transport seam`
+
+## Step 4: Extract editor state and line rendering behind an editor boundary
+
+With the transport layer separated, the next bottleneck was the editor itself. `DatalogPad.jsx` still owned line-state mutation, cursor movement, question-trigger parsing, imperative focus management, and the full line-rendering tree. That is the exact cluster that becomes painful once SEM widgets or richer per-line interactions arrive, because transport may be modular while the view logic remains tightly coupled to raw state updates. The right next move was therefore to create an editor-domain seam without changing the observable editing behavior.
+
+I split this into one pure helper module, one stateful hook, and one presentational component. The pure helper module handles line-array mutations. The hook owns document state plus question-trigger behavior. The component renders the line list, active input, and after-line attachments while the parent screen passes feature-specific blocks as render props or children. That kept the extraction narrow and let the current `AIBlock` rendering survive unchanged while moving the editor mechanics out of the monolith.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead and do it, task by task, commit at appropriate intervals and keep a detailed diary"
+
+**Assistant interpretation:** Continue the decomposition sequentially, preserve reviewable commit slices, and keep documenting each phase.
+
+**Inferred user intent:** Reduce the cost of later SEM/widget work by introducing clean frontend seams before behavior is expanded further.
+
+### What I did
+- Added `frontend/src/editor/documentCommands.js` with pure helpers for:
+  - updating an existing line
+  - inserting one or more lines after the current line
+- Added `frontend/src/editor/usePadDocument.js` to own:
+  - `lines`
+  - `cursorLine`
+  - the active input ref
+  - the editor container ref
+  - focus restoration
+  - enter-to-append behavior
+  - `#??` question extraction
+  - chip/example/code insertion helpers
+- Added `frontend/src/editor/PadEditor.jsx` to render:
+  - the empty/onboarding editor state
+  - line numbers
+  - active-line input
+  - non-active line display
+  - per-line attached content through `renderAfterLine`
+  - document-level trailing content through `children`
+- Rewired `frontend/src/DatalogPad.jsx` to use `usePadDocument()` instead of directly owning line and cursor state.
+- Replaced the old inline line-list render tree in `DatalogPad.jsx` with a `PadEditor` instance.
+- Preserved the existing behavior for:
+  - pressing Enter on a `#??` line
+  - clicking example prompts
+  - inserting code from AI responses
+  - clicking lines to move the cursor
+  - showing mock fallback AI blocks below matching lines
+
+### Why
+- The editor layer was the second major responsibility cluster inside `DatalogPad.jsx`, after transport.
+- Pulling document mutations into an editor module makes later projection and widget work substantially less risky because the screen becomes more orchestration-oriented and less state-mechanical.
+- Pure line-array helpers are easier to test later than anonymous inline mutations spread across one large component.
+
+### What worked
+- The current editing flow still works with the new boundary in place.
+- The new `PadEditor` component is generic enough to host current AI blocks and future SEM-linked renderers without baking those concerns into the editor layer.
+- The hook API kept the `#??` trigger behavior intact by treating question dispatch as a callback instead of hardcoding hint logic into the editor module.
+- Validation succeeded after removing one orphaned helper from the old monolith:
+  - `npm run lint`
+  - `npm run build`
+
+### What didn't work
+- The first post-extraction lint pass still found an orphaned `focusTextarea` helper that referenced a deleted `textareaRef`. That was easy to fix, but it is another reminder that extraction work should end with a deliberate dead-code pass rather than assuming the compiler will expose everything cleanly.
+- The editor boundary is cleaner, but styling is still heavily inline. That is acceptable for this phase, though it means feature extraction will still carry some visual duplication until the later theme pass.
+
+### What I learned
+- The `renderAfterLine` plus `children` split is enough for the current screen. It allows the editor to own line mechanics while leaving richer feature rendering in the parent until those features get their own modules.
+- Once line state moved into a hook, the remaining logic in `DatalogPad.jsx` became much easier to read as distinct feature areas instead of one continuous file.
+
+### What was tricky to build
+- The main tricky part was keeping the editor API minimal while still supporting the current behavior around examples, chips, and code insertion. Too little API surface would have forced the parent component back into direct line manipulation. Too much API surface would have turned the hook into an over-general abstraction prematurely.
+- Another subtle point was where to put onboarding. I kept the onboarding markup supplied by the parent through the `emptyState` prop so the editor owns the "empty document shell" behavior without becoming responsible for feature-specific onboarding copy.
+
+### What warrants a second pair of eyes
+- The editor hook currently owns both `inputRef` and `editorRef`. If later phases no longer need the container ref, that part of the API can probably be simplified.
+- The current helper module only contains two line operations because that is all this phase needed. If projection or widgets start needing document transforms too, it may be worth regrouping those helpers into a more explicit document-model API.
+
+### What should be done in the future
+- Next, extract the current feature blocks and result rendering into `features/` modules so `DatalogPad.jsx` becomes a thinner composition shell.
+- After that, introduce the SEM projection module and route websocket updates through projected state instead of direct render-state objects.
+- Once those layers exist, add frontend tests around the editor helpers and projection logic.
+
+### Code review instructions
+- Review the editor-domain modules:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/editor/documentCommands.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/editor/usePadDocument.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/editor/PadEditor.jsx`
+- Then verify the remaining parent responsibilities in:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/DatalogPad.jsx`
+- Re-run the frontend checks:
+  - `cd /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend && npm run lint`
+  - `cd /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend && npm run build`
+
+### Technical details
+- Commands run during this step:
+  - `rg -n "const \\[lines|const \\[cursorLine|handleLineChange|handleKeyDown|handleSetQuestion|focusTextarea|setLines|textareaRef|editorRef" frontend/src/DatalogPad.jsx`
+  - `sed -n '360,760p' frontend/src/DatalogPad.jsx`
+  - `sed -n '760,980p' frontend/src/DatalogPad.jsx`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff -- frontend/src/DatalogPad.jsx frontend/src/editor/documentCommands.js frontend/src/editor/usePadDocument.js frontend/src/editor/PadEditor.jsx`
+- New files created:
+  - `frontend/src/editor/documentCommands.js`
+  - `frontend/src/editor/usePadDocument.js`
+  - `frontend/src/editor/PadEditor.jsx`
+- Existing files updated:
+  - `frontend/src/DatalogPad.jsx`
+  - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/tasks.md`
+  - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/changelog.md`

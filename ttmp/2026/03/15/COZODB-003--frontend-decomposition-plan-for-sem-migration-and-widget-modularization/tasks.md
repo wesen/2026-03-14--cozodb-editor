@@ -21,13 +21,13 @@
 - [x] Phase 1.5: Derive websocket protocol from `window.location.protocol` instead of hardcoding `ws://`
 - [x] Phase 1.6: Add explicit parse-failure handling for malformed websocket payloads
 
-- [ ] Phase 2.1: Create `editor/usePadDocument.js`
-- [ ] Phase 2.2: Move `lines` state into `usePadDocument.js`
-- [ ] Phase 2.3: Move `cursorLine` state into `usePadDocument.js`
-- [ ] Phase 2.4: Move line update, insert, and append-blank commands into editor-domain helpers
-- [ ] Phase 2.5: Create `editor/PadEditor.jsx`
-- [ ] Phase 2.6: Move line rendering and active-line input handling into `PadEditor.jsx`
-- [ ] Phase 2.7: Keep `#??` question-trigger behavior working through callbacks exposed by the editor layer
+- [x] Phase 2.1: Create `editor/usePadDocument.js`
+- [x] Phase 2.2: Move `lines` state into `usePadDocument.js`
+- [x] Phase 2.3: Move `cursorLine` state into `usePadDocument.js`
+- [x] Phase 2.4: Move line update, insert, and append-blank commands into editor-domain helpers
+- [x] Phase 2.5: Create `editor/PadEditor.jsx`
+- [x] Phase 2.6: Move line rendering and active-line input handling into `PadEditor.jsx`
+- [x] Phase 2.7: Keep `#??` question-trigger behavior working through callbacks exposed by the editor layer
 
 - [ ] Phase 3.1: Create `sem/semEventTypes.js`
 - [ ] Phase 3.2: Create `sem/semProjection.js`
