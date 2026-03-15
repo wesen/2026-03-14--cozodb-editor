@@ -1,11 +1,6 @@
 export function QueryResultsTable({ result }) {
   return (
-    <div style={{
-      margin: "12px 60px",
-      borderRadius: 8,
-      overflow: "hidden",
-      border: "1px solid var(--border-result)",
-    }}>
+    <div className="cozo-query-results">
       <div style={{
         padding: "6px 14px",
         background: "var(--bg-result)",
@@ -20,7 +15,7 @@ export function QueryResultsTable({ result }) {
         {result.took != null && <span>{(result.took * 1000).toFixed(1)}ms</span>}
       </div>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <table className="cozo-query-results__table">
           <thead>
             <tr>
               {result.columns.map((col, idx) => (

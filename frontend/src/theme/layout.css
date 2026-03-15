@@ -1,0 +1,32 @@
+.cozo-shell-bar {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cozo-shell-bar--header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cozo-shell-bar--status {
+  padding: 6px 20px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.cozo-query-results {
+  margin: 12px 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-result);
+}
+
+.cozo-query-results__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}

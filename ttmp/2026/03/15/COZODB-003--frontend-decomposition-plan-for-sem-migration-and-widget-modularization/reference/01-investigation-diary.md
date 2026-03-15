@@ -313,6 +313,186 @@ This step intentionally stayed narrow. I created the target frontend folders, do
   - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/tasks.md`
   - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/changelog.md`
 - Commit created:
+  - `346cc99 frontend(sem): add projection and extract feature cards`
+
+## Step 6: Extract theme tokens, add tests, and finalize the smaller screen shell
+
+After the SEM and feature layers landed, the remaining work was cleanup with real leverage: centralize the visual tokens that were still hardcoded into the screen, add enough automated coverage to make future widget changes safer, and make an explicit decision about the composition root. At this point the architecture was already substantially improved, so this final local implementation phase was about making the new structure durable rather than just possible.
+
+I moved the root design tokens and the most repeated shell/card/table styles into `theme/*.css`, wired those styles into the screen and extracted feature components, added a minimal Vitest setup with jsdom and Testing Library, and wrote tests for the new SEM projection plus one feature card. I also verified that `App.jsx` should remain trivial for now: the real composition root is still `DatalogPad.jsx`, and there is no current need to push extra orchestration into `App.jsx`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead and do it, task by task, commit at appropriate intervals and keep a detailed diary"
+
+**Assistant interpretation:** Complete the remaining decomposition tasks rather than stopping after the structural refactor.
+
+**Inferred user intent:** Finish the ticket in a way that is both implemented and reviewable, not just partially decomposed.
+
+### What I did
+- Added theme files:
+  - `frontend/src/theme/tokens.css`
+  - `frontend/src/theme/cards.css`
+  - `frontend/src/theme/layout.css`
+- Imported the theme CSS into `frontend/src/DatalogPad.jsx`.
+- Moved the root CSS variables and shell container styling out of inline JSX into `tokens.css`.
+- Added reusable classes for:
+  - the pad root shell
+  - header/status bars
+  - AI cards
+  - diagnosis cards
+  - code panels
+  - query-result table shells
+- Replaced repeated inline shell/card/table styles with class usage where the duplication was highest-value to remove first.
+- Added frontend test dependencies:
+  - `vitest`
+  - `jsdom`
+  - `@testing-library/react`
+- Added a `test` script to `frontend/package.json`.
+- Added `test.environment = "jsdom"` to `frontend/vite.config.js`.
+- Added tests:
+  - `frontend/src/sem/semProjection.test.js`
+  - `frontend/src/features/hints/HintResponseCard.test.jsx`
+- Verified that `frontend/src/App.jsx` should remain a trivial wrapper around `DatalogPad` for now.
+- Measured the reduced screen size:
+  - `frontend/src/DatalogPad.jsx` is now 441 lines instead of the earlier 1039-line monolith captured during investigation.
+
+### Why
+- Theme extraction reduces the chance that future component work reintroduces design-token duplication back into JSX.
+- Tests were the biggest remaining quality gap once the architecture was cleaner.
+- Leaving `App.jsx` trivial avoids inventing a second orchestration layer without an actual runtime need.
+
+### What worked
+- The theme pass did not require a visual redesign to meaningfully improve structure.
+- The new tests cover the exact seams introduced by this ticket:
+  - event projection
+  - card rendering from normalized hint data
+- Final local validation passed:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+  - `docmgr doctor --ticket COZODB-003 --stale-after 30`
+
+### What didn't work
+- The first `HintResponseCard` test used a text query that was too broad because the word `create` appears in multiple parts of the rendered card. Tightening the assertion to target the button role fixed that and produced a better test.
+- The theme extraction is intentionally partial. Many inline styles remain, but the high-value shared tokens and repeated shells are now centralized, which is enough for this ticket.
+
+### What I learned
+- Once responsibilities are separated cleanly, adding tests becomes straightforward because the seams are obvious.
+- The right stopping point for theme work is not "no inline styles anywhere". It is "the shared design language and repeated shells are no longer trapped inside one file".
+- `DatalogPad.jsx` does not need to become tiny to be acceptable. It needed to stop being the place where every domain concern lived.
+
+### What was tricky to build
+- The main tricky part was keeping the theme pass pragmatic. It would have been easy to chase a full CSS migration and turn the ticket into a styling rewrite.
+- The test pass required choosing assertions that were specific enough to stay stable without being coupled to incidental implementation details.
+
+### What warrants a second pair of eyes
+- The CSS extraction could continue later if the team wants a more tokenized component library, but that would be follow-on cleanup rather than a blocker for SEM/widget migration.
+- If the app grows beyond one main screen, the decision to keep `App.jsx` trivial should be revisited.
+
+### What should be done in the future
+- Refresh the reMarkable bundle so the ticket documents reflect the final implemented state.
+- If more SEM families are added, extend the projection tests before extending the UI.
+- Add more focused tests around editor helpers if that area starts changing frequently.
+
+### Code review instructions
+- Review the theme files:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/theme/tokens.css`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/theme/cards.css`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/theme/layout.css`
+- Review the frontend test wiring:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/package.json`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/vite.config.js`
+- Review the new tests:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semProjection.test.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/hints/HintResponseCard.test.jsx`
+- Confirm the final screen size and shape:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/DatalogPad.jsx`
+
+### Technical details
+- Commands run during this step:
+  - `npm install -D vitest jsdom @testing-library/react`
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+  - `wc -l frontend/src/DatalogPad.jsx`
+  - `docmgr doctor --ticket COZODB-003 --stale-after 30`
+- New files created:
+  - `frontend/src/theme/tokens.css`
+  - `frontend/src/theme/cards.css`
+  - `frontend/src/theme/layout.css`
+  - `frontend/src/sem/semProjection.test.js`
+  - `frontend/src/features/hints/HintResponseCard.test.jsx`
+- Existing files updated:
+  - `frontend/package.json`
+  - `frontend/package-lock.json`
+  - `frontend/vite.config.js`
+  - `frontend/src/DatalogPad.jsx`
+  - `frontend/src/features/diagnosis/DiagnosisCard.jsx`
+  - `frontend/src/features/hints/HintResponseCard.jsx`
+  - `frontend/src/features/hints/StreamingMessageCard.jsx`
+  - `frontend/src/features/query-results/QueryResultsTable.jsx`
+  - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/tasks.md`
+  - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/changelog.md`
+
+## Step 7: Refresh the ticket bundle and deliver the implemented state to reMarkable
+
+Once the implementation and local validation were complete, the last requirement was operational rather than architectural: make sure the ticket bundle now reflects the actual implemented state, then push that refreshed bundle to reMarkable and verify it remotely. This step matters because COZODB-003 is not just source code. It is also a planning and onboarding artifact, and those docs become misleading if they stop at the design stage while the code has moved on.
+
+I re-ran ticket validation, uploaded the refreshed bundle to the same remote directory with force overwrite, and verified that the expected document name was present afterward. That closed the loop between the repository state and the external reading copy.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead and do it, task by task, commit at appropriate intervals and keep a detailed diary"
+
+**Assistant interpretation:** Finish the ticket all the way through documentation and delivery, not just local code changes.
+
+**Inferred user intent:** Have a usable final implementation plus a synchronized ticket bundle available on reMarkable.
+
+### What I did
+- Re-ran:
+  - `docmgr doctor --ticket COZODB-003 --stale-after 30`
+- Uploaded the refreshed bundle with:
+  - `remarquee upload bundle ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization --name "COZODB-003 Frontend Decomposition Guide" --remote-dir "/ai/2026/03/15/COZODB-003" --toc-depth 2 --force --non-interactive`
+- Verified the remote listing with:
+  - `remarquee cloud ls /ai/2026/03/15/COZODB-003 --long --non-interactive`
+
+### Why
+- The user explicitly asked for ticket work plus reMarkable delivery.
+- The earlier upload reflected the planning artifact. This refresh makes the external bundle reflect the implemented architecture instead.
+
+### What worked
+- `docmgr doctor` passed cleanly.
+- Upload succeeded:
+  - `OK: uploaded COZODB-003 Frontend Decomposition Guide.pdf -> /ai/2026/03/15/COZODB-003`
+- Remote verification succeeded:
+  - `[f] COZODB-003 Frontend Decomposition Guide`
+
+### What didn't work
+- Nothing failed in this step.
+
+### What I learned
+- Re-running the external delivery at the end of implementation is cheap and prevents documentation drift.
+
+### What was tricky to build
+- The only operational wrinkle was remembering to force overwrite the existing remote document, because the plan-phase bundle had already been uploaded earlier.
+
+### What warrants a second pair of eyes
+- Nothing urgent. The ticket bundle and local repo state are aligned.
+
+### What should be done in the future
+- If implementation continues beyond this ticket, refresh the bundle again rather than assuming the current reMarkable copy stays accurate.
+
+### Code review instructions
+- Validate the final ticket:
+  - `docmgr doctor --ticket COZODB-003 --stale-after 30`
+- Validate the remote copy:
+  - `remarquee cloud ls /ai/2026/03/15/COZODB-003 --long --non-interactive`
+
+### Technical details
+- Remote directory: `/ai/2026/03/15/COZODB-003`
+- Bundle name: `COZODB-003 Frontend Decomposition Guide`
+- Commit created:
   - `7ebec66 frontend(editor): extract pad document and line renderer`
 
 ## Step 5: Introduce a lightweight SEM projection and extract the remaining feature blocks

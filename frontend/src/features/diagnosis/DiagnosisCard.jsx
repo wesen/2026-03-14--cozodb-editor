@@ -1,11 +1,6 @@
 export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }) {
   return (
-    <div style={{
-      margin: "16px 0",
-      borderRadius: 8,
-      overflow: "hidden",
-      border: "1px solid var(--border-error)",
-    }}>
+    <div className="cozo-diagnosis-card">
       <div style={{
         padding: "10px 14px",
         background: "var(--bg-error-header)",
@@ -41,11 +36,10 @@ export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }
             {fix.text}
           </div>
           {fix.code && (
-            <div style={{
-              background: "var(--bg-code)", borderRadius: 6, padding: "10px 14px",
+            <div className="cozo-code-panel" style={{
+              padding: "10px 14px",
               fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, lineHeight: 1.6,
               color: "var(--text-code)", marginBottom: 10, whiteSpace: "pre",
-              border: "1px solid var(--border-code)",
             }}>
               {fix.code}
             </div>

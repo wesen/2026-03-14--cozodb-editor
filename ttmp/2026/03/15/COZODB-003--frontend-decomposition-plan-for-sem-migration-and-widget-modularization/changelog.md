@@ -2,6 +2,15 @@
 
 ## 2026-03-15
 
+- Refreshed the COZODB-003 ticket docs after implementation, re-validated with `docmgr doctor --ticket COZODB-003 --stale-after 30`, re-uploaded the updated bundle to reMarkable at `/ai/2026/03/15/COZODB-003`, and verified the remote listing.
+
+## 2026-03-15
+
+- Implemented the final cleanup slice for the frontend split: moved shared visual tokens and shell/card/layout styles into `frontend/src/theme/*.css`, added Vitest plus frontend smoke/projection tests, and kept `App.jsx` intentionally trivial while `DatalogPad.jsx` shrank to a smaller orchestration screen.
+- Validated the final local state with `npm test`, `npm run lint`, `npm run build`, and `docmgr doctor --ticket COZODB-003 --stale-after 30`.
+
+## 2026-03-15
+
 - Implemented the third decomposition slice by adding `frontend/src/sem/semEventTypes.js` and `frontend/src/sem/semProjection.js`, routing websocket hint/LLM events through projected state, extracting feature components under `frontend/src/features/`, and shrinking `DatalogPad.jsx` into a thinner composition shell.
 - Re-validated the SEM and feature extraction with `npm run lint` and `npm run build` in `frontend/`.
 

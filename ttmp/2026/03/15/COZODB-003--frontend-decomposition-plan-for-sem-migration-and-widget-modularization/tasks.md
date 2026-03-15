@@ -46,22 +46,22 @@
 - [x] Phase 4.6: Move the corresponding JSX and callbacks out of `DatalogPad.jsx`
 - [x] Phase 4.7: Introduce normalized view-model helpers where feature props are repetitive or transport-shaped
 
-- [ ] Phase 5.1: Create `theme/tokens.css`
-- [ ] Phase 5.2: Move root CSS variables from `DatalogPad.jsx` into `theme/tokens.css`
-- [ ] Phase 5.3: Create reusable card styles in `theme/cards.css`
-- [ ] Phase 5.4: Create reusable table or layout styles in `theme/layout.css`
-- [ ] Phase 5.5: Replace repeated inline button/card/table styles with classes where practical
+- [x] Phase 5.1: Create `theme/tokens.css`
+- [x] Phase 5.2: Move root CSS variables from `DatalogPad.jsx` into `theme/tokens.css`
+- [x] Phase 5.3: Create reusable card styles in `theme/cards.css`
+- [x] Phase 5.4: Create reusable table or layout styles in `theme/layout.css`
+- [x] Phase 5.5: Replace repeated inline button/card/table styles with classes where practical
 
-- [ ] Phase 6.1: Add Vitest to the frontend package
-- [ ] Phase 6.2: Add a frontend test script to `package.json`
-- [ ] Phase 6.3: Create `sem/semProjection.test.js`
-- [ ] Phase 6.4: Add tests for coalescing repeated `llm.delta` events
-- [ ] Phase 6.5: Add tests for preserving canonical ids across updates
-- [ ] Phase 6.6: Add tests for future preview/final-style merging rules
-- [ ] Phase 6.7: Add at least one smoke test for `HintResponseCard`
+- [x] Phase 6.1: Add Vitest to the frontend package
+- [x] Phase 6.2: Add a frontend test script to `package.json`
+- [x] Phase 6.3: Create `sem/semProjection.test.js`
+- [x] Phase 6.4: Add tests for coalescing repeated `llm.delta` events
+- [x] Phase 6.5: Add tests for preserving canonical ids across updates
+- [x] Phase 6.6: Add tests for future preview/final-style merging rules
+- [x] Phase 6.7: Add at least one smoke test for `HintResponseCard`
 
-- [ ] Phase 7.1: Shrink `DatalogPad.jsx` into a smaller orchestration screen
-- [ ] Phase 7.2: Decide whether `App.jsx` should remain trivial or become a slightly richer composition root
-- [ ] Phase 7.3: Re-run lint and manual smoke checks after each extraction phase
-- [ ] Phase 7.4: Update COZODB-003 docs with implementation progress and re-upload to reMarkable when the split lands
+- [x] Phase 7.1: Shrink `DatalogPad.jsx` into a smaller orchestration screen
+- [x] Phase 7.2: Decide whether `App.jsx` should remain trivial or become a slightly richer composition root
+- [x] Phase 7.3: Re-run lint and manual smoke checks after each extraction phase
+- [x] Phase 7.4: Update COZODB-003 docs with implementation progress and re-upload to reMarkable when the split lands
 - [x] Upload the final COZODB-003 bundle to reMarkable and verify the remote listing

@@ -17,6 +17,9 @@ import {
   getCompletedHintEntries,
   getStreamingEntries,
 } from "./sem/semProjection";
+import "./theme/cards.css";
+import "./theme/layout.css";
+import "./theme/tokens.css";
 import { executeQuery } from "./transport/httpClient";
 import { useHintsSocket } from "./transport/hintsSocket";
 
@@ -255,56 +258,11 @@ export default function DatalogPad() {
   const aiResponseCount = Object.keys(mockAiBlocks).length + completedHints.length;
 
   return (
-    <div style={{
-      "--bg-main": "#0f1117",
-      "--bg-editor": "#13151d",
-      "--bg-ai": "rgba(212, 175, 55, 0.04)",
-      "--bg-ai-collapsed": "rgba(212, 175, 55, 0.02)",
-      "--bg-code": "rgba(0,0,0,0.35)",
-      "--bg-chip": "rgba(212, 175, 55, 0.06)",
-      "--bg-doc": "rgba(100, 160, 255, 0.04)",
-      "--bg-warning": "rgba(255, 180, 50, 0.06)",
-      "--bg-error-header": "rgba(255, 80, 80, 0.08)",
-      "--bg-onboard": "rgba(255,255,255,0.02)",
-      "--bg-result": "rgba(80, 200, 120, 0.04)",
-      "--accent": "#d4af37",
-      "--accent-dim": "rgba(212, 175, 55, 0.25)",
-      "--text-primary": "#c8cad0",
-      "--text-secondary": "#8b8d97",
-      "--text-muted": "#5c5e68",
-      "--text-code": "#a8dadc",
-      "--text-chip": "#d4af37",
-      "--text-warning": "#e0a040",
-      "--text-error": "#e06060",
-      "--text-line-num": "#3a3c48",
-      "--text-line-active": "#5c5e68",
-      "--text-comment": "#6a6e4e",
-      "--doc-link": "#6ca4e8",
-      "--border-subtle": "rgba(255,255,255,0.06)",
-      "--border-chip": "rgba(212, 175, 55, 0.2)",
-      "--border-code": "rgba(255,255,255,0.04)",
-      "--border-doc": "rgba(100, 160, 255, 0.12)",
-      "--border-error": "rgba(255, 80, 80, 0.2)",
-      "--border-error-dim": "rgba(255, 80, 80, 0.08)",
-      "--border-result": "rgba(80, 200, 120, 0.15)",
-      minHeight: "100vh",
-      background: "var(--bg-main)",
-      color: "var(--text-primary)",
-      fontFamily: "'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace",
-      display: "flex",
-      flexDirection: "column",
-    }}>
+    <div className="cozo-pad-root">
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 
       {/* Header */}
-      <div style={{
-        padding: "12px 20px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderBottom: "1px solid var(--border-subtle)",
-        background: "rgba(0,0,0,0.2)",
-      }}>
+      <div className="cozo-shell-bar cozo-shell-bar--header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ color: "var(--accent)", fontSize: 18 }}>⚡</span>
           <span style={{
@@ -473,16 +431,7 @@ export default function DatalogPad() {
         {/* Run result */}
         {runResult && <QueryResultsTable result={runResult} />}
       {/* Status bar */}
-      <div style={{
-        padding: "6px 20px",
-        display: "flex",
-        justifyContent: "space-between",
-        borderTop: "1px solid var(--border-subtle)",
-        fontSize: 11,
-        color: "var(--text-muted)",
-        background: "rgba(0,0,0,0.2)",
-        fontFamily: "'IBM Plex Sans', sans-serif",
-      }}>
+      <div className="cozo-shell-bar cozo-shell-bar--status">
         <span>Ln {cursorLine + 1}, Col {(lines[cursorLine] || "").length + 1}</span>
         <span>{aiResponseCount} AI responses · {lines.filter(l => !l.startsWith("#")).filter(l => l.trim()).length} code lines</span>
         <span>CozoScript · {ws.connected ? "Connected" : "Offline"}</span>

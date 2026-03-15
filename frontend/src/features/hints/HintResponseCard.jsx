@@ -32,16 +32,10 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
   if (collapsed) {
     return (
       <div
+        className="cozo-ai-card--collapsed"
         onClick={onToggleCollapse}
         style={{
-          margin: "2px 0 2px 28px",
-          padding: "4px 12px",
-          background: "var(--bg-ai-collapsed)",
-          borderRadius: 4,
-          fontSize: 12,
-          color: "var(--text-muted)",
           cursor: "pointer",
-          borderLeft: "2px solid var(--accent-dim)",
           transition: "all 0.15s ease",
         }}
         onMouseEnter={(event) => { event.currentTarget.style.borderLeftColor = "var(--accent)"; }}
@@ -53,17 +47,7 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
   }
 
   return (
-    <div style={{
-      margin: "4px 0 4px 28px",
-      padding: "14px 16px 12px",
-      background: "var(--bg-ai)",
-      borderLeft: "2px solid var(--accent)",
-      borderRadius: "0 8px 8px 0",
-      fontSize: 13,
-      lineHeight: 1.7,
-      color: "var(--text-primary)",
-      position: "relative",
-    }}>
+    <div className="cozo-ai-card" style={{ position: "relative" }}>
       <div style={{ position: "absolute", top: 8, right: 10 }}>
         <button
           onClick={onToggleCollapse}
@@ -93,13 +77,10 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
       </div>
 
       {viewModel.code && (
-        <div style={{
-          background: "var(--bg-code)",
-          borderRadius: 6,
+        <div className="cozo-code-panel" style={{
           padding: "10px 14px",
           marginBottom: 12,
           position: "relative",
-          border: "1px solid var(--border-code)",
         }}>
           <button
             onClick={handleCopy}
