@@ -1,39 +1,54 @@
-.cozo-pad-root {
-  --bg-main: #0f1117;
-  --bg-editor: #13151d;
-  --bg-ai: rgba(212, 175, 55, 0.04);
-  --bg-ai-collapsed: rgba(212, 175, 55, 0.02);
-  --bg-code: rgba(0, 0, 0, 0.35);
-  --bg-chip: rgba(212, 175, 55, 0.06);
-  --bg-doc: rgba(100, 160, 255, 0.04);
-  --bg-warning: rgba(255, 180, 50, 0.06);
-  --bg-error-header: rgba(255, 80, 80, 0.08);
-  --bg-onboard: rgba(255, 255, 255, 0.02);
-  --bg-result: rgba(80, 200, 120, 0.04);
-  --accent: #d4af37;
-  --accent-dim: rgba(212, 175, 55, 0.25);
-  --text-primary: #c8cad0;
-  --text-secondary: #8b8d97;
-  --text-muted: #5c5e68;
-  --text-code: #a8dadc;
-  --text-chip: #d4af37;
-  --text-warning: #e0a040;
-  --text-error: #e06060;
-  --text-line-num: #3a3c48;
-  --text-line-active: #5c5e68;
-  --text-comment: #6a6e4e;
-  --doc-link: #6ca4e8;
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-chip: rgba(212, 175, 55, 0.2);
-  --border-code: rgba(255, 255, 255, 0.04);
-  --border-doc: rgba(100, 160, 255, 0.12);
-  --border-error: rgba(255, 80, 80, 0.2);
-  --border-error-dim: rgba(255, 80, 80, 0.08);
-  --border-result: rgba(80, 200, 120, 0.15);
+/* ===== System 7 / Classic Mac OS Tokens ===== */
+.mac-desktop {
+  --bg-desktop: #a8a8a8;
+  --bg-window: #ffffff;
+  --bg-titlebar: linear-gradient(180deg, #fff 0%, #ddd 50%, #bbb 100%);
+  --bg-titlebar-stripe: #000;
+  --bg-field: #ffffff;
+  --bg-code: #f5f5f0;
+  --bg-result: #f0f8f0;
+  --bg-error: #fff0f0;
+  --bg-ai: #fffff0;
+  --bg-ai-collapsed: #fafaf5;
+  --bg-chip: #f0f0e8;
+  --bg-doc: #f0f4ff;
+
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --text-muted: #666666;
+  --text-code: #222222;
+  --text-chip: #444400;
+  --text-error: #cc0000;
+  --text-warning: #886600;
+  --text-line-num: #999999;
+
+  --accent: #000000;
+  --accent-dim: #666666;
+  --accent-highlight: #0066cc;
+
+  --border-window: #000000;
+  --border-subtle: #cccccc;
+  --border-field: #999999;
+  --border-chip: #aaaa88;
+  --border-code: #ccccbb;
+  --border-doc: #aabbdd;
+  --border-error: #cc6666;
+  --border-error-dim: #ddaaaa;
+  --border-result: #88bb88;
+
+  --doc-link: #0033cc;
+
+  --shadow-window: 2px 2px 0px #000;
+  --shadow-btn: 1px 1px 0px #000;
+
   min-height: 100vh;
-  background: var(--bg-main);
+  background: var(--bg-desktop);
   color: var(--text-primary);
-  font-family: "IBM Plex Mono", "JetBrains Mono", "Fira Code", monospace;
-  display: flex;
-  flex-direction: column;
+  font-family: "IBM Plex Sans", "Geneva", "Helvetica", sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+
+  /* classic Mac dither pattern */
+  background-image:
+    repeating-conic-gradient(#a8a8a8 0% 25%, #b0b0b0 0% 50%) 0 0 / 4px 4px;
 }

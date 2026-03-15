@@ -1,4 +1,13 @@
-export function QuerySuggestionCard({ entity, onInsertCode, viewModel }) {
+import type { SemEntity } from "../../../sem/semProjection";
+import type { QuerySuggestionViewModel } from "../view-models/toQuerySuggestionViewModel";
+
+interface Props {
+  entity: SemEntity;
+  onInsertCode?: (code: string) => void;
+  viewModel: QuerySuggestionViewModel;
+}
+
+export function QuerySuggestionCard({ entity, onInsertCode, viewModel }: Props) {
   const isErrored = entity?.status === "error";
 
   return (
@@ -42,7 +51,7 @@ export function QuerySuggestionCard({ entity, onInsertCode, viewModel }) {
               fontWeight: 600,
             }}
           >
-            Insert suggestion ↵
+            Insert suggestion
           </button>
         </>
       )}

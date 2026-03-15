@@ -1,4 +1,17 @@
-export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }) {
+interface DiagnosisFix {
+  text: string;
+  code?: string;
+}
+
+interface Props {
+  diagnosing: boolean;
+  error: string;
+  fix: DiagnosisFix | null;
+  onApplyFix?: () => void;
+  onDiagnose?: () => void;
+}
+
+export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }: Props) {
   return (
     <div className="cozo-diagnosis-card">
       <div style={{
@@ -30,7 +43,7 @@ export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }
           borderTop: "1px solid var(--border-error-dim)",
         }}>
           <div style={{ color: "var(--accent)", fontSize: 11, fontWeight: 600, marginBottom: 10, letterSpacing: "0.04em" }}>
-            ✦ AI SUGGESTED FIX
+            AI SUGGESTED FIX
           </div>
           <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-primary)", marginBottom: 12 }}>
             {fix.text}
@@ -50,7 +63,7 @@ export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }
               background: "var(--accent)", color: "var(--bg-main)", border: "none",
               borderRadius: 4, cursor: "pointer", fontWeight: 600,
             }}>
-              Apply fix ↵
+              Apply fix
             </button>
           )}
         </div>
@@ -65,7 +78,7 @@ export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }
             background: diagnosing ? "var(--border-subtle)" : "var(--accent)", color: "var(--bg-main)", border: "none",
             borderRadius: 4, cursor: diagnosing ? "wait" : "pointer", fontWeight: 600,
           }}>
-            {diagnosing ? "Diagnosing..." : "✦ Ask AI to diagnose"}
+            {diagnosing ? "Diagnosing..." : "Ask AI to diagnose"}
           </button>
         </div>
       ) : null}

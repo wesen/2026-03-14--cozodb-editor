@@ -1,4 +1,14 @@
-export function QueryResultsTable({ result }) {
+export interface QueryResultData {
+  columns: string[];
+  rows: unknown[][];
+  took?: number;
+}
+
+interface Props {
+  result: QueryResultData;
+}
+
+export function QueryResultsTable({ result }: Props) {
   return (
     <div className="cozo-query-results">
       <div style={{
@@ -11,7 +21,7 @@ export function QueryResultsTable({ result }) {
         display: "flex",
         justifyContent: "space-between",
       }}>
-        <span>✓ {result.rows.length} RESULTS</span>
+        <span>OK {result.rows.length} RESULTS</span>
         {result.took != null && <span>{(result.took * 1000).toFixed(1)}ms</span>}
       </div>
       <div style={{ overflowX: "auto" }}>
@@ -35,7 +45,7 @@ export function QueryResultsTable({ result }) {
           <tbody>
             {result.rows.map((row, rowIdx) => (
               <tr key={rowIdx}>
-                {row.map((cell, cellIdx) => (
+                {(row as unknown[]).map((cell, cellIdx) => (
                   <td key={cellIdx} style={{
                     padding: "6px 14px",
                     borderBottom: "1px solid rgba(255,255,255,0.02)",

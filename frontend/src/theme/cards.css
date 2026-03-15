@@ -1,27 +1,26 @@
+/* ===== System 7 AI / SEM Cards ===== */
+
 .cozo-ai-card {
-  margin: 4px 0 4px 28px;
-  padding: 14px 16px 12px;
+  margin: 4px 0 4px 16px;
+  padding: 10px 12px 8px;
   background: var(--bg-ai);
-  border-left: 2px solid var(--accent);
-  border-radius: 0 8px 8px 0;
-  font-size: 13px;
-  line-height: 1.7;
+  border-left: 2px solid #000;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--text-primary);
 }
 
 .cozo-ai-card--collapsed {
-  margin: 2px 0 2px 28px;
-  padding: 4px 12px;
+  margin: 2px 0 2px 16px;
+  padding: 3px 10px;
   background: var(--bg-ai-collapsed);
-  border-left: 2px solid var(--accent-dim);
-  border-radius: 4px;
-  font-size: 12px;
+  border-left: 2px solid #999;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .cozo-diagnosis-card {
-  margin: 16px 0;
-  border-radius: 8px;
+  margin: 8px 0;
   overflow: hidden;
   border: 1px solid var(--border-error);
 }
@@ -29,5 +28,7 @@
 .cozo-code-panel {
   background: var(--bg-code);
   border: 1px solid var(--border-code);
-  border-radius: 6px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
 }

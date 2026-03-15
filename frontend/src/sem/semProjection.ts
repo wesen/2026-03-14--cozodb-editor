@@ -14,15 +14,77 @@ import {
   LLM_FINAL_EVENT,
   LLM_START_EVENT,
 } from "./semEventTypes";
+import type { SemEvent } from "../transport/hintsSocket";
 
-export const ENTITY_KIND_LLM_TEXT_STREAM = "llm_text_stream";
-export const ENTITY_KIND_COZO_BUNDLE = "cozo_bundle";
-export const ENTITY_KIND_COZO_HINT = "cozo_hint";
-export const ENTITY_KIND_COZO_QUERY_SUGGESTION = "cozo_query_suggestion";
-export const ENTITY_KIND_COZO_DOC_REF = "cozo_doc_ref";
-export const ENTITY_KIND_DIAGNOSIS = "diagnosis";
+export const ENTITY_KIND_LLM_TEXT_STREAM = "llm_text_stream" as const;
+export const ENTITY_KIND_COZO_BUNDLE = "cozo_bundle" as const;
+export const ENTITY_KIND_COZO_HINT = "cozo_hint" as const;
+export const ENTITY_KIND_COZO_QUERY_SUGGESTION = "cozo_query_suggestion" as const;
+export const ENTITY_KIND_COZO_DOC_REF = "cozo_doc_ref" as const;
+export const ENTITY_KIND_DIAGNOSIS = "diagnosis" as const;
 
-const COZO_EVENT_KIND_BY_TYPE = {
+export type EntityKind =
+  | typeof ENTITY_KIND_LLM_TEXT_STREAM
+  | typeof ENTITY_KIND_COZO_BUNDLE
+  | typeof ENTITY_KIND_COZO_HINT
+  | typeof ENTITY_KIND_COZO_QUERY_SUGGESTION
+  | typeof ENTITY_KIND_COZO_DOC_REF
+  | typeof ENTITY_KIND_DIAGNOSIS;
+
+export type EntityStatus = "idle" | "streaming" | "preview" | "complete" | "error";
+
+export interface SemEntity {
+  id: string;
+  kind: EntityKind;
+  status: EntityStatus;
+  text: string;
+  finalText: string;
+  response: Record<string, unknown> | null;
+  data: Record<string, unknown> | null;
+  error: string | null;
+  anchorLine: number | null;
+  transient: boolean;
+  parentId: string | null;
+  bundleId: string | null;
+  ordinal: number | null;
+  mode: string | null;
+  notebookId: string | null;
+  ownerCellId: string | null;
+  runId: string | null;
+}
+
+export interface SemBundleEntity {
+  id: string;
+  kind: typeof ENTITY_KIND_COZO_BUNDLE;
+  status: EntityStatus;
+  anchorLine: number | null;
+  bundleId: string | null;
+  mode: string | null;
+  error: string | null;
+  notebookId: string | null;
+  ownerCellId: string | null;
+  runId: string | null;
+}
+
+export type ProjectedEntity = SemEntity | SemBundleEntity;
+
+export interface SemProjectionState {
+  entities: Record<string, ProjectedEntity>;
+  order: string[];
+}
+
+export interface SemThread {
+  id: string;
+  bundle: SemBundleEntity;
+  hint: SemEntity | null;
+  children: SemEntity[];
+  anchorLine: number | null;
+  ownerCellId?: string;
+  notebookId?: string;
+  runId?: string;
+}
+
+const COZO_EVENT_KIND_BY_TYPE: Record<string, EntityKind> = {
   [COZO_HINT_PREVIEW_EVENT]: ENTITY_KIND_COZO_HINT,
   [COZO_HINT_EXTRACTED_EVENT]: ENTITY_KIND_COZO_HINT,
   [COZO_HINT_FAILED_EVENT]: ENTITY_KIND_COZO_HINT,
@@ -34,7 +96,7 @@ const COZO_EVENT_KIND_BY_TYPE = {
   [COZO_DOC_REF_FAILED_EVENT]: ENTITY_KIND_COZO_DOC_REF,
 };
 
-function appendOrder(order, entityId) {
+function appendOrder(order: string[], entityId: string): string[] {
   if (order.includes(entityId)) {
     return order;
   }
@@ -42,40 +104,54 @@ function appendOrder(order, entityId) {
   return [...order, entityId];
 }
 
-function extractCanonicalId(event) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getEventData(event: SemEvent): Record<string, any> | null {
+  if (typeof event?.data === "object" && event.data !== null) {
+    return event.data as Record<string, unknown>;
+  }
+  return null;
+}
+
+function extractCanonicalId(event: SemEvent): string | null {
   if (!event?.type) {
     return null;
   }
 
+  const data = getEventData(event);
+
   if (event.type.startsWith("cozo.")) {
-    return event.data?.itemId || event.id || null;
+    return (data?.itemId as string) || event.id || null;
   }
 
   return event.id || null;
 }
 
-function extractStructuredPayload(event) {
-  return event?.data?.data || null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractStructuredPayload(event: SemEvent): Record<string, any> | null {
+  const data = getEventData(event);
+  return (data?.data as Record<string, unknown>) || null;
 }
 
-function extractAnchorLine(event) {
-  const eventAnchorLine = event?.data?.anchor?.line;
-  if (Number.isInteger(eventAnchorLine) && eventAnchorLine >= 0) {
-    return eventAnchorLine;
+function extractAnchorLine(event: SemEvent): number | null {
+  const data = getEventData(event);
+  const eventAnchorLine = (data?.anchor as Record<string, unknown>)?.line;
+  if (Number.isInteger(eventAnchorLine) && (eventAnchorLine as number) >= 0) {
+    return eventAnchorLine as number;
   }
 
   const payload = extractStructuredPayload(event);
-  const line = payload?.anchor?.line;
-  return Number.isInteger(line) && line >= 0 ? line : null;
+  const line = (payload?.anchor as Record<string, unknown>)?.line;
+  return Number.isInteger(line) && (line as number) >= 0 ? (line as number) : null;
 }
 
-function extractCozoBundleId(event) {
+function extractCozoBundleId(event: SemEvent): string | null {
   if (!event?.type?.startsWith("cozo.")) {
     return null;
   }
 
-  if (typeof event?.data?.bundleId === "string" && event.data.bundleId.trim() !== "") {
-    return event.data.bundleId.trim();
+  const data = getEventData(event);
+  if (typeof data?.bundleId === "string" && (data.bundleId as string).trim() !== "") {
+    return (data.bundleId as string).trim();
   }
 
   if (typeof event?.stream_id === "string" && event.stream_id.trim() !== "") {
@@ -85,19 +161,21 @@ function extractCozoBundleId(event) {
   return null;
 }
 
-function extractCozoParentId(event) {
-  if (typeof event?.data?.parentId === "string" && event.data.parentId.trim() !== "") {
-    return event.data.parentId.trim();
+function extractCozoParentId(event: SemEvent): string | null {
+  const data = getEventData(event);
+  if (typeof data?.parentId === "string" && (data.parentId as string).trim() !== "") {
+    return (data.parentId as string).trim();
   }
 
   const bundleId = extractCozoBundleId(event);
   return bundleId ? `cozo-bundle:${bundleId}` : null;
 }
 
-function extractCozoOrdinal(event) {
-  const ordinal = event?.data?.ordinal;
-  if (Number.isInteger(ordinal) && ordinal > 0) {
-    return ordinal;
+function extractCozoOrdinal(event: SemEvent): number | null {
+  const data = getEventData(event);
+  const ordinal = data?.ordinal;
+  if (Number.isInteger(ordinal) && (ordinal as number) > 0) {
+    return ordinal as number;
   }
 
   const itemId = extractCanonicalId(event);
@@ -110,51 +188,57 @@ function extractCozoOrdinal(event) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function extractCozoMode(event) {
-  return typeof event?.data?.mode === "string" && event.data.mode.trim() !== "" ? event.data.mode.trim() : null;
+function extractCozoMode(event: SemEvent): string | null {
+  const data = getEventData(event);
+  return typeof data?.mode === "string" && (data.mode as string).trim() !== "" ? (data.mode as string).trim() : null;
 }
 
-function extractNotebookId(event) {
-  return typeof event?.data?.notebookId === "string" && event.data.notebookId.trim() !== "" ? event.data.notebookId.trim() : null;
+function extractNotebookId(event: SemEvent): string | null {
+  const data = getEventData(event);
+  return typeof data?.notebookId === "string" && (data.notebookId as string).trim() !== "" ? (data.notebookId as string).trim() : null;
 }
 
-function extractOwnerCellId(event) {
-  return typeof event?.data?.ownerCellId === "string" && event.data.ownerCellId.trim() !== "" ? event.data.ownerCellId.trim() : null;
+function extractOwnerCellId(event: SemEvent): string | null {
+  const data = getEventData(event);
+  return typeof data?.ownerCellId === "string" && (data.ownerCellId as string).trim() !== "" ? (data.ownerCellId as string).trim() : null;
 }
 
-function extractRunId(event) {
-  return typeof event?.data?.runId === "string" && event.data.runId.trim() !== "" ? event.data.runId.trim() : null;
+function extractRunId(event: SemEvent): string | null {
+  const data = getEventData(event);
+  return typeof data?.runId === "string" && (data.runId as string).trim() !== "" ? (data.runId as string).trim() : null;
 }
 
-function extractLLMDelta(event) {
+function extractLLMDelta(event: SemEvent): string {
   if (typeof event?.data === "string") {
     return event.data;
   }
 
-  if (typeof event?.data?.delta === "string") {
-    return event.data.delta;
+  const data = getEventData(event);
+  if (typeof data?.delta === "string") {
+    return data.delta as string;
   }
 
   return "";
 }
 
-function extractLLMFinalText(event) {
+function extractLLMFinalText(event: SemEvent): string {
   if (typeof event?.data === "string") {
     return event.data;
   }
 
-  if (typeof event?.data?.text === "string") {
-    return event.data.text;
+  const data = getEventData(event);
+  if (typeof data?.text === "string") {
+    return data.text as string;
   }
 
-  if (typeof event?.data?.cumulative === "string") {
-    return event.data.cumulative;
+  if (typeof data?.cumulative === "string") {
+    return data.cumulative as string;
   }
 
   return "";
 }
 
-function kindForEvent(event, entityId) {
+function kindForEvent(event: SemEvent, entityId: string | null): EntityKind {
   if (!event?.type) {
     return ENTITY_KIND_LLM_TEXT_STREAM;
   }
@@ -166,7 +250,7 @@ function kindForEvent(event, entityId) {
   return COZO_EVENT_KIND_BY_TYPE[event.type] || ENTITY_KIND_LLM_TEXT_STREAM;
 }
 
-function createEntity(event, entityId) {
+function createEntity(event: SemEvent, entityId: string): SemEntity {
   return {
     id: entityId,
     kind: kindForEvent(event, entityId),
@@ -188,11 +272,11 @@ function createEntity(event, entityId) {
   };
 }
 
-function ensureEntity(state, event, entityId) {
-  return state.entities[entityId] || createEntity(event, entityId);
+function ensureEntity(state: SemProjectionState, event: SemEvent, entityId: string): SemEntity {
+  return (state.entities[entityId] as SemEntity) || createEntity(event, entityId);
 }
 
-function createBundleEntity(bundleEntityId) {
+function createBundleEntity(bundleEntityId: string): SemBundleEntity {
   return {
     id: bundleEntityId,
     kind: ENTITY_KIND_COZO_BUNDLE,
@@ -207,7 +291,7 @@ function createBundleEntity(bundleEntityId) {
   };
 }
 
-function projectCozoEntity(entity, event, status) {
+function projectCozoEntity(entity: SemEntity, event: SemEvent, status: EntityStatus): SemEntity {
   const anchorLine = extractAnchorLine(event);
   const parentId = extractCozoParentId(event);
   const bundleId = extractCozoBundleId(event);
@@ -216,15 +300,16 @@ function projectCozoEntity(entity, event, status) {
   const notebookId = extractNotebookId(event);
   const ownerCellId = extractOwnerCellId(event);
   const runId = extractRunId(event);
+  const data = getEventData(event);
 
   return {
     ...entity,
     kind: kindForEvent(event, entity.id),
     status,
     data: extractStructuredPayload(event),
-    error: event?.data?.error || null,
+    error: (data?.error as string) || null,
     anchorLine: anchorLine ?? entity.anchorLine,
-    transient: Boolean(event?.data?.transient),
+    transient: Boolean(data?.transient),
     parentId: parentId ?? entity.parentId,
     bundleId: bundleId ?? entity.bundleId,
     ordinal: ordinal ?? entity.ordinal,
@@ -235,13 +320,14 @@ function projectCozoEntity(entity, event, status) {
   };
 }
 
-function projectBundleEntity(bundle, event, status) {
+function projectBundleEntity(bundle: SemBundleEntity, event: SemEvent, status: EntityStatus): SemBundleEntity {
   const anchorLine = extractAnchorLine(event);
   const bundleId = extractCozoBundleId(event);
   const mode = extractCozoMode(event);
   const notebookId = extractNotebookId(event);
   const ownerCellId = extractOwnerCellId(event);
   const runId = extractRunId(event);
+  const data = getEventData(event);
 
   return {
     ...bundle,
@@ -250,14 +336,14 @@ function projectBundleEntity(bundle, event, status) {
     anchorLine: anchorLine ?? bundle.anchorLine,
     bundleId: bundleId ?? bundle.bundleId,
     mode: mode ?? bundle.mode,
-    error: event?.data?.error || null,
+    error: (data?.error as string) || null,
     notebookId: notebookId ?? bundle.notebookId,
     ownerCellId: ownerCellId ?? bundle.ownerCellId,
     runId: runId ?? bundle.runId,
   };
 }
 
-function isCozoLeafKind(kind) {
+function isCozoLeafKind(kind: string | undefined): boolean {
   return (
     kind === ENTITY_KIND_COZO_HINT
     || kind === ENTITY_KIND_COZO_QUERY_SUGGESTION
@@ -265,29 +351,29 @@ function isCozoLeafKind(kind) {
   );
 }
 
-function trimTrailingDisplayWhitespace(text) {
+function trimTrailingDisplayWhitespace(text: string | undefined): string {
   return typeof text === "string" ? text.replace(/[ \t\r\n]+$/u, "") : "";
 }
 
-function getOrderedSemEntities(state, predicate) {
+function getOrderedSemEntities(state: SemProjectionState, predicate: (entity: SemEntity) => boolean): SemEntity[] {
   return state.order
     .map((entityId) => state.entities[entityId])
-    .filter((entity) => isCozoLeafKind(entity?.kind) && predicate(entity));
+    .filter((entity): entity is SemEntity => isCozoLeafKind(entity?.kind) && predicate(entity as SemEntity));
 }
 
-function getOrderedCozoBundles(state, predicate) {
+function getOrderedCozoBundles(state: SemProjectionState, predicate: (bundle: SemBundleEntity) => boolean): SemBundleEntity[] {
   return state.order
     .map((entityId) => state.entities[entityId])
-    .filter((entity) => entity?.kind === ENTITY_KIND_COZO_BUNDLE && predicate(entity));
+    .filter((entity): entity is SemBundleEntity => entity?.kind === ENTITY_KIND_COZO_BUNDLE && predicate(entity as SemBundleEntity));
 }
 
-function getBundleChildren(state, bundleEntityId) {
+function getBundleChildren(state: SemProjectionState, bundleEntityId: string): SemEntity[] {
   return Object.values(state.entities)
-    .filter((entity) => entity?.parentId === bundleEntityId && isCozoLeafKind(entity?.kind))
+    .filter((entity): entity is SemEntity => (entity as SemEntity)?.parentId === bundleEntityId && isCozoLeafKind(entity?.kind))
     .sort((left, right) => (left.ordinal ?? 0) - (right.ordinal ?? 0));
 }
 
-function buildBundleThread(state, bundle) {
+function buildBundleThread(state: SemProjectionState, bundle: SemBundleEntity): SemThread {
   const children = getBundleChildren(state, bundle.id);
   const hint = children.find((entity) => entity.kind === ENTITY_KIND_COZO_HINT) || null;
   const ownerCellId = bundle.ownerCellId ?? hint?.ownerCellId ?? null;
@@ -306,14 +392,14 @@ function buildBundleThread(state, bundle) {
   };
 }
 
-export function createSemProjectionState() {
+export function createSemProjectionState(): SemProjectionState {
   return {
     entities: {},
     order: [],
   };
 }
 
-export function applySemEvent(state, event) {
+export function applySemEvent(state: SemProjectionState, event: SemEvent): SemProjectionState {
   if (!event?.type) {
     return state;
   }
@@ -325,8 +411,9 @@ export function applySemEvent(state, event) {
 
   const entity = ensureEntity(state, event, entityId);
   let nextOrder = appendOrder(state.order, entityId);
-  let nextEntity = entity;
-  let nextEntities = state.entities;
+  let nextEntity: SemEntity = entity;
+  let nextEntities: Record<string, ProjectedEntity> = state.entities;
+  const data = getEventData(event);
 
   switch (event.type) {
     case LLM_START_EVENT:
@@ -379,7 +466,7 @@ export function applySemEvent(state, event) {
       nextEntity = {
         ...entity,
         kind: kindForEvent(event, entityId),
-        response: event.data || null,
+        response: (data as Record<string, unknown>) || null,
         status: "complete",
         notebookId: extractNotebookId(event) ?? entity.notebookId,
         ownerCellId: extractOwnerCellId(event) ?? entity.ownerCellId,
@@ -413,7 +500,7 @@ export function applySemEvent(state, event) {
   if (event.type.startsWith("cozo.")) {
     const bundleEntityId = extractCozoParentId(event);
     if (bundleEntityId) {
-      const bundle = state.entities[bundleEntityId] || createBundleEntity(bundleEntityId);
+      const bundle = (state.entities[bundleEntityId] as SemBundleEntity) || createBundleEntity(bundleEntityId);
       nextEntities[bundleEntityId] = projectBundleEntity(bundle, event, nextEntity.status);
       nextOrder = appendOrder(nextOrder, bundleEntityId);
     }
@@ -425,40 +512,40 @@ export function applySemEvent(state, event) {
   };
 }
 
-export function getStreamingEntries(state) {
+export function getStreamingEntries(state: SemProjectionState): [string, string][] {
   return state.order
-    .map((entityId) => state.entities[entityId])
-    .filter((entity) => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming")
+    .map((entityId) => state.entities[entityId] as SemEntity | undefined)
+    .filter((entity): entity is SemEntity => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming")
     .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
 }
 
-export function getStreamingEntriesForCell(state, ownerCellId) {
+export function getStreamingEntriesForCell(state: SemProjectionState, ownerCellId: string): [string, string][] {
   return state.order
-    .map((entityId) => state.entities[entityId])
-    .filter((entity) => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming" && entity?.ownerCellId === ownerCellId)
+    .map((entityId) => state.entities[entityId] as SemEntity | undefined)
+    .filter((entity): entity is SemEntity => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming" && entity?.ownerCellId === ownerCellId)
     .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
 }
 
-export function getInlineSemEntities(state, lineIdx) {
+export function getInlineSemEntities(state: SemProjectionState, lineIdx: number): SemEntity[] {
   return getOrderedSemEntities(state, (entity) => entity?.anchorLine === lineIdx);
 }
 
-export function getTrailingSemEntities(state) {
+export function getTrailingSemEntities(state: SemProjectionState): SemEntity[] {
   return getOrderedSemEntities(state, (entity) => entity?.anchorLine == null);
 }
 
-export function getInlineSemThreads(state, lineIdx) {
+export function getInlineSemThreads(state: SemProjectionState, lineIdx: number): SemThread[] {
   return getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine === lineIdx).map((bundle) => buildBundleThread(state, bundle));
 }
 
-export function getTrailingSemThreads(state) {
+export function getTrailingSemThreads(state: SemProjectionState): SemThread[] {
   return getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine == null).map((bundle) => buildBundleThread(state, bundle));
 }
 
-export function getAllSemThreads(state) {
+export function getAllSemThreads(state: SemProjectionState): SemThread[] {
   return getOrderedCozoBundles(state, () => true).map((bundle) => buildBundleThread(state, bundle));
 }
 
-export function getSemThreadsForCell(state, ownerCellId) {
+export function getSemThreadsForCell(state: SemProjectionState, ownerCellId: string): SemThread[] {
   return getOrderedCozoBundles(state, (bundle) => bundle?.ownerCellId === ownerCellId).map((bundle) => buildBundleThread(state, bundle));
 }

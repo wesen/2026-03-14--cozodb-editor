@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import {
   ENTITY_KIND_COZO_DOC_REF,
   ENTITY_KIND_COZO_HINT,
   ENTITY_KIND_COZO_QUERY_SUGGESTION,
 } from "../../sem/semProjection";
+import type { SemEntity, SemThread } from "../../sem/semProjection";
 import { DocRefCard } from "./widgets/DocRefCard";
 import { HintCard } from "./widgets/HintCard";
 import { QuerySuggestionCard } from "./widgets/QuerySuggestionCard";
@@ -10,7 +12,7 @@ import { toDocRefViewModel } from "./view-models/toDocRefViewModel";
 import { toHintViewModel } from "./view-models/toHintViewModel";
 import { toQuerySuggestionViewModel } from "./view-models/toQuerySuggestionViewModel";
 
-function renderEntity(entity, onAskQuestion, onInsertCode) {
+function renderEntity(entity: SemEntity, onAskQuestion?: (q: string) => void, onInsertCode?: (code: string) => void): ReactNode {
   if (!entity) {
     return null;
   }
@@ -40,20 +42,29 @@ function renderEntity(entity, onAskQuestion, onInsertCode) {
   }
 }
 
-function summarizeThread(thread) {
+function summarizeThread(thread: SemThread): string {
   if (thread?.hint?.data?.text) {
-    return thread.hint.data.text;
+    return thread.hint.data.text as string;
   }
 
   if (thread?.children?.[0]?.data?.label) {
-    return thread.children[0].data.label;
+    return thread.children[0].data.label as string;
   }
 
   if (thread?.children?.[0]?.data?.title) {
-    return thread.children[0].data.title;
+    return thread.children[0].data.title as string;
   }
 
   return "Structured inference result";
+}
+
+interface Props {
+  collapsed?: boolean;
+  onAskQuestion?: (question: string) => void;
+  onDismiss: () => void;
+  onInsertCode?: (code: string) => void;
+  onToggleCollapse: () => void;
+  thread: SemThread;
 }
 
 export function CozoSemRenderer({
@@ -63,7 +74,7 @@ export function CozoSemRenderer({
   onToggleCollapse,
   thread,
   collapsed = false,
-}) {
+}: Props) {
   if (!thread || (!thread.hint && thread.children.length === 0)) {
     return null;
   }
@@ -72,7 +83,7 @@ export function CozoSemRenderer({
   const hasChildren = thread.children.length > 0;
   const itemLabel = hasHint ? "SEM THREAD" : "SEM ITEM";
   const itemCount = Number(hasHint) + thread.children.length;
-  const lineLabel = Number.isInteger(thread.anchorLine) ? `Line ${thread.anchorLine + 1}` : "Global";
+  const lineLabel = Number.isInteger(thread.anchorLine) ? `Line ${(thread.anchorLine as number) + 1}` : "Global";
   const summary = summarizeThread(thread);
 
   return (
@@ -90,7 +101,7 @@ export function CozoSemRenderer({
               {itemLabel}
             </span>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {lineLabel} · {itemCount} item{itemCount === 1 ? "" : "s"}
+              {lineLabel} - {itemCount} item{itemCount === 1 ? "" : "s"}
             </span>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>

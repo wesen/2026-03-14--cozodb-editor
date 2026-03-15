@@ -3,8 +3,15 @@ import {
   HINT_RESULT_EVENT,
   LLM_ERROR_EVENT,
 } from "./semEventTypes";
+import type { HintsSocket, SemEvent } from "../transport/hintsSocket";
 
-export function registerDefaultSemHandlers(socket, { onError, onHintResult, onProject } = {}) {
+export interface DefaultSemHandlerOptions {
+  onError?: (event: SemEvent) => void;
+  onHintResult?: (event: SemEvent) => void;
+  onProject?: (event: SemEvent) => void;
+}
+
+export function registerDefaultSemHandlers(socket: HintsSocket, { onError, onHintResult, onProject }: DefaultSemHandlerOptions = {}): (() => void)[] {
   if (!socket || typeof onProject !== "function") {
     return [];
   }

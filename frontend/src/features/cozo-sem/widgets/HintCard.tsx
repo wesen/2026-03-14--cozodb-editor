@@ -1,4 +1,14 @@
-export function HintCard({ entity, onAskQuestion, onInsertCode, viewModel }) {
+import type { SemEntity } from "../../../sem/semProjection";
+import type { HintViewModel } from "../view-models/toHintViewModel";
+
+interface Props {
+  entity: SemEntity;
+  onAskQuestion?: (question: string) => void;
+  onInsertCode?: (code: string) => void;
+  viewModel: HintViewModel;
+}
+
+export function HintCard({ entity, onAskQuestion, onInsertCode, viewModel }: Props) {
   const tone = entity?.status === "preview" ? "rgba(198, 176, 52, 0.2)" : "var(--accent-dim)";
   const isErrored = entity?.status === "error";
 
@@ -74,7 +84,7 @@ export function HintCard({ entity, onAskQuestion, onInsertCode, viewModel }) {
                   fontWeight: 600,
                 }}
               >
-                Insert code ↵
+                Insert code
               </button>
             </div>
           ) : null}

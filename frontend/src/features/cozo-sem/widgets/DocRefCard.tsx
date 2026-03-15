@@ -1,4 +1,12 @@
-export function DocRefCard({ entity, viewModel }) {
+import type { SemEntity } from "../../../sem/semProjection";
+import type { DocRefViewModel } from "../view-models/toDocRefViewModel";
+
+interface Props {
+  entity: SemEntity;
+  viewModel: DocRefViewModel;
+}
+
+export function DocRefCard({ entity, viewModel }: Props) {
   const isErrored = entity?.status === "error";
 
   return (

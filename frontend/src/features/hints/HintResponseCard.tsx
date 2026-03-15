@@ -1,8 +1,23 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { DocPreviewChip } from "./DocPreviewChip";
 import { toHintCardViewModel } from "./hintViewModel";
 
-function formatHintText(text) {
+interface HintResponse {
+  text?: string;
+  code?: string;
+  chips?: string[];
+  docs?: { title: string; section: string; body: string }[];
+}
+
+interface Props {
+  collapsed: boolean;
+  onChipClick: (chip: string) => void;
+  onInsert: (code: string) => void;
+  onToggleCollapse: () => void;
+  response: HintResponse;
+}
+
+function formatHintText(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
 
   return parts.map((part, idx) => {
@@ -14,12 +29,12 @@ function formatHintText(text) {
   });
 }
 
-export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCollapse, response }) {
-  const [openDocs, setOpenDocs] = useState({});
+export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCollapse, response }: Props) {
+  const [openDocs, setOpenDocs] = useState<Record<number, boolean>>({});
   const [copied, setCopied] = useState(false);
   const viewModel = toHintCardViewModel(response);
 
-  const toggleDoc = (docIdx) => setOpenDocs((prev) => ({ ...prev, [docIdx]: !prev[docIdx] }));
+  const toggleDoc = (docIdx: number) => setOpenDocs((prev) => ({ ...prev, [docIdx]: !prev[docIdx] }));
 
   const handleCopy = () => {
     if (!viewModel.code) return;
@@ -41,7 +56,7 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
         onMouseEnter={(event) => { event.currentTarget.style.borderLeftColor = "var(--accent)"; }}
         onMouseLeave={(event) => { event.currentTarget.style.borderLeftColor = "var(--accent-dim)"; }}
       >
-        ✦ <span style={{ opacity: 0.6 }}>AI response</span> — <span style={{ opacity: 0.8 }}>{viewModel.previewText}…</span> <span style={{ float: "right", opacity: 0.4 }}>click to expand</span>
+        <span style={{ opacity: 0.6 }}>AI response</span> — <span style={{ opacity: 0.8 }}>{viewModel.previewText}...</span> <span style={{ float: "right", opacity: 0.4 }}>click to expand</span>
       </div>
     );
   }
@@ -61,15 +76,15 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
             borderRadius: 3,
             fontFamily: "inherit",
           }}
-          onMouseEnter={(event) => { event.target.style.color = "var(--text-primary)"; }}
-          onMouseLeave={(event) => { event.target.style.color = "var(--text-muted)"; }}
+          onMouseEnter={(event) => { (event.target as HTMLElement).style.color = "var(--text-primary)"; }}
+          onMouseLeave={(event) => { (event.target as HTMLElement).style.color = "var(--text-muted)"; }}
         >
           collapse
         </button>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 11, color: "var(--accent)", fontWeight: 600, letterSpacing: "0.04em" }}>
-        <span style={{ fontSize: 14 }}>✦</span> AI ASSISTANT
+        AI ASSISTANT
       </div>
 
       <div style={{ marginBottom: 12 }}>
@@ -157,7 +172,7 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
             cursor: "pointer",
             fontWeight: 600,
           }}>
-            Insert code ↵
+            Insert code
           </button>
         </div>
       )}

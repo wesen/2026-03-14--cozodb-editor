@@ -1,4 +1,12 @@
-export function DocPreviewChip({ doc, isOpen, onToggle }) {
+import type { HintCardDoc } from "./hintViewModel";
+
+interface Props {
+  doc: HintCardDoc;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+export function DocPreviewChip({ doc, isOpen, onToggle }: Props) {
   return (
     <span style={{ display: "inline-block", marginRight: 8, marginBottom: 4 }}>
       <button
@@ -15,8 +23,8 @@ export function DocPreviewChip({ doc, isOpen, onToggle }) {
           transition: "all 0.15s ease",
           ...(isOpen ? { background: "var(--doc-link)", color: "var(--bg-main)", borderColor: "var(--doc-link)" } : {}),
         }}
-        onMouseEnter={(event) => { if (!isOpen) event.target.style.borderColor = "var(--doc-link)"; }}
-        onMouseLeave={(event) => { if (!isOpen) event.target.style.borderColor = "var(--border-subtle)"; }}
+        onMouseEnter={(event) => { if (!isOpen) (event.target as HTMLElement).style.borderColor = "var(--doc-link)"; }}
+        onMouseLeave={(event) => { if (!isOpen) (event.target as HTMLElement).style.borderColor = "var(--border-subtle)"; }}
       >
         {isOpen ? "▾" : "▸"} {doc.title}
       </button>

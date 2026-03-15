@@ -1,62 +1,203 @@
-.cozo-notebook-root {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(42, 128, 168, 0.18), transparent 35%),
-    radial-gradient(circle at top right, rgba(80, 200, 120, 0.12), transparent 28%),
-    linear-gradient(180deg, #0a0f17 0%, #121a24 100%);
-  color: var(--text-primary);
-}
+/* ===== System 7 Notebook ===== */
 
-.cozo-notebook-shell {
-  min-height: 100vh;
+.mac-notebook-chrome {
+  margin: 8px;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.cozo-notebook-status {
-  margin: 24px auto 0;
-  max-width: 1100px;
-  width: calc(100% - 56px);
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 180, 120, 0.18);
-  background: rgba(120, 72, 24, 0.14);
-  color: rgba(255, 220, 180, 0.92);
+.mac-notebook-body {
+  padding: 12px 16px 24px;
+  flex: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mac-status-msg {
+  padding: 8px 12px;
+  border: 1px solid #999;
+  background: #ffffcc;
+  font-size: 12px;
+  margin: 8px 16px;
+}
+
+.mac-status-msg--error {
+  border-color: var(--border-error);
+  background: var(--bg-error);
+  color: var(--text-error);
+}
+
+/* ===== Cell Card ===== */
+.mac-cell-card {
+  margin-bottom: 12px;
+}
+
+.mac-cell-card .mac-window__titlebar {
+  height: 18px;
+}
+
+.mac-cell-label {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.mac-cell-status {
+  font-size: 10px;
+  padding: 0 6px;
+  border: 1px solid #999;
+  background: #eee;
+  font-weight: 500;
+}
+
+.mac-cell-status.is-ok {
+  border-color: #66aa66;
+  background: #e0f0e0;
+  color: #336633;
+}
+
+.mac-cell-status.is-error {
+  border-color: #cc6666;
+  background: #f0e0e0;
+  color: #993333;
+}
+
+.mac-cell-body {
+  padding: 8px;
+}
+
+.mac-cell-editor {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #000;
+  background: var(--bg-field);
+  color: var(--text-primary);
+  padding: 8px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+}
+
+.mac-cell-editor:focus {
+  box-shadow: 0 0 0 2px #000 inset;
+}
+
+/* ===== Cell Error ===== */
+.mac-cell-error {
+  margin-top: 8px;
+  border: 1px solid var(--border-error);
+  background: var(--bg-error);
+}
+
+.mac-cell-error__header {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-error);
+  border-bottom: 1px solid var(--border-error-dim);
+  background: #ffdddd;
+}
+
+.mac-cell-error__body {
+  padding: 8px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.mac-cell-error__actions {
+  padding: 4px 8px 8px;
+}
+
+/* ===== AI Form ===== */
+.mac-ai-form {
+  margin-top: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.mac-ai-input {
+  flex: 1;
+  border: 1px solid #000;
+  background: var(--bg-field);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.mac-ai-input:focus {
+  box-shadow: 0 0 0 2px #000 inset;
+}
+
+/* ===== Empty State ===== */
+.mac-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+
+.mac-empty-state__icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.mac-empty-state__text {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.mac-empty-state__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ===== Legacy compat: notebook badges/actions ===== */
+.cozo-notebook-root {
+  min-height: 100vh;
 }
 
 .cozo-notebook-action {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-  border-radius: 7px;
-  padding: 6px 10px;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 8px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: #fff;
+  color: #000;
   cursor: pointer;
-  transition: background 0.12s ease, transform 0.12s ease;
+  box-shadow: 1px 1px 0px #000;
 }
 
 .cozo-notebook-action:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-1px);
+  background: #000;
+  color: #fff;
 }
 
 .cozo-notebook-action:disabled {
+  color: #999;
+  border-color: #999;
+  box-shadow: none;
   cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .cozo-notebook-badge {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  padding: 1px 6px;
+  border: 1px solid #999;
+  background: #eee;
   font-weight: 600;
 }
 
 .cozo-notebook-badge.is-connected {
-  background: rgba(80, 200, 120, 0.15);
-  color: rgba(80, 200, 120, 0.9);
+  border-color: #66aa66;
+  background: #e0f0e0;
+  color: #336633;
 }

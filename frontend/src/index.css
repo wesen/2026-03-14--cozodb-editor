@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -7,4 +9,9 @@
 html, body, #root {
   height: 100%;
   width: 100%;
+}
+
+::selection {
+  background: #000;
+  color: #fff;
 }
