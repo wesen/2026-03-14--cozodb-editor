@@ -411,6 +411,53 @@ CSS class naming shifted from `cozo-notebook-*` to `mac-*` for new components. L
 
 - `301bac4` `feat(frontend): port to TypeScript with System 7 retro Mac UI`
 
+### Step 10: implement phase 3 notebook ergonomics and runtime UX
+
+After the runtime state model (dirty/stale) was in place, the next step was making the notebook actually usable as an authoring environment rather than just a functional shell.
+
+Files added:
+
+- `frontend/src/notebook/renderMarkdown.ts` — lightweight zero-dependency markdown-to-HTML renderer
+
+Files updated:
+
+- `frontend/src/notebook/NotebookCellCard.tsx`
+- `frontend/src/notebook/NotebookPage.tsx`
+- `frontend/src/notebook/notebook.css`
+- `frontend/src/theme/layout.css`
+
+What changed:
+
+1. **Markdown preview/edit**: markdown cells now render as formatted HTML at rest (headers, bold, italic, inline code, code blocks, lists, links). Clicking switches to textarea editing. Pressing Esc returns to preview. The preview has a dashed border that darkens on hover to signal editability.
+
+2. **Active cell + keyboard navigation**: the notebook tracks an active cell index. The active cell gets a stronger `box-shadow: 3px 3px 0px #000`. Navigation works with j/k keys when not in an editor, Ctrl+Shift+Up/Down when in an editor, and Enter to focus the active cell's editor. This answers the UX brief question about "where the user is".
+
+3. **Output collapse**: cells with >10 result rows or >2 AI threads show a Show/Hide toggle. This keeps long outputs from dominating the notebook. Output stays attached to the cell rather than being moved to a separate panel.
+
+4. **Stale output dimming**: when a cell is dirty or stale, its entire output section dims to 50% opacity and shows a small "output may be outdated" label. This answers the UX brief question about making trustworthiness visible without drowning the user in noise.
+
+5. **Runtime badges**: relative timestamp ("just now", "3s ago", "2m ago") appears in the cell title bar after a run completes. An "AI" badge appears when the cell has SEM threads, fallback hints, or diagnosis entities.
+
+6. **Focus after insert**: inserting a cell below automatically sets the new cell as the active cell, maintaining notebook orientation.
+
+Design decisions:
+
+- the markdown renderer is intentionally minimal (no tables, no images, no footnotes) — it handles the most common notebook narrative patterns without pulling in a library
+- active-cell indication uses the System 7 shadow convention (stronger shadow = selected) rather than a colored border, keeping the monochrome palette
+- the stale/dirty dimming is gentle (50% opacity) rather than aggressive (overlay or strikethrough), matching the UX brief guidance to preserve output as history without implying it is current
+- keyboard hints are shown in the menu bar rather than a separate modal or tooltip
+
+Validation:
+
+- `npx tsc --noEmit` — clean
+- `npm run lint` — clean
+- `npm test` — 21 tests pass
+- `npm run build` — succeeds
+
+Commit checkpoint:
+
+- `9765459` `feat(notebook): add phase 3 notebook ergonomics and runtime UX`
+
 ### How to use this diary when implementing COZODB-005
 
 1. Read the imported source at `sources/local/cozodb-notebook.md`.
