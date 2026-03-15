@@ -39,13 +39,22 @@ RelatedFiles:
       Note: Implements the FilteringSink preview extractors for Cozo YAML families
     - Path: backend/pkg/hints/structured_parser.go
       Note: Performs authoritative final-response extraction and compatibility response synthesis
+    - Path: frontend/src/DatalogPad.jsx
+      Note: Integrates the new projection selectors and widget renderer into the editor shell
     - Path: frontend/src/DatalogPad.jsx:Validated frontend websocket handling and lack of projection layer
+    - Path: frontend/src/features/cozo-sem/CozoSemRenderer.jsx
+      Note: Dispatches projected cozo entities into the new rich widget components
+    - Path: frontend/src/sem/registerCozoSemHandlers.js
+      Note: Registers websocket subscriptions for the new cozo semantic event families
+    - Path: frontend/src/sem/semProjection.js
+      Note: Projects llm and cozo semantic events into canonical frontend entities with inline/trailing routing
 ExternalSources: []
 Summary: Chronological investigation record for COZODB-002 covering repository validation, code-review findings, reference-pattern verification, and ticket deliverable preparation.
-LastUpdated: 2026-03-15T02:08:15-04:00
+LastUpdated: 2026-03-15T02:16:41-04:00
 WhatFor: Record what was validated, what patterns were confirmed, which commands were run, and how the final deliverable was produced.
 WhenToUse: Use this diary when reviewing the ticket deliverable or continuing implementation from the design document.
 ---
+
 
 
 
@@ -458,6 +467,124 @@ The most important design choice in this step was to split preview and authorita
 - Validation commands that passed:
   - `env GOTOOLCHAIN=auto go mod tidy`
   - `env GOTOOLCHAIN=auto go test ./...`
+
+## Step 6: Project and render the new Cozo semantic events in the decomposed frontend
+
+With the backend now emitting `cozo.*` semantic events, the next step was to make the frontend consume them through the seams established in COZODB-003 instead of bolting more logic back into the old monolith. I kept the websocket seam in `frontend/src/transport/hintsSocket.js`, added handler registration modules under `frontend/src/sem/`, extended the projection layer to understand canonical Cozo entities, and introduced a dedicated renderer plus widget stack under `frontend/src/features/cozo-sem/`.
+
+The main correctness concern in this slice was identity and placement. Preview and extracted events must collapse onto the same canonical entity ID, and entities need enough routing metadata to render either inline after a triggering line or in the trailing widget rail. Even though the current backend payloads do not yet carry a real anchor line, the projection had to support it now so the migration does not need another state-model rewrite later.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue through the remaining frontend-facing COZODB-002 tasks, commit coherent UI milestones, and keep the ticket diary current with the exact code and validation state.
+
+**Inferred user intent:** Finish the migration enough that the new backend semantic events are actually visible and testable in the app.
+
+**Commit (code):** `77bcd3a` — `frontend(sem): render cozo extraction widgets`
+
+### What I did
+- Added websocket subscription helpers:
+  - `frontend/src/sem/registerDefaultSemHandlers.js`
+  - `frontend/src/sem/registerCozoSemHandlers.js`
+- Expanded `frontend/src/sem/semEventTypes.js` to include:
+  - `llm.final`
+  - the full `cozo.hint.*`, `cozo.query_suggestion.*`, and `cozo.doc_ref.*` families
+- Replaced the old narrow projection logic in `frontend/src/sem/semProjection.js` with canonical entity projection for:
+  - `llm_text_stream`
+  - `cozo_hint`
+  - `cozo_query_suggestion`
+  - `cozo_doc_ref`
+  - legacy hint compatibility entities
+  - diagnosis entities
+- Added selectors in the projection layer for:
+  - trailing stream entries
+  - inline semantic entities
+  - trailing semantic entities
+- Added the new frontend renderer stack:
+  - `frontend/src/features/cozo-sem/CozoSemRenderer.jsx`
+  - `frontend/src/features/cozo-sem/widgets/HintCard.jsx`
+  - `frontend/src/features/cozo-sem/widgets/QuerySuggestionCard.jsx`
+  - `frontend/src/features/cozo-sem/widgets/DocRefCard.jsx`
+  - `frontend/src/features/cozo-sem/view-models/*`
+- Updated `frontend/src/DatalogPad.jsx` to:
+  - subscribe through the new handler registration modules
+  - keep `PadEditor` as the shell
+  - render projected inline and trailing Cozo entities via `CozoSemRenderer`
+  - keep `DiagnosisCard` separate
+  - stop rendering the old trailing `hint.result` cards for the normal hint flow
+- Added and expanded tests:
+  - `frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`
+  - `frontend/src/sem/semProjection.test.js`
+- Ran:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+
+### Why
+- The backend migration was incomplete until the semantic event families had a frontend projection and rendering path.
+- The decomposed frontend from COZODB-003 made it possible to add this cleanly: transport subscriptions, projection state, and widgets now live in separate modules.
+- Keeping the compatibility path narrowly scoped avoids user-visible regression while still moving the main hint UI onto the semantic model.
+
+### What worked
+- The app now has a proper widget path for `cozo.hint`, `cozo.query_suggestion`, and `cozo.doc_ref`.
+- The projection layer now supports canonical ID fallback and preview-to-final replacement, which is the key state-management rule for semantic widgets.
+- Inline and trailing selectors are both implemented, so the frontend can consume anchor metadata as soon as the backend starts emitting it.
+- `npm test`, `npm run lint`, and `npm run build` all passed in `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend`.
+
+### What didn't work
+- My first frontend test command used the wrong mental model from another toolchain:
+  - Command: `npm test -- --runInBand`
+  - Error: `CACError: Unknown option --runInBand`
+- That was not a project bug; `vitest` simply does not accept the Jest-style `--runInBand` flag, so I reran using the repo's actual command:
+  - `npm test`
+
+### What I learned
+- The frontend can move to semantic widgets incrementally if the projection keeps both semantic entities and the legacy compatibility entities in the same state graph.
+- A small handler-registration layer noticeably improves `DatalogPad.jsx` readability even before any more components are extracted.
+- The most important tests here are not visual snapshot tests; they are projection tests around canonical IDs, preview promotion, and inline/trailing routing.
+
+### What was tricky to build
+- The main sharp edge was avoiding duplicate UX between the old `hint.result` path and the new semantic widgets. The current implementation keeps compatibility behavior for diagnosis and fallback paths while routing the main hint display through the Cozo widget renderer.
+- Another tricky detail was future-proofing the projection for `llm.final` and anchor metadata even though the current backend still primarily uses manual `llm.start`/`llm.delta` and the new semantic widgets to communicate the completed result.
+
+### What warrants a second pair of eyes
+- The current frontend treats the semantic widget path as the primary hint UI, but the backend still emits the old `hint.result` event for compatibility. Reviewers should verify that this transitional state is acceptable until the legacy path is fully removed.
+- Query suggestion insertion currently routes through the existing `insertCodeBelowCursor` callback from the pad shell. That is the right seam, but it deserves a quick UX check in the browser to confirm cursor placement feels correct.
+
+### What should be done in the future
+- Remove or replace `frontend/src/features/hints/HintResponseCard.test.jsx` once the compatibility renderer is fully retired.
+- Teach the backend to emit real line anchors so the inline placement path is exercised in practice instead of only in tests.
+- Once the backend starts sending `llm.final` semantically, remove the remaining compatibility assumptions around hint completion.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semProjection.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/cozo-sem/CozoSemRenderer.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/DatalogPad.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/registerCozoSemHandlers.js`
+- Then validate:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+- Review the test coverage in:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semProjection.test.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/cozo-sem/CozoSemRenderer.test.jsx`
+
+### Technical details
+- Canonical semantic entity kinds introduced in the projection:
+  - `llm_text_stream`
+  - `cozo_hint`
+  - `cozo_query_suggestion`
+  - `cozo_doc_ref`
+- Frontend commits in this slice:
+  - `77bcd3a` — `frontend(sem): render cozo extraction widgets`
+  - `fb16ae0` — `frontend(testing): cover cozo projection families`
+- Validation commands that passed:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
 
 ## Step 3: Update the COZODB-002 UI plan after the frontend decomposition landed
 

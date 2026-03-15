@@ -2,6 +2,9 @@
 
 ## 2026-03-15
 
+- Implemented the frontend SEM migration slice in commits `77bcd3a` (`frontend(sem): render cozo extraction widgets`) and `fb16ae0` (`frontend(testing): cover cozo projection families`).
+- Added the frontend semantic projection handlers, canonical Cozo entity projection, inline/trailing selectors, the new Cozo widget renderer stack, and the initial widget tests plus expanded projection tests.
+- Validated the frontend slice with `npm test`, `npm run lint`, and `npm run build`.
 - Implemented the structured extraction backend slice for COZODB-002 in commit `9ef88f6` (`backend(sem): add structured extraction event pipeline`).
 - Added Cozo YAML payload schemas, preview extractors, authoritative final parsing, pinocchio SEM handler registration, a websocket SEM sink, prompt/config updates, and backend tests covering extraction and translation.
 - Validated the backend slice with `env GOTOOLCHAIN=auto go mod tidy` and `env GOTOOLCHAIN=auto go test ./...`.
