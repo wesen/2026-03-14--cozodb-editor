@@ -84,6 +84,14 @@ export interface SemThread {
   runId?: string;
 }
 
+export interface HintResponsePayload {
+  text?: string;
+  code?: string | null;
+  chips?: string[];
+  docs?: Array<{ title: string; section?: string; body: string }>;
+  warning?: string | null;
+}
+
 const COZO_EVENT_KIND_BY_TYPE: Record<string, EntityKind> = {
   [COZO_HINT_PREVIEW_EVENT]: ENTITY_KIND_COZO_HINT,
   [COZO_HINT_EXTRACTED_EVENT]: ENTITY_KIND_COZO_HINT,
@@ -460,12 +468,12 @@ export function applySemEvent(state: SemProjectionState, event: SemEvent): SemPr
       };
       break;
     case HINT_RESULT_EVENT:
-      if (!entityId.startsWith("diag-")) {
+      if (!entityId.startsWith("diag-") && !extractOwnerCellId(event)) {
         return state;
       }
       nextEntity = {
         ...entity,
-        kind: kindForEvent(event, entityId),
+        kind: entityId.startsWith("diag-") ? ENTITY_KIND_DIAGNOSIS : ENTITY_KIND_LLM_TEXT_STREAM,
         response: (data as Record<string, unknown>) || null,
         status: "complete",
         notebookId: extractNotebookId(event) ?? entity.notebookId,
@@ -515,7 +523,7 @@ export function applySemEvent(state: SemProjectionState, event: SemEvent): SemPr
 export function getStreamingEntries(state: SemProjectionState): [string, string][] {
   return state.order
     .map((entityId) => state.entities[entityId] as SemEntity | undefined)
-    .filter((entity): entity is SemEntity => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming")
+    .filter((entity): entity is SemEntity => entity?.kind === ENTITY_KIND_LLM_TEXT_STREAM && entity?.status === "streaming" && !entity?.ownerCellId)
     .map((entity) => [entity.id, trimTrailingDisplayWhitespace(entity.text)]);
 }
 
@@ -527,19 +535,19 @@ export function getStreamingEntriesForCell(state: SemProjectionState, ownerCellI
 }
 
 export function getInlineSemEntities(state: SemProjectionState, lineIdx: number): SemEntity[] {
-  return getOrderedSemEntities(state, (entity) => entity?.anchorLine === lineIdx);
+  return getOrderedSemEntities(state, (entity) => !entity?.ownerCellId && entity?.anchorLine === lineIdx);
 }
 
 export function getTrailingSemEntities(state: SemProjectionState): SemEntity[] {
-  return getOrderedSemEntities(state, (entity) => entity?.anchorLine == null);
+  return getOrderedSemEntities(state, (entity) => !entity?.ownerCellId && entity?.anchorLine == null);
 }
 
 export function getInlineSemThreads(state: SemProjectionState, lineIdx: number): SemThread[] {
-  return getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine === lineIdx).map((bundle) => buildBundleThread(state, bundle));
+  return getOrderedCozoBundles(state, (bundle) => !bundle?.ownerCellId && bundle?.anchorLine === lineIdx).map((bundle) => buildBundleThread(state, bundle));
 }
 
 export function getTrailingSemThreads(state: SemProjectionState): SemThread[] {
-  return getOrderedCozoBundles(state, (bundle) => bundle?.anchorLine == null).map((bundle) => buildBundleThread(state, bundle));
+  return getOrderedCozoBundles(state, (bundle) => !bundle?.ownerCellId && bundle?.anchorLine == null).map((bundle) => buildBundleThread(state, bundle));
 }
 
 export function getAllSemThreads(state: SemProjectionState): SemThread[] {
@@ -548,4 +556,36 @@ export function getAllSemThreads(state: SemProjectionState): SemThread[] {
 
 export function getSemThreadsForCell(state: SemProjectionState, ownerCellId: string): SemThread[] {
   return getOrderedCozoBundles(state, (bundle) => bundle?.ownerCellId === ownerCellId).map((bundle) => buildBundleThread(state, bundle));
+}
+
+export function getHintResponseForCell(state: SemProjectionState, ownerCellId: string): HintResponsePayload | null {
+  const entity = [...state.order]
+    .reverse()
+    .map((entityId) => state.entities[entityId] as SemEntity | undefined)
+    .find((candidate) =>
+      candidate?.kind === ENTITY_KIND_LLM_TEXT_STREAM
+      && candidate?.ownerCellId === ownerCellId
+      && candidate?.status === "complete"
+      && candidate?.response
+    );
+
+  if (!entity?.response) {
+    return null;
+  }
+
+  return entity.response as HintResponsePayload;
+}
+
+export function getDiagnosisForCell(state: SemProjectionState, ownerCellId: string): SemEntity | null {
+  const entity = [...state.order]
+    .reverse()
+    .map((entityId) => state.entities[entityId] as SemEntity | undefined)
+    .find((candidate) =>
+      candidate?.kind === ENTITY_KIND_DIAGNOSIS
+      && candidate?.ownerCellId === ownerCellId
+      && candidate?.status === "complete"
+      && candidate?.response
+    );
+
+  return entity || null;
 }

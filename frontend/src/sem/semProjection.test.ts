@@ -3,6 +3,8 @@ import {
   applySemEvent,
   createSemProjectionState,
   ENTITY_KIND_COZO_BUNDLE,
+  getDiagnosisForCell,
+  getHintResponseForCell,
   getInlineSemEntities,
   getInlineSemThreads,
   getSemThreadsForCell,
@@ -84,6 +86,7 @@ describe("semProjection", () => {
     expect(getStreamingEntriesForCell(state, "cell_b")).toEqual([]);
     expect(getSemThreadsForCell(state, "cell_a").map((thread) => thread.id)).toEqual(["cozo-bundle:bundle-cell-a"]);
     expect(getSemThreadsForCell(state, "cell_b").map((thread) => thread.id)).toEqual(["cozo-bundle:bundle-cell-b"]);
+    expect(getTrailingSemThreads(state)).toEqual([]);
   });
 
   it("ignores non-diagnosis hint.result events now that the SEM path is authoritative", () => {
@@ -96,6 +99,67 @@ describe("semProjection", () => {
     });
 
     expect(state).toEqual(createSemProjectionState());
+  });
+
+  it("keeps cell-owned hint.result events as fallback responses for the owning cell", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "llm.start",
+      id: "hint-cell-owned",
+      data: { ownerCellId: "cell_a", notebookId: "nbk_a", runId: "run_a" },
+    });
+    state = applySemEvent(state, {
+      type: "hint.result",
+      id: "hint-cell-owned",
+      data: {
+        text: "Try projecting fewer columns.",
+        chips: ["show an example"],
+        notebookId: "nbk_a",
+        ownerCellId: "cell_a",
+        runId: "run_a",
+      },
+    });
+
+    expect(getHintResponseForCell(state, "cell_a")).toEqual({
+      text: "Try projecting fewer columns.",
+      chips: ["show an example"],
+      notebookId: "nbk_a",
+      ownerCellId: "cell_a",
+      runId: "run_a",
+    });
+    expect(getStreamingEntries(state)).toEqual([]);
+  });
+
+  it("keeps diagnosis results attached to the owning cell", () => {
+    let state = createSemProjectionState();
+
+    state = applySemEvent(state, {
+      type: "hint.result",
+      id: "diag-7",
+      data: {
+        text: "You likely forgot a colon before create.",
+        code: ":create users {name: String => age: Int}",
+        notebookId: "nbk_a",
+        ownerCellId: "cell_err",
+        runId: "run_err",
+      },
+    });
+
+    expect(getDiagnosisForCell(state, "cell_err")).toMatchObject({
+      id: "diag-7",
+      kind: "diagnosis",
+      ownerCellId: "cell_err",
+      notebookId: "nbk_a",
+      runId: "run_err",
+      response: {
+        text: "You likely forgot a colon before create.",
+        code: ":create users {name: String => age: Int}",
+        notebookId: "nbk_a",
+        ownerCellId: "cell_err",
+        runId: "run_err",
+      },
+    });
   });
 
   it("promotes cozo preview entities to final entities using the canonical item id", () => {

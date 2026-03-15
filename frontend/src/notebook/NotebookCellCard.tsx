@@ -1,8 +1,15 @@
 import { type KeyboardEvent, useState } from "react";
 import { CozoSemRenderer } from "../features/cozo-sem/CozoSemRenderer";
+import { DiagnosisCard } from "../features/diagnosis/DiagnosisCard";
+import { HintResponseCard } from "../features/hints/HintResponseCard";
 import { QueryResultsTable } from "../features/query-results/QueryResultsTable";
 import { StreamingMessageCard } from "../features/hints/StreamingMessageCard";
-import { getSemThreadsForCell, getStreamingEntriesForCell } from "../sem/semProjection";
+import {
+  getDiagnosisForCell,
+  getHintResponseForCell,
+  getSemThreadsForCell,
+  getStreamingEntriesForCell,
+} from "../sem/semProjection";
 import type { SemProjectionState } from "../sem/semProjection";
 import type { CellRunOutput, CellRuntime, NotebookCell } from "../transport/httpClient";
 
@@ -77,6 +84,9 @@ export function NotebookCellCard({
   const [showAIForm, setShowAIForm] = useState(false);
   const streams = getStreamingEntriesForCell(semProjection, cell.id);
   const threads = getSemThreadsForCell(semProjection, cell.id).filter((thread) => !dismissedThreads[thread.id]);
+  const fallbackHint = getHintResponseForCell(semProjection, cell.id);
+  const diagnosisEntity = getDiagnosisForCell(semProjection, cell.id);
+  const diagnosisResponse = (diagnosisEntity?.response || {}) as Record<string, unknown>;
   const isCode = cell.kind === "code";
   const runStatus = runtime?.run?.status || "idle";
   const executionCount = runtime?.run?.execution_count;
@@ -167,7 +177,19 @@ export function NotebookCellCard({
         ) : null}
 
         {runtime?.output?.kind === "error_result" ? (
-          <CellErrorCard output={runtime.output} onDiagnose={() => onDiagnose(cell)} />
+          diagnosisEntity ? (
+            <DiagnosisCard
+              diagnosing={false}
+              error={runtime.output.display || runtime.output.message || "Unknown error"}
+              fix={{
+                text: typeof diagnosisResponse.text === "string" ? diagnosisResponse.text : "See the suggested fix.",
+                code: typeof diagnosisResponse.code === "string" ? diagnosisResponse.code : undefined,
+              }}
+              onApplyFix={typeof diagnosisResponse.code === "string" ? () => onInsertCodeBelow(cell.id, diagnosisResponse.code as string) : undefined}
+            />
+          ) : (
+            <CellErrorCard output={runtime.output} onDiagnose={() => onDiagnose(cell)} />
+          )
         ) : null}
 
         {streams.map(([id, text]) => (
@@ -175,6 +197,21 @@ export function NotebookCellCard({
             <StreamingMessageCard text={text} />
           </div>
         ))}
+
+        {!diagnosisEntity && threads.length === 0 && fallbackHint ? (
+          <div style={{ marginTop: 8 }}>
+            <HintResponseCard
+              collapsed={Boolean(collapsedThreads[`hint:${cell.id}`])}
+              onChipClick={(chip) => {
+                onSetAIPrompt(cell.id, chip);
+                setShowAIForm(true);
+              }}
+              onInsert={(code) => onInsertCodeBelow(cell.id, code)}
+              onToggleCollapse={() => onToggleThreadCollapse(`hint:${cell.id}`)}
+              response={fallbackHint}
+            />
+          </div>
+        ) : null}
 
         {threads.map((thread) => (
           <div key={thread.id} style={{ marginTop: 8 }}>

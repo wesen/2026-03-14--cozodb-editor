@@ -83,7 +83,11 @@ export function CozoSemRenderer({
   const hasChildren = thread.children.length > 0;
   const itemLabel = hasHint ? "SEM THREAD" : "SEM ITEM";
   const itemCount = Number(hasHint) + thread.children.length;
-  const lineLabel = Number.isInteger(thread.anchorLine) ? `Line ${(thread.anchorLine as number) + 1}` : "Global";
+  const locationLabel = thread.ownerCellId
+    ? "Attached to cell"
+    : Number.isInteger(thread.anchorLine)
+      ? `Line ${(thread.anchorLine as number) + 1}`
+      : "Global";
   const summary = summarizeThread(thread);
 
   return (
@@ -101,7 +105,7 @@ export function CozoSemRenderer({
               {itemLabel}
             </span>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {lineLabel} - {itemCount} item{itemCount === 1 ? "" : "s"}
+              {locationLabel} - {itemCount} item{itemCount === 1 ? "" : "s"}
             </span>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
