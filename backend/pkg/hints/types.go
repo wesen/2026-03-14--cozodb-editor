@@ -2,11 +2,11 @@ package hints
 
 // HintResponse is the structured response from the AI hint engine.
 type HintResponse struct {
-	Text    string    `json:"text"`
-	Code    *string   `json:"code"`
-	Chips   []string  `json:"chips"`
-	Docs    []DocRef  `json:"docs"`
-	Warning *string   `json:"warning"`
+	Text    string   `json:"text"`
+	Code    *string  `json:"code"`
+	Chips   []string `json:"chips"`
+	Docs    []DocRef `json:"docs"`
+	Warning *string  `json:"warning"`
 }
 
 // DocRef is a reference to documentation.

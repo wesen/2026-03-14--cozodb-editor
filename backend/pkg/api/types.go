@@ -24,9 +24,9 @@ type SchemaResponse struct {
 
 // RelationResponse is the response for GET /api/schema/{name}.
 type RelationResponse struct {
-	Name   string       `json:"name"`
-	Keys   []ColumnDef  `json:"keys"`
-	Values []ColumnDef  `json:"values"`
+	Name   string      `json:"name"`
+	Keys   []ColumnDef `json:"keys"`
+	Values []ColumnDef `json:"values"`
 }
 
 // ColumnDef describes a column.

@@ -1,0 +1,49 @@
+package: cozo
+version: v1
+families:
+  - type: hint
+    required: true
+    description: Primary assistant guidance for the current question or diagnosis.
+    fields:
+      - hint_id
+      - text
+      - code
+      - chips
+      - warning
+    yaml_example: |
+      hint_id: primary
+      text: Use an inline rule to bind the relation and return the selected variables.
+      code: |
+        ?[name, age] := *users{name, age}
+      chips:
+        - add a filter
+        - sort the results
+      warning: Keys go before => when you create a stored relation.
+  - type: query_suggestion
+    required: false
+    description: Insertable CozoScript suggestion the UI can offer as a next action.
+    fields:
+      - suggestion_id
+      - label
+      - code
+      - reason
+    yaml_example: |
+      suggestion_id: filter-age
+      label: Filter to age > 30
+      code: |
+        ?[name, age] := *users{name, age}, age > 30
+      reason: Add a simple comparison in the rule body.
+  - type: doc_ref
+    required: false
+    description: Supporting concept reference for a widget or expanded explanation.
+    fields:
+      - doc_ref_id
+      - title
+      - section
+      - body
+      - url
+    yaml_example: |
+      doc_ref_id: inline-rules
+      title: Inline rules
+      section: §2.1
+      body: The ?[vars] := body pattern defines an inline rule and returns the head variables.

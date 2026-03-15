@@ -121,14 +121,16 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 	// Send start event
 	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr}})
 
+	semSink := NewWebSocketSEMSink(writeJSON)
+
 	// Stream deltas
-	hint, err := h.Engine.GenerateHint(reqCtx, hintReq, func(delta string) {
+	hint, err := h.Engine.GenerateHintWithSinks(reqCtx, hintReq, func(delta string) {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
 			Type: "llm.delta",
 			ID:   idStr,
 			Data: delta,
 		}})
-	})
+	}, semSink)
 
 	if err != nil {
 		log.Printf("[WS] hint error: %v", err)
@@ -184,13 +186,15 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 
 	writeJSON(WSMessage{SEM: true, Event: WSEvent{Type: "llm.start", ID: idStr}})
 
-	hint, err := h.Engine.DiagnoseError(reqCtx, diagReq, func(delta string) {
+	semSink := NewWebSocketSEMSink(writeJSON)
+
+	hint, err := h.Engine.DiagnoseErrorWithSinks(reqCtx, diagReq, func(delta string) {
 		writeJSON(WSMessage{SEM: true, Event: WSEvent{
 			Type: "llm.delta",
 			ID:   idStr,
 			Data: delta,
 		}})
-	})
+	}, semSink)
 
 	if err != nil {
 		log.Printf("[WS] diagnosis error: %v", err)

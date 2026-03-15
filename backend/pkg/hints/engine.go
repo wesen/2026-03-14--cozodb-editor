@@ -2,11 +2,12 @@ package hints
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
+	gepevents "github.com/go-go-golems/geppetto/pkg/events"
+	"github.com/go-go-golems/geppetto/pkg/events/structuredsink"
 	"github.com/go-go-golems/geppetto/pkg/inference/engine"
 	"github.com/go-go-golems/geppetto/pkg/inference/engine/factory"
 	"github.com/go-go-golems/geppetto/pkg/inference/session"
@@ -83,8 +84,18 @@ func intPtr(v int) *int {
 	return &v
 }
 
-// runInference runs a single geppetto inference and returns the final assistant text.
-func (e *Engine) runInference(ctx context.Context, systemPrompt, userMsg string, onDelta DeltaCallback) (string, error) {
+type inferenceRunResult struct {
+	Response *HintResponse
+}
+
+// runInference runs a single geppetto inference and returns a compatibility response plus authoritative derived events.
+func (e *Engine) runInference(
+	ctx context.Context,
+	systemPrompt string,
+	userMsg string,
+	onDelta DeltaCallback,
+	externalSinks ...gepevents.EventSink,
+) (*inferenceRunResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -95,23 +106,32 @@ func (e *Engine) runInference(ctx context.Context, systemPrompt, userMsg string,
 		Build()
 
 	sink := newStreamingTextSink(onDelta)
+	engineSinks := []gepevents.EventSink{sink}
+	engineSinks = append(engineSinks, externalSinks...)
+
+	filteringSink := structuredsink.NewFilteringSinkWithContext(
+		ctx,
+		&fanoutSink{sinks: engineSinks},
+		structuredsink.Options{Malformed: structuredsink.MalformedErrorEvents},
+		NewCozoExtractors()...,
+	)
 
 	sess := session.NewSession()
 	sess.Builder = enginebuilder.New(
 		enginebuilder.WithBase(e.engine),
-		enginebuilder.WithEventSinks(sink),
+		enginebuilder.WithEventSinks(filteringSink),
 		enginebuilder.WithStepController(e.stepController),
 	)
 	sess.Append(initialTurn)
 
 	handle, err := sess.StartInference(ctx)
 	if err != nil {
-		return "", fmt.Errorf("start inference: %w", err)
+		return nil, fmt.Errorf("start inference: %w", err)
 	}
 
 	updatedTurn, err := handle.Wait()
 	if err != nil {
-		return "", fmt.Errorf("run inference: %w", err)
+		return nil, fmt.Errorf("run inference: %w", err)
 	}
 
 	fullText := assistantTextFromTurn(updatedTurn)
@@ -119,10 +139,22 @@ func (e *Engine) runInference(ctx context.Context, systemPrompt, userMsg string,
 		fullText = sink.FinalText()
 	}
 	if strings.TrimSpace(fullText) == "" {
-		return "", fmt.Errorf("inference produced no assistant text")
+		return nil, fmt.Errorf("inference produced no assistant text")
 	}
 
-	return fullText, nil
+	parsed := ParseStructuredResponse(sink.Metadata(), fullText)
+	if len(externalSinks) > 0 && len(parsed.AuthoritativeEvents) > 0 {
+		derivedSink := &fanoutSink{sinks: externalSinks}
+		for _, event := range parsed.AuthoritativeEvents {
+			if err := derivedSink.PublishEvent(event); err != nil {
+				return nil, fmt.Errorf("publish derived event: %w", err)
+			}
+		}
+	}
+
+	return &inferenceRunResult{
+		Response: parsed.ToHintResponse(),
+	}, nil
 }
 
 func assistantTextFromTurn(t *turns.Turn) string {
@@ -146,21 +178,13 @@ func assistantTextFromTurn(t *turns.Turn) string {
 	return strings.Join(parts, "\n")
 }
 
-// parseHintResponse parses the AI response into a HintResponse.
-func parseHintResponse(fullText string) *HintResponse {
-	var hint HintResponse
-	if err := json.Unmarshal([]byte(fullText), &hint); err != nil {
-		// If the response isn't valid JSON, wrap it as plain text.
-		return &HintResponse{
-			Text:  fullText,
-			Chips: []string{"try again", "show me an example"},
-		}
-	}
-	return &hint
-}
-
 // GenerateHint generates an AI hint with streaming.
 func (e *Engine) GenerateHint(ctx context.Context, req HintRequest, onDelta DeltaCallback) (*HintResponse, error) {
+	return e.GenerateHintWithSinks(ctx, req, onDelta)
+}
+
+// GenerateHintWithSinks generates an AI hint with streaming and optional derived sinks for structured events.
+func (e *Engine) GenerateHintWithSinks(ctx context.Context, req HintRequest, onDelta DeltaCallback, sinks ...gepevents.EventSink) (*HintResponse, error) {
 	systemPrompt := buildSystemPrompt(req.Schema)
 
 	userMsg := req.Question
@@ -168,25 +192,30 @@ func (e *Engine) GenerateHint(ctx context.Context, req HintRequest, onDelta Delt
 		userMsg = fmt.Sprintf("Previous queries:\n%s\n\nQuestion: %s", formatHistory(req.History), req.Question)
 	}
 
-	fullText, err := e.runInference(ctx, systemPrompt, userMsg, onDelta)
+	result, err := e.runInference(ctx, systemPrompt, userMsg, onDelta, sinks...)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseHintResponse(fullText), nil
+	return result.Response, nil
 }
 
 // DiagnoseError generates an AI diagnosis for a query error.
 func (e *Engine) DiagnoseError(ctx context.Context, req DiagnosisRequest, onDelta DeltaCallback) (*HintResponse, error) {
+	return e.DiagnoseErrorWithSinks(ctx, req, onDelta)
+}
+
+// DiagnoseErrorWithSinks generates an AI diagnosis and forwards structured extraction events to the provided sinks.
+func (e *Engine) DiagnoseErrorWithSinks(ctx context.Context, req DiagnosisRequest, onDelta DeltaCallback, sinks ...gepevents.EventSink) (*HintResponse, error) {
 	systemPrompt := buildDiagnosisPrompt(req.Schema)
 	userMsg := fmt.Sprintf("Query:\n```\n%s\n```\n\nError:\n%s", req.Script, req.Error)
 
-	fullText, err := e.runInference(ctx, systemPrompt, userMsg, onDelta)
+	result, err := e.runInference(ctx, systemPrompt, userMsg, onDelta, sinks...)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseHintResponse(fullText), nil
+	return result.Response, nil
 }
 
 func formatHistory(history []string) string {

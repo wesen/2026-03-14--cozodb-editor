@@ -51,23 +51,13 @@ String, Int, Float, Bool, Null, Bytes, Uuid, Validity, Vec(Float, dim)
 ## Current Database Schema
 %s
 
-## Response Format
-You MUST respond with valid JSON matching this schema:
-{
-  "text": "Explanation text with **bold** for emphasis",
-  "code": "CozoScript code or null",
-  "chips": ["suggestion 1", "suggestion 2", "suggestion 3"],
-  "docs": [{"title": "concept", "section": "§X.Y", "body": "explanation"}],
-  "warning": "optional warning or null"
-}
+%s
 
 Rules:
-- Keep text concise (1-3 sentences)
-- Code must be valid CozoScript (NOT Datomic Datalog)
-- Provide 2-4 chips as follow-up suggestions
-- Include 1-2 doc references for key concepts
-- Only add warning if there's a common pitfall
-- Reference actual relations from the schema when relevant`, schema)
+- First write a concise visible explanation for the user in 1-3 sentences
+- After the visible explanation, emit the required structured YAML blocks
+- Code inside structured blocks must be valid CozoScript (NOT Datomic Datalog)
+- Reference actual relations from the schema when relevant`, schema, renderExtractionInstructions())
 }
 
 func buildDiagnosisPrompt(schema string) string {
@@ -78,19 +68,11 @@ Help them understand what went wrong and how to fix it.
 ## Current Database Schema
 %s
 
-## Response Format
-You MUST respond with valid JSON matching this schema:
-{
-  "text": "Explanation of what went wrong with **bold** for emphasis",
-  "code": "Fixed CozoScript code or null",
-  "chips": ["related suggestion 1", "related suggestion 2"],
-  "docs": [{"title": "concept", "section": "§X.Y", "body": "explanation"}],
-  "warning": "optional note about common pitfall or null"
-}
+%s
 
 Rules:
-- Explain the error clearly in 1-2 sentences
-- Provide corrected code when possible
-- Suggest follow-up actions via chips
-- Reference the actual schema when the error involves relation/column names`, schema)
+- Explain the error clearly in 1-2 visible sentences
+- Emit the structured YAML blocks after the visible explanation
+- Provide corrected code in the primary hint block when possible
+- Reference the actual schema when the error involves relation or column names`, schema, renderExtractionInstructions())
 }
