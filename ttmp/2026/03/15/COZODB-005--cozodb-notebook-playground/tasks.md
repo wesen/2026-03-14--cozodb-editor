@@ -99,40 +99,40 @@
 
 ### TS Infrastructure
 
-- [ ] TS 1.1: Add `tsconfig.json` with strict mode
-- [ ] TS 1.2: Install `typescript` and `typescript-eslint`
-- [ ] TS 1.3: Update `vite.config` for TypeScript
-- [ ] TS 1.4: Update ESLint config for `.ts` and `.tsx` files
-- [ ] TS 1.5: Update `index.html` entry point to `.tsx`
+- [x] TS 1.1: Add `tsconfig.json` with strict mode
+- [x] TS 1.2: Install `typescript` and `typescript-eslint`
+- [x] TS 1.3: Update `vite.config` for TypeScript
+- [x] TS 1.4: Update ESLint config for `.ts` and `.tsx` files
+- [x] TS 1.5: Update `index.html` entry point to `.tsx`
 
 ### TS Pure Logic Files
 
-- [ ] TS 2.1: Port `sem/semEventTypes` to `.ts`
-- [ ] TS 2.2: Port `features/hints/hintViewModel` to `.ts`
-- [ ] TS 2.3: Port `features/cozo-sem/view-models/*` to `.ts` (toHintViewModel, toQuerySuggestionViewModel, toDocRefViewModel)
-- [ ] TS 2.4: Port `transport/httpClient` to `.ts`
-- [ ] TS 2.5: Port `transport/hintsSocket` to `.ts`
-- [ ] TS 2.6: Port `sem/semProjection` to `.ts` with full entity types
-- [ ] TS 2.7: Port `sem/registerDefaultSemHandlers` and `registerCozoSemHandlers` to `.ts`
+- [x] TS 2.1: Port `sem/semEventTypes` to `.ts`
+- [x] TS 2.2: Port `features/hints/hintViewModel` to `.ts`
+- [x] TS 2.3: Port `features/cozo-sem/view-models/*` to `.ts` (toHintViewModel, toQuerySuggestionViewModel, toDocRefViewModel)
+- [x] TS 2.4: Port `transport/httpClient` to `.ts`
+- [x] TS 2.5: Port `transport/hintsSocket` to `.ts`
+- [x] TS 2.6: Port `sem/semProjection` to `.ts` with full entity types
+- [x] TS 2.7: Port `sem/registerDefaultSemHandlers` and `registerCozoSemHandlers` to `.ts`
 
 ### TS Components
 
-- [ ] TS 3.1: Port feature widget components to `.tsx` (QueryResultsTable, StreamingMessageCard, HintResponseCard, DocPreviewChip, DiagnosisCard, HintCard, QuerySuggestionCard, DocRefCard, CozoSemRenderer)
-- [ ] TS 3.2: Port notebook components to `.tsx` (useNotebookDocument, NotebookCellCard, NotebookPage)
-- [ ] TS 3.3: Port `App` and `main` entry to `.tsx`
+- [x] TS 3.1: Port feature widget components to `.tsx` (QueryResultsTable, StreamingMessageCard, HintResponseCard, DocPreviewChip, DiagnosisCard, HintCard, QuerySuggestionCard, DocRefCard, CozoSemRenderer)
+- [x] TS 3.2: Port notebook components to `.tsx` (useNotebookDocument, NotebookCellCard, NotebookPage)
+- [x] TS 3.3: Port `App` and `main` entry to `.tsx`
 
 ### TS Tests
 
-- [ ] TS 4.1: Port test files to `.test.ts` / `.test.tsx`
+- [x] TS 4.1: Port test files to `.test.ts` / `.test.tsx`
 
 ## Phase 2: UI Improvements
 
-- [ ] UI 2.1: Add keyboard shortcuts (Shift+Enter to run cell)
+- [x] UI 2.1: Add keyboard shortcuts (Shift+Enter to run cell)
 - [ ] UI 2.2: Render markdown cells as formatted output when not editing
-- [ ] UI 2.3: Improve cell card chrome and visual hierarchy
-- [ ] UI 2.4: Improve header/toolbar design
+- [x] UI 2.3: Improve cell card chrome and visual hierarchy (System 7 window chrome)
+- [x] UI 2.4: Improve header/toolbar design (System 7 menu bar)
 - [ ] UI 2.5: Add cell focus management and active cell indicator
-- [ ] UI 2.6: Better empty state when notebook has no cells
+- [x] UI 2.6: Better empty state when notebook has no cells
 
 ## Cleanup and Follow-up
 

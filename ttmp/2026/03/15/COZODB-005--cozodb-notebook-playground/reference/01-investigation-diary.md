@@ -236,6 +236,72 @@ Notable issues encountered:
 - `aea7889` `docs(ticket): rescope COZODB-005 for sqlite notebook runtime`
 - `a012a8f` `feat(notebook): add notebook phase 1 runtime and ui`
 
+### Step 6: TypeScript port and System 7 UI redesign (Phase 2)
+
+After phase 1 shipped with a working notebook runtime, the next step was to port the entire frontend from JavaScript to TypeScript and redesign the UI with classic Macintosh System 7 aesthetics.
+
+#### TypeScript infrastructure
+
+Changes:
+
+- added `tsconfig.json` with `strict: true`, `noUncheckedIndexedAccess`, ES2022 target
+- installed `typescript`, `typescript-eslint`, `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`
+- replaced `vite.config.js` with `vite.config.ts`
+- updated `eslint.config.js` to use `tseslint.configs.recommended` and lint `.ts`/`.tsx` files
+- updated `index.html` entry point to reference `main.tsx`
+- added `vite-env.d.ts` for Vite client types
+
+What I learned:
+
+- the existing project already had `@types/react` and `@types/react-dom` in devDependencies from the Vite scaffold, so React typing worked immediately
+- `.at()` on arrays requires ES2022 lib, which is a common gotcha when upgrading from ES2020
+
+#### TypeScript port approach
+
+I ported files bottom-up in dependency order:
+
+1. Pure constants: `semEventTypes.ts` (no changes needed, just rename)
+2. View-model functions: `hintViewModel.ts`, `toHintViewModel.ts`, `toQuerySuggestionViewModel.ts`, `toDocRefViewModel.ts`
+3. Transport layer: `httpClient.ts` (added interfaces for all API types: `NotebookCell`, `Notebook`, `CellRuntime`, `NotebookDocument`, etc.), `hintsSocket.ts` (added `SemEvent`, `SemEnvelope`, `HintsSocket` types)
+4. SEM projection: `semProjection.ts` (the largest file — added `SemEntity`, `SemBundleEntity`, `SemProjectionState`, `SemThread`, `EntityKind`, `EntityStatus` types)
+5. Handler registration: `registerDefaultSemHandlers.ts`, `registerCozoSemHandlers.ts`
+6. React components: all `.jsx` → `.tsx` with typed props interfaces
+7. Notebook components: `useNotebookDocument.ts` with `UseNotebookDocumentResult` return type, `NotebookCellCard.tsx` with `NotebookCellCardProps`, `NotebookPage.tsx`
+8. Entry points: `App.tsx`, `main.tsx`
+9. Tests: renamed to `.test.ts`/`.test.tsx` — all 16 tests passed without code changes
+
+Notable decisions:
+
+- `semProjection.ts` event handling required a `getEventData()` helper to safely extract the data field, since `SemEvent.data` can be either a string or an object depending on the event type
+- used `"in" operator` type narrowing in `useNotebookDocument.ts` to discriminate between API success and error responses rather than optional chaining on untyped objects
+- kept the entity constants as `as const` to preserve literal types
+
+#### System 7 UI redesign
+
+The user requested macOS 1 / System 7 retro aesthetics. The redesign involved:
+
+- **Menu bar**: fixed top bar with Apple logo, File/Edit/Cell/Runtime menus, and connection status
+- **Window chrome**: classic System 7 title bar with horizontal stripe pattern (via CSS `repeating-linear-gradient`), close box, and 2px black borders with `box-shadow: 2px 2px 0px #000`
+- **Buttons**: 1px black bordered buttons with shadow, invert to black-on-white on hover
+- **Color palette**: monochrome grayscale — white windows on `#a8a8a8` desktop with subtle dither pattern (via `repeating-conic-gradient`)
+- **Typography**: IBM Plex Sans for UI, IBM Plex Mono for code — closest modern equivalents to Chicago and Monaco
+- **Cell cards**: nested windows inside the main notebook window, each with its own title bar showing cell type and execution status
+- **Keyboard shortcuts**: Shift+Enter to run cells, Enter to send AI prompts
+- **Empty state**: centered prompt with code/markdown buttons when notebook has no cells
+
+CSS class naming shifted from `cozo-notebook-*` to `mac-*` for new components. Legacy `cozo-*` classes kept for the SEM/AI card components that were restyled but not renamed.
+
+#### Validation
+
+- `npx tsc --noEmit` — clean, zero errors
+- `npm run build` — builds in ~108ms
+- `npm run lint` — clean
+- `npm test` — all 16 tests pass
+
+#### Commit checkpoint
+
+- `301bac4` `feat(frontend): port to TypeScript with System 7 retro Mac UI`
+
 ### How to use this diary when implementing COZODB-005
 
 1. Read the imported source at `sources/local/cozodb-notebook.md`.
