@@ -1,3 +1,6 @@
 bin/
 .cozo_repl_history
 cozo.db.*
+backend/lib/
+frontend/node_modules/
+frontend/dist/
