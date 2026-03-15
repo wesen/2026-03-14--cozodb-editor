@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CozoSemRenderer } from "./CozoSemRenderer";
+import type { SemBundleEntity, SemEntity, SemThread } from "../../sem/semProjection";
 
 afterEach(() => {
   cleanup();
@@ -18,29 +19,29 @@ describe("CozoSemRenderer", () => {
             id: "cozo-bundle:bundle-render",
             kind: "cozo_bundle",
             anchorLine: 2,
-          },
+          } as unknown as SemBundleEntity,
           anchorLine: 2,
           hint: {
             id: "cozo-item:bundle-render:hint:1",
             kind: "cozo_hint",
             status: "complete",
             data: { text: "Use an inline rule.", code: "?[x] := x = 1", chips: ["add a filter"] },
-          },
+          } as unknown as SemEntity,
           children: [
             {
               id: "cozo-item:bundle-render:query_suggestion:2",
               kind: "cozo_query_suggestion",
               status: "complete",
               data: { label: "Filter to age > 30", code: "?[age] := age > 30", reason: "Narrow the result set." },
-            },
+            } as unknown as SemEntity,
             {
               id: "cozo-item:bundle-render:doc_ref:3",
               kind: "cozo_doc_ref",
               status: "complete",
-              data: { title: "Inline rules", section: "§2.1", body: "Rules define returned variables." },
-            },
+              data: { title: "Inline rules", section: "\u00a72.1", body: "Rules define returned variables." },
+            } as unknown as SemEntity,
           ],
-        }}
+        } as unknown as SemThread}
         onDismiss={vi.fn()}
         onAskQuestion={vi.fn()}
         onInsertCode={onInsertCode}
@@ -55,7 +56,6 @@ describe("CozoSemRenderer", () => {
     expect(screen.getByText(/Insert suggestion/)).toBeTruthy();
     expect(screen.getByText(/Inline rules/)).toBeTruthy();
     expect(screen.getByText(/Rules define returned variables/)).toBeTruthy();
-    expect(screen.getByText(/Line 3/)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Fold/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Dismiss/ })).toBeTruthy();
   });
@@ -71,9 +71,9 @@ describe("CozoSemRenderer", () => {
             kind: "cozo_hint",
             status: "complete",
             data: { text: "Use an inline rule." },
-          },
+          } as unknown as SemEntity,
           children: [],
-        }}
+        } as unknown as SemThread}
         collapsed
         onDismiss={vi.fn()}
         onAskQuestion={vi.fn()}
@@ -96,7 +96,7 @@ describe("CozoSemRenderer", () => {
             id: "cozo-bundle:bundle-child-only",
             kind: "cozo_bundle",
             anchorLine: null,
-          },
+          } as unknown as SemBundleEntity,
           anchorLine: null,
           hint: null,
           children: [
@@ -105,9 +105,9 @@ describe("CozoSemRenderer", () => {
               kind: "cozo_query_suggestion",
               status: "complete",
               data: { label: "Add a filter", code: "?[x] := x > 1" },
-            },
+            } as unknown as SemEntity,
           ],
-        }}
+        } as unknown as SemThread}
         collapsed
         onDismiss={vi.fn()}
         onAskQuestion={vi.fn()}

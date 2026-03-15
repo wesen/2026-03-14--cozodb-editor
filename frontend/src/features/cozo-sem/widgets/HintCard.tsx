@@ -70,20 +70,7 @@ export function HintCard({ entity, onAskQuestion, onInsertCode, viewModel }: Pro
 
           {viewModel.code ? (
             <div style={{ marginTop: 12 }}>
-              <button
-                onClick={() => onInsertCode?.(viewModel.code)}
-                style={{
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  background: "var(--accent)",
-                  color: "var(--bg-main)",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
+              <button className="mac-btn" onClick={() => onInsertCode?.(viewModel.code)}>
                 Insert code
               </button>
             </div>

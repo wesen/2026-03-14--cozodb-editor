@@ -6,7 +6,7 @@ interface HintResponse {
   text?: string;
   code?: string;
   chips?: string[];
-  docs?: { title: string; section: string; body: string }[];
+  docs?: { title: string; section?: string; body: string }[];
 }
 
 interface Props {
@@ -161,17 +161,7 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
 
       {viewModel.code && (
         <div style={{ marginTop: 12 }}>
-          <button onClick={() => onInsert(viewModel.code)} style={{
-            padding: "5px 12px",
-            fontSize: 12,
-            fontFamily: "'IBM Plex Mono', monospace",
-            background: "var(--accent)",
-            color: "var(--bg-main)",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontWeight: 600,
-          }}>
+          <button className="mac-btn" onClick={() => onInsert(viewModel.code)}>
             Insert code
           </button>
         </div>

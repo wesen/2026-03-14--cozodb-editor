@@ -1,6 +1,6 @@
 export interface HintCardDoc {
   title: string;
-  section: string;
+  section?: string;
   body: string;
 }
 

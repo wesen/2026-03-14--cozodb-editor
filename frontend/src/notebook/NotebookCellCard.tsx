@@ -208,7 +208,7 @@ export function NotebookCellCard({
               }}
               onInsert={(code) => onInsertCodeBelow(cell.id, code)}
               onToggleCollapse={() => onToggleThreadCollapse(`hint:${cell.id}`)}
-              response={fallbackHint}
+              response={{ ...fallbackHint, code: fallbackHint.code ?? undefined }}
             />
           </div>
         ) : null}

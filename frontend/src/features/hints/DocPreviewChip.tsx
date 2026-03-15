@@ -41,7 +41,7 @@ export function DocPreviewChip({ doc, isOpen, onToggle }: Props) {
           maxWidth: 440,
         }}>
           <div style={{ fontSize: 11, color: "var(--doc-link)", marginBottom: 6, fontWeight: 600, letterSpacing: "0.03em" }}>
-            {doc.title.toUpperCase()} — {doc.section}
+            {doc.title.toUpperCase()}{doc.section ? ` — ${doc.section}` : ""}
           </div>
           {doc.body}
         </div>

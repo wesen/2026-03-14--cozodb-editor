@@ -22,6 +22,11 @@
   --text-warning: #886600;
   --text-line-num: #999999;
 
+  --bg-main: #ffffff;
+  --bg-error-header: #ffdddd;
+  --bg-warning: #fffff0;
+  --bg-onboard: #f8f8f8;
+
   --accent: #000000;
   --accent-dim: #666666;
   --accent-highlight: #0066cc;
