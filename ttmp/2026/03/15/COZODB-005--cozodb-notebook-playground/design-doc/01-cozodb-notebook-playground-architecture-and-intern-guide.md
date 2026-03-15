@@ -530,6 +530,19 @@ They can survive temporarily as the legacy route, but they should not remain the
 - Add backend store tests and frontend notebook tests.
 - Leave advanced hydration for a later ticket.
 
+### Slice 7: notebook ergonomics and authoring flow
+
+- Render markdown cells in a real preview mode when not actively editing.
+- Introduce active-cell state and notebook keyboard navigation.
+- Make insert-below flows deterministic for toolbar actions and AI suggestions.
+- Add output-collapse affordances so long result or AI sections do not dominate the notebook.
+
+### Slice 8: lightweight runtime UX polish
+
+- Surface better per-cell run metadata such as last execution count or timestamp context.
+- Add a simple dirty indicator for code cells changed since their last run.
+- Keep this intentionally shallow: phase 3 should improve authoring feel, not start a full replay or hydration feature set.
+
 ## What the intern should understand before coding
 
 1. The notebook document and the runtime timeline are different stores.
@@ -544,6 +557,7 @@ They can survive temporarily as the legacy route, but they should not remain the
 - Should markdown cells ship in the first vertical slice or in the second frontend commit once code cells already run?
 - Do we want one conversation ID per cell or one per notebook plus cell-scoped entities? The simpler phase 1 choice is one conversation per cell.
 - Should run history be visible immediately, or is latest-output-per-cell enough for the first UI?
+- Should phase 3 add only lightweight dirty/run indicators, or is that the point where a minimal per-cell history affordance becomes worthwhile?
 
 ## References
 

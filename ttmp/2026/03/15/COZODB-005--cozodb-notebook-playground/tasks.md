@@ -142,6 +142,25 @@
 - [x] AI 2.4: Update SEM thread chrome to present notebook attachment semantics rather than line/global semantics when `ownerCellId` is present
 - [x] AI 2.5: Add projector coverage for cell-owned fallback hints and diagnosis entities
 
+## Phase 3: Notebook Ergonomics
+
+- [ ] UX 3.1: Render markdown cells as formatted output when not actively editing
+- [ ] UX 3.2: Add explicit active-cell state with stronger visual indication
+- [ ] UX 3.3: Add notebook keyboard navigation between cells
+- [ ] UX 3.4: Add command-style insertion shortcuts for code and markdown cells
+- [ ] UX 3.5: Add per-cell edit/preview mode for markdown cells
+- [ ] UX 3.6: Add per-cell output collapse for large result or AI sections
+- [ ] UX 3.7: Add stable focus behavior after inserting cells from toolbar and AI suggestions
+- [ ] UX 3.8: Add notebook-level “run next code cell” / “insert below and focus” convenience flow
+- [ ] UX 3.9: Add frontend tests covering active-cell movement, markdown preview, and insert-below focus retention
+
+## Phase 3: Runtime UX
+
+- [ ] Runtime 3.1: Surface latest run timestamp or execution badge details per cell
+- [ ] Runtime 3.2: Add a lightweight “dirty since last run” indicator for edited code cells
+- [ ] Runtime 3.3: Add a lightweight “AI attached to this run” indicator when a cell has bundles or fallback responses
+- [ ] Runtime 3.4: Decide whether latest-output-only remains sufficient or whether a small per-cell run history affordance is needed next
+
 ## Cleanup and Follow-up
 
 - [ ] Cleanup 1.1: Decide when to retire `DatalogPad` from the main route entirely

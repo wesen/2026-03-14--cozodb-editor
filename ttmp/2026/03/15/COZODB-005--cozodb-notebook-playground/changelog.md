@@ -2,6 +2,12 @@
 
 ## 2026-03-15
 
+- Added an explicit phase 3 plan to COZODB-005.
+- Scoped phase 3 around notebook ergonomics and lightweight runtime UX rather than new backend persistence or hydration complexity.
+- Expanded the design doc, tasks, and diary to reflect the next implementation phase after the cell-ownership pivot.
+
+## 2026-03-15
+
 - Tightened notebook AI ownership for phase 2.
 - Updated the SEM projector so cell-owned events no longer leak into line/global selectors.
 - Added cell-owned fallback rendering for non-structured hint responses and diagnosis results in the notebook UI.

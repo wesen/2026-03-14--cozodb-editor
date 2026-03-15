@@ -300,6 +300,32 @@ Validation:
 - `npm run build`
 - `go test ./...`
 
+### Step 8: define phase 3 after the ownership pivot
+
+Once phase 2 finished the ownership model, the next sensible phase was no longer backend persistence. The bottleneck shifts to notebook ergonomics.
+
+The reason is straightforward:
+
+- phase 1 created a real notebook substrate
+- phase 2 made AI semantically cell-owned
+- the next visible product weakness is now authoring feel rather than ownership correctness
+
+So phase 3 is defined as two small clusters:
+
+1. notebook ergonomics
+   - markdown preview mode
+   - active-cell indication
+   - keyboard navigation
+   - deterministic insert-below focus behavior
+   - output collapse for large result and AI sections
+
+2. lightweight runtime UX
+   - dirty indicators
+   - richer execution badges
+   - a decision point on whether latest-output-only is still enough
+
+This is intentionally not a replay/hydration phase. That would blur the roadmap and re-open a larger runtime scope before the notebook authoring surface feels solid.
+
 I ported files bottom-up in dependency order:
 
 1. Pure constants: `semEventTypes.ts` (no changes needed, just rename)
