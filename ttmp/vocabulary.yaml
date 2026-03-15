@@ -13,6 +13,20 @@ topics:
       description: Datalog query language
     - slug: frontend
       description: Frontend UI implementation
+    - slug: streaming
+      description: Streaming events and real-time data flow
+    - slug: structured-extraction
+      description: Structured data extraction from LLM output
+    - slug: geppetto
+      description: Geppetto LLM inference and streaming library
+    - slug: pinocchio
+      description: Pinocchio CLI tool wrapping geppetto for LLM tasks
+    - slug: rich-widgets
+      description: Rich interactive UI widgets for streaming data display
+    - slug: sem
+      description: Semantic event model work and related integration
+    - slug: architecture
+      description: Architecture analysis and design work
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
@@ -24,6 +38,8 @@ docTypes:
       description: Ticket landing page
     - slug: skill
       description: Skill documentation (what it's for and when to use it)
+    - slug: analysis
+      description: In-depth analysis document
 intent:
     - slug: long-term
       description: Likely to persist
