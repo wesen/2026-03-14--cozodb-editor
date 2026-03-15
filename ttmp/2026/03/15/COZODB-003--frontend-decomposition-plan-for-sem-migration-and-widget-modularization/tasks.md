@@ -29,22 +29,22 @@
 - [x] Phase 2.6: Move line rendering and active-line input handling into `PadEditor.jsx`
 - [x] Phase 2.7: Keep `#??` question-trigger behavior working through callbacks exposed by the editor layer
 
-- [ ] Phase 3.1: Create `sem/semEventTypes.js`
-- [ ] Phase 3.2: Create `sem/semProjection.js`
-- [ ] Phase 3.3: Add projection support for `llm.start`
-- [ ] Phase 3.4: Add projection support for `llm.delta`
-- [ ] Phase 3.5: Add projection support for `llm.error`
-- [ ] Phase 3.6: Add projection support for `hint.result`
-- [ ] Phase 3.7: Replace `streamingBlocks` as the primary render source with projected entities
-- [ ] Phase 3.8: Replace `aiBlocks` as the primary render source with projected entities
+- [x] Phase 3.1: Create `sem/semEventTypes.js`
+- [x] Phase 3.2: Create `sem/semProjection.js`
+- [x] Phase 3.3: Add projection support for `llm.start`
+- [x] Phase 3.4: Add projection support for `llm.delta`
+- [x] Phase 3.5: Add projection support for `llm.error`
+- [x] Phase 3.6: Add projection support for `hint.result`
+- [x] Phase 3.7: Replace `streamingBlocks` as the primary render source with projected entities
+- [x] Phase 3.8: Replace `aiBlocks` as the primary render source with projected entities
 
-- [ ] Phase 4.1: Create `features/hints/StreamingMessageCard.jsx`
-- [ ] Phase 4.2: Create `features/hints/HintResponseCard.jsx`
-- [ ] Phase 4.3: Create `features/hints/DocPreviewChip.jsx`
-- [ ] Phase 4.4: Create `features/diagnosis/DiagnosisCard.jsx`
-- [ ] Phase 4.5: Create `features/query-results/QueryResultsTable.jsx`
-- [ ] Phase 4.6: Move the corresponding JSX and callbacks out of `DatalogPad.jsx`
-- [ ] Phase 4.7: Introduce normalized view-model helpers where feature props are repetitive or transport-shaped
+- [x] Phase 4.1: Create `features/hints/StreamingMessageCard.jsx`
+- [x] Phase 4.2: Create `features/hints/HintResponseCard.jsx`
+- [x] Phase 4.3: Create `features/hints/DocPreviewChip.jsx`
+- [x] Phase 4.4: Create `features/diagnosis/DiagnosisCard.jsx`
+- [x] Phase 4.5: Create `features/query-results/QueryResultsTable.jsx`
+- [x] Phase 4.6: Move the corresponding JSX and callbacks out of `DatalogPad.jsx`
+- [x] Phase 4.7: Introduce normalized view-model helpers where feature props are repetitive or transport-shaped
 
 - [ ] Phase 5.1: Create `theme/tokens.css`
 - [ ] Phase 5.2: Move root CSS variables from `DatalogPad.jsx` into `theme/tokens.css`

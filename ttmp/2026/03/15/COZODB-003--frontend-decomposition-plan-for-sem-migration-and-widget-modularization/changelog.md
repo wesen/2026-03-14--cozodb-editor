@@ -2,6 +2,11 @@
 
 ## 2026-03-15
 
+- Implemented the third decomposition slice by adding `frontend/src/sem/semEventTypes.js` and `frontend/src/sem/semProjection.js`, routing websocket hint/LLM events through projected state, extracting feature components under `frontend/src/features/`, and shrinking `DatalogPad.jsx` into a thinner composition shell.
+- Re-validated the SEM and feature extraction with `npm run lint` and `npm run build` in `frontend/`.
+
+## 2026-03-15
+
 - Implemented the second decomposition slice in the frontend editor layer: added `frontend/src/editor/documentCommands.js`, `frontend/src/editor/usePadDocument.js`, and `frontend/src/editor/PadEditor.jsx`, moved line state/cursor state and question-trigger behavior out of `DatalogPad.jsx`, and rewired the screen to render the editor through the new boundary.
 - Re-validated the editor extraction with `npm run lint` and `npm run build` in `frontend/`.
 

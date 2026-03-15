@@ -313,6 +313,120 @@ This step intentionally stayed narrow. I created the target frontend folders, do
   - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/tasks.md`
   - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/changelog.md`
 - Commit created:
+  - `7ebec66 frontend(editor): extract pad document and line renderer`
+
+## Step 5: Introduce a lightweight SEM projection and extract the remaining feature blocks
+
+Once transport and editor responsibilities were extracted, the next problem became clearer: websocket events were still writing directly into ad hoc render state, and the remaining feature JSX was still embedded inside `DatalogPad.jsx`. Those two issues reinforce each other. If state stays transport-shaped, render extraction is awkward. If render code stays inline, projection has nowhere clean to project into. I handled those together in one implementation slice because they are tightly related and can be reviewed as one "event-to-feature" boundary change.
+
+The approach stayed intentionally modest. I did not introduce Redux or a generic entity store. I added a small SEM projection module that knows how to fold `llm.start`, `llm.delta`, `llm.error`, and `hint.result` into projected entities plus selectors for the current UI. On top of that, I moved the remaining UI blocks into `features/` modules so `DatalogPad.jsx` became primarily an orchestration shell rather than a place where transport, editor, and every card implementation all coexist.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead and do it, task by task, commit at appropriate intervals and keep a detailed diary"
+
+**Assistant interpretation:** Continue decomposing the monolith in reviewable increments while preserving behavioral continuity and documenting the rationale.
+
+**Inferred user intent:** Reach a frontend shape that is ready for SEM/widget migration without taking a detour into a larger rewrite than the ticket actually requires.
+
+### What I did
+- Added `frontend/src/sem/semEventTypes.js` with named event constants for:
+  - `llm.start`
+  - `llm.delta`
+  - `llm.error`
+  - `hint.result`
+- Added `frontend/src/sem/semProjection.js` with:
+  - `createSemProjectionState()`
+  - `applySemEvent(state, event)`
+  - `getStreamingEntries(state)`
+  - `getCompletedHintEntries(state)`
+- Replaced websocket render-state accumulation in `DatalogPad.jsx` with projection updates through `setSemProjection(current => applySemEvent(current, event))`.
+- Kept diagnosis-specific side effects in the screen layer while moving generic streaming/final hint state into the projection layer.
+- Renamed the old fallback-only browser-side response store to `mockAiBlocks` so the boundary between projected server results and mock fallback results is explicit.
+- Added feature modules:
+  - `frontend/src/features/hints/StreamingMessageCard.jsx`
+  - `frontend/src/features/hints/HintResponseCard.jsx`
+  - `frontend/src/features/hints/DocPreviewChip.jsx`
+  - `frontend/src/features/hints/hintViewModel.js`
+  - `frontend/src/features/diagnosis/DiagnosisCard.jsx`
+  - `frontend/src/features/query-results/QueryResultsTable.jsx`
+- Rewired `DatalogPad.jsx` to import and compose those feature components instead of defining them inline.
+- Introduced a small hint-response view-model helper so card rendering is based on normalized props rather than directly on transport-shaped response objects.
+
+### Why
+- Projection was the missing seam between websocket transport and browser rendering.
+- Extracting feature components at the same time prevents the new projection layer from immediately coupling itself back to a monolithic screen.
+- The current app does not justify a full client state framework yet, but it does need a deterministic event-folding layer.
+
+### What worked
+- The projected state now replaces the old websocket-specific `streamingBlocks` state and the websocket-backed portion of `aiBlocks`.
+- `DatalogPad.jsx` is materially smaller and easier to reason about because the remaining JSX is mostly shell/layout logic plus screen-level callbacks.
+- The `features/` split preserved behavior while giving the future SEM-widget work obvious landing zones.
+- Validation passed cleanly after the refactor:
+  - `npm run lint`
+  - `npm run build`
+
+### What didn't work
+- The first projection pass still left one unused `useRef` import behind after the old streaming accumulator disappeared. This was minor, but it reinforced the same lesson from the editor phase: extract, then do a dead-code pass before calling the slice complete.
+- The new projection intentionally models only the event families needed today. That is a strength for this ticket, but it also means new SEM event families will require deliberate extension rather than falling out automatically.
+
+### What I learned
+- A lightweight projection plus selectors is enough to unlock the architecture here. The app did not need a bigger state framework to stop being transport-driven.
+- Separating mock fallback results from projected websocket results makes the data flow much easier to understand, especially for an intern reading the code for the first time.
+- The remaining complexity in `DatalogPad.jsx` is now mostly style/layout duplication and composition, not hidden domain logic.
+
+### What was tricky to build
+- The tricky boundary was keeping diagnosis side effects in the screen while moving generic hint/stream accumulation into the projection. If too much moved into projection, the module would start owning UI concerns. If too little moved, projection would not actually improve the architecture.
+- Another subtle point was preserving the current rendering order. The projection selectors had to preserve insertion order so streaming and completed hint cards still appear in a predictable way.
+
+### What warrants a second pair of eyes
+- The current projection entity shape is intentionally minimal. Before richer SEM payload families land, it is worth checking whether a slightly richer discriminated shape would make widget rendering clearer.
+- `HintResponseCard` currently still owns local open-doc and copied-state behavior. That is fine, but if the team wants URL-addressable card state later, that local UI state may need revisiting.
+
+### What should be done in the future
+- Finish the theme extraction so the remaining repeated inline style tokens are centralized.
+- Add frontend tests for the projection layer and at least one feature card.
+- Re-upload the ticket bundle once the remaining theme/test phases land so the docs reflect the actual code state.
+
+### Code review instructions
+- Review the event/projection seam:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semEventTypes.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/sem/semProjection.js`
+- Review the extracted feature modules:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/hints/StreamingMessageCard.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/hints/HintResponseCard.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/hints/DocPreviewChip.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/hints/hintViewModel.js`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/diagnosis/DiagnosisCard.jsx`
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/features/query-results/QueryResultsTable.jsx`
+- Then verify how the screen composes the new layers in:
+  - `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/DatalogPad.jsx`
+- Re-run the frontend checks:
+  - `cd /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend && npm run lint`
+  - `cd /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend && npm run build`
+
+### Technical details
+- Commands run during this step:
+  - `sed -n '1,240p' /home/manuel/workspaces/2026-03-02/deliver-mento-1/temporal-relationships/ui/src/ws/semProjection.ts`
+  - `rg -n "streamingBlocks|aiBlocks|llm.start|llm.delta|hint.result|llm.error" frontend/src/DatalogPad.jsx`
+  - `npm run lint`
+  - `npm run build`
+  - `git diff -- frontend/src/DatalogPad.jsx frontend/src/sem/semEventTypes.js frontend/src/sem/semProjection.js`
+  - `git diff -- frontend/src/DatalogPad.jsx frontend/src/features/...`
+- New files created:
+  - `frontend/src/sem/semEventTypes.js`
+  - `frontend/src/sem/semProjection.js`
+  - `frontend/src/features/hints/StreamingMessageCard.jsx`
+  - `frontend/src/features/hints/HintResponseCard.jsx`
+  - `frontend/src/features/hints/DocPreviewChip.jsx`
+  - `frontend/src/features/hints/hintViewModel.js`
+  - `frontend/src/features/diagnosis/DiagnosisCard.jsx`
+  - `frontend/src/features/query-results/QueryResultsTable.jsx`
+- Existing files updated:
+  - `frontend/src/DatalogPad.jsx`
+  - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/tasks.md`
+  - `ttmp/2026/03/15/COZODB-003--frontend-decomposition-plan-for-sem-migration-and-widget-modularization/changelog.md`
+- Commit created:
   - `c4fd50d frontend(ticket): add COZODB-003 and extract transport seam`
 
 ## Step 4: Extract editor state and line rendering behind an editor boundary

@@ -1,6 +1,22 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PadEditor } from "./editor/PadEditor";
 import { usePadDocument } from "./editor/usePadDocument";
+import { DiagnosisCard } from "./features/diagnosis/DiagnosisCard";
+import { HintResponseCard } from "./features/hints/HintResponseCard";
+import { StreamingMessageCard } from "./features/hints/StreamingMessageCard";
+import { QueryResultsTable } from "./features/query-results/QueryResultsTable";
+import {
+  HINT_RESULT_EVENT,
+  LLM_DELTA_EVENT,
+  LLM_ERROR_EVENT,
+  LLM_START_EVENT,
+} from "./sem/semEventTypes";
+import {
+  applySemEvent,
+  createSemProjectionState,
+  getCompletedHintEntries,
+  getStreamingEntries,
+} from "./sem/semProjection";
 import { executeQuery } from "./transport/httpClient";
 import { useHintsSocket } from "./transport/hintsSocket";
 
@@ -60,16 +76,6 @@ function matchResponse(question) {
 
 // --- UI Helpers ---
 
-function formatText(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <span key={i} style={{ color: "var(--accent)", fontWeight: 600 }}>{part.slice(2, -2)}</span>;
-    }
-    return part;
-  });
-}
-
 function stripAnsiCodes(text) {
   let result = "";
   let idx = 0;
@@ -95,347 +101,32 @@ function stripAnsiCodes(text) {
   return result;
 }
 
-// --- Sub-components ---
-
-function DocPreview({ doc, isOpen, onToggle }) {
-  return (
-    <span style={{ display: "inline-block", marginRight: 8, marginBottom: 4 }}>
-      <button
-        onClick={onToggle}
-        style={{
-          background: "none",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: 4,
-          padding: "2px 8px",
-          fontSize: 12,
-          color: "var(--doc-link)",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          transition: "all 0.15s ease",
-          ...(isOpen ? { background: "var(--doc-link)", color: "var(--bg-main)", borderColor: "var(--doc-link)" } : {}),
-        }}
-        onMouseEnter={e => { if (!isOpen) e.target.style.borderColor = "var(--doc-link)"; }}
-        onMouseLeave={e => { if (!isOpen) e.target.style.borderColor = "var(--border-subtle)"; }}
-      >
-        {isOpen ? "▾" : "▸"} {doc.title}
-      </button>
-      {isOpen && (
-        <div style={{
-          marginTop: 6,
-          padding: "10px 14px",
-          background: "var(--bg-doc)",
-          border: "1px solid var(--border-doc)",
-          borderRadius: 6,
-          fontSize: 12.5,
-          lineHeight: 1.6,
-          color: "var(--text-secondary)",
-          maxWidth: 440,
-        }}>
-          <div style={{ fontSize: 11, color: "var(--doc-link)", marginBottom: 6, fontWeight: 600, letterSpacing: "0.03em" }}>
-            {doc.title.toUpperCase()} — {doc.section}
-          </div>
-          {doc.body}
-        </div>
-      )}
-    </span>
-  );
-}
-
-function StreamingText({ text }) {
-  return (
-    <div style={{
-      margin: "4px 0 4px 28px",
-      padding: "14px 16px 12px",
-      background: "var(--bg-ai)",
-      borderLeft: "2px solid var(--accent)",
-      borderRadius: "0 8px 8px 0",
-      fontSize: 13,
-      lineHeight: 1.7,
-      color: "var(--text-primary)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, color: "var(--accent)", fontWeight: 600, letterSpacing: "0.04em" }}>
-        <span style={{ fontSize: 14 }}>✦</span> AI ASSISTANT
-        <span style={{ animation: "pulse 1.5s ease-in-out infinite", opacity: 0.6 }}>...</span>
-      </div>
-      <div style={{ whiteSpace: "pre-wrap" }}>{text}</div>
-    </div>
-  );
-}
-
-function AIBlock({ response, onChipClick, onInsert, collapsed, onToggleCollapse }) {
-  const [openDocs, setOpenDocs] = useState({});
-  const [copied, setCopied] = useState(false);
-
-  const toggleDoc = (i) => setOpenDocs(prev => ({ ...prev, [i]: !prev[i] }));
-
-  const handleCopy = () => {
-    if (response.code) {
-      navigator.clipboard.writeText(response.code).catch(() => {});
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }
-  };
-
-  if (collapsed) {
-    return (
-      <div
-        onClick={onToggleCollapse}
-        style={{
-          margin: "2px 0 2px 28px",
-          padding: "4px 12px",
-          background: "var(--bg-ai-collapsed)",
-          borderRadius: 4,
-          fontSize: 12,
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          borderLeft: "2px solid var(--accent-dim)",
-          transition: "all 0.15s ease",
-        }}
-        onMouseEnter={e => e.currentTarget.style.borderLeftColor = "var(--accent)"}
-        onMouseLeave={e => e.currentTarget.style.borderLeftColor = "var(--accent-dim)"}
-      >
-        ✦ <span style={{ opacity: 0.6 }}>AI response</span> — <span style={{ opacity: 0.8 }}>{response.text.slice(0, 60).replace(/\*\*/g, "")}…</span> <span style={{ float: "right", opacity: 0.4 }}>click to expand</span>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      margin: "4px 0 4px 28px",
-      padding: "14px 16px 12px",
-      background: "var(--bg-ai)",
-      borderLeft: "2px solid var(--accent)",
-      borderRadius: "0 8px 8px 0",
-      fontSize: 13,
-      lineHeight: 1.7,
-      color: "var(--text-primary)",
-      position: "relative",
-    }}>
-      <div style={{ position: "absolute", top: 8, right: 10 }}>
-        <button onClick={onToggleCollapse} style={{
-          background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, padding: "2px 6px",
-          borderRadius: 3, fontFamily: "inherit",
-        }}
-        onMouseEnter={e => e.target.style.color = "var(--text-primary)"}
-        onMouseLeave={e => e.target.style.color = "var(--text-muted)"}
-        >
-          ▲ collapse
-        </button>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, color: "var(--accent)", fontWeight: 600, letterSpacing: "0.04em" }}>
-        <span style={{ fontSize: 14 }}>✦</span> AI ASSISTANT
-      </div>
-
-      <div style={{ marginBottom: response.code ? 12 : 6 }}>
-        {formatText(response.text)}
-      </div>
-
-      {response.warning && (
-        <div style={{
-          padding: "6px 10px",
-          background: "var(--bg-warning)",
-          borderRadius: 4,
-          fontSize: 12,
-          color: "var(--text-warning)",
-          marginBottom: 12,
-          borderLeft: "2px solid var(--text-warning)",
-        }}>
-          ⚠ {response.warning}
-        </div>
-      )}
-
-      {response.code && (
-        <div style={{
-          background: "var(--bg-code)",
-          borderRadius: 6,
-          padding: "12px 14px",
-          fontFamily: "'IBM Plex Mono', 'JetBrains Mono', monospace",
-          fontSize: 12.5,
-          lineHeight: 1.6,
-          color: "var(--text-code)",
-          marginBottom: 12,
-          whiteSpace: "pre",
-          overflowX: "auto",
-          border: "1px solid var(--border-code)",
-        }}>
-          {response.code}
-        </div>
-      )}
-
-      {response.code && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          <button onClick={() => onInsert(response.code)} style={{
-            padding: "5px 12px", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
-            background: "var(--accent)", color: "var(--bg-main)", border: "none",
-            borderRadius: 4, cursor: "pointer", fontWeight: 600, transition: "all 0.12s ease",
-          }}
-          onMouseEnter={e => e.target.style.transform = "translateY(-1px)"}
-          onMouseLeave={e => e.target.style.transform = "none"}
-          >
-            Insert ↵
-          </button>
-          <button onClick={handleCopy} style={{
-            padding: "5px 12px", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
-            background: "none", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)",
-            borderRadius: 4, cursor: "pointer", transition: "all 0.12s ease",
-          }}
-          onMouseEnter={e => e.target.style.borderColor = "var(--text-secondary)"}
-          onMouseLeave={e => e.target.style.borderColor = "var(--border-subtle)"}
-          >
-            {copied ? "Copied ✓" : "Copy"}
-          </button>
-        </div>
-      )}
-
-      {response.chips && response.chips.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, letterSpacing: "0.02em" }}>Try also:</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {response.chips.map((chip, i) => (
-              <button key={i} onClick={() => onChipClick(chip)} style={{
-                padding: "4px 10px",
-                fontSize: 12,
-                background: "var(--bg-chip)",
-                color: "var(--text-chip)",
-                border: "1px solid var(--border-chip)",
-                borderRadius: 20,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "all 0.12s ease",
-              }}
-              onMouseEnter={e => { e.target.style.background = "var(--accent)"; e.target.style.color = "var(--bg-main)"; e.target.style.borderColor = "var(--accent)"; }}
-              onMouseLeave={e => { e.target.style.background = "var(--bg-chip)"; e.target.style.color = "var(--text-chip)"; e.target.style.borderColor = "var(--border-chip)"; }}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {response.docs && response.docs.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, letterSpacing: "0.02em" }}>Docs:</div>
-          <div>
-            {response.docs.map((doc, i) => (
-              <DocPreview key={i} doc={doc} isOpen={!!openDocs[i]} onToggle={() => toggleDoc(i)} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ErrorBlock({ error, fix, onApplyFix, onDiagnose, diagnosing }) {
-  return (
-    <div style={{
-      margin: "8px 0",
-      borderRadius: 8,
-      overflow: "hidden",
-      border: "1px solid var(--border-error)",
-    }}>
-      <div style={{
-        padding: "8px 14px",
-        background: "var(--bg-error-header)",
-        fontSize: 12,
-        color: "var(--text-error)",
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontWeight: 600,
-      }}>
-        ✗ ERROR — {error}
-      </div>
-      {fix ? (
-        <div style={{
-          padding: "12px 14px",
-          background: "var(--bg-ai)",
-          borderTop: "1px solid var(--border-error-dim)",
-        }}>
-          <div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600, marginBottom: 6, letterSpacing: "0.04em" }}>
-            ✦ AI DIAGNOSIS
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, marginBottom: 10 }}>
-            {formatText(fix.text)}
-          </div>
-          {fix.code && (
-            <div style={{
-              background: "var(--bg-code)", borderRadius: 6, padding: "10px 14px",
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, lineHeight: 1.6,
-              color: "var(--text-code)", marginBottom: 10, whiteSpace: "pre",
-              border: "1px solid var(--border-code)",
-            }}>
-              {fix.code}
-            </div>
-          )}
-          {fix.code && (
-            <button onClick={onApplyFix} style={{
-              padding: "5px 12px", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
-              background: "var(--accent)", color: "var(--bg-main)", border: "none",
-              borderRadius: 4, cursor: "pointer", fontWeight: 600,
-            }}>
-              Apply fix ↵
-            </button>
-          )}
-        </div>
-      ) : onDiagnose ? (
-        <div style={{
-          padding: "12px 14px",
-          background: "var(--bg-ai)",
-          borderTop: "1px solid var(--border-error-dim)",
-        }}>
-          <button onClick={onDiagnose} disabled={diagnosing} style={{
-            padding: "5px 12px", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
-            background: diagnosing ? "var(--border-subtle)" : "var(--accent)", color: "var(--bg-main)", border: "none",
-            borderRadius: 4, cursor: diagnosing ? "wait" : "pointer", fontWeight: 600,
-          }}>
-            {diagnosing ? "Diagnosing..." : "✦ Ask AI to diagnose"}
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 // --- Main Component ---
 
 export default function DatalogPad() {
-  const [aiBlocks, setAiBlocks] = useState({});
-  const [streamingBlocks, setStreamingBlocks] = useState({});
+  const [mockAiBlocks, setMockAiBlocks] = useState({});
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
   const [errorBlock, setErrorBlock] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [runResult, setRunResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
+  const [semProjection, setSemProjection] = useState(() => createSemProjectionState());
 
   const ws = useHintsSocket();
 
-  // Track streaming text for each hint request
-  const streamingTextRef = useRef({});
-
   // Set up WebSocket event handlers
   useEffect(() => {
-    const unsubStart = ws.on("llm.start", (event) => {
-      streamingTextRef.current[event.id] = "";
-      setStreamingBlocks(prev => ({ ...prev, [event.id]: "" }));
+    const unsubStart = ws.on(LLM_START_EVENT, (event) => {
+      setSemProjection((current) => applySemEvent(current, event));
     });
 
-    const unsubDelta = ws.on("llm.delta", (event) => {
-      const text = (streamingTextRef.current[event.id] || "") + event.data;
-      streamingTextRef.current[event.id] = text;
-      setStreamingBlocks(prev => ({ ...prev, [event.id]: text }));
+    const unsubDelta = ws.on(LLM_DELTA_EVENT, (event) => {
+      setSemProjection((current) => applySemEvent(current, event));
     });
 
-    const unsubResult = ws.on("hint.result", (event) => {
-      const _lineIdx = parseInt(event.id.split("-").pop());
-      // Remove streaming block and set final response
-      setStreamingBlocks(prev => {
-        const next = { ...prev };
-        delete next[event.id];
-        return next;
-      });
-      delete streamingTextRef.current[event.id];
+    const unsubResult = ws.on(HINT_RESULT_EVENT, (event) => {
+      setSemProjection((current) => applySemEvent(current, event));
 
       const response = event.data;
       if (event.id.startsWith("diag-")) {
@@ -448,19 +139,11 @@ export default function DatalogPad() {
           },
         } : null);
         setDiagnosing(false);
-      } else {
-        // Hint result
-        setAiBlocks(prev => ({ ...prev, [event.id]: response }));
       }
     });
 
-    const unsubError = ws.on("llm.error", (event) => {
-      setStreamingBlocks(prev => {
-        const next = { ...prev };
-        delete next[event.id];
-        return next;
-      });
-      delete streamingTextRef.current[event.id];
+    const unsubError = ws.on(LLM_ERROR_EVENT, (event) => {
+      setSemProjection((current) => applySemEvent(current, event));
       setDiagnosing(false);
     });
 
@@ -478,7 +161,7 @@ export default function DatalogPad() {
     if (!sent) {
       // Fallback to mock
       const response = matchResponse(question);
-      setAiBlocks(prev => ({ ...prev, [`mock-${lineIdx}`]: response }));
+      setMockAiBlocks(prev => ({ ...prev, [`mock-${lineIdx}`]: response }));
     }
   }, [ws]);
 
@@ -567,7 +250,9 @@ export default function DatalogPad() {
   };
 
   // Collect all streaming blocks for display
-  const activeStreams = Object.entries(streamingBlocks);
+  const activeStreams = getStreamingEntries(semProjection);
+  const completedHints = getCompletedHintEntries(semProjection);
+  const aiResponseCount = Object.keys(mockAiBlocks).length + completedHints.length;
 
   return (
     <div style={{
@@ -742,9 +427,9 @@ export default function DatalogPad() {
         onLineChange={handleLineChange}
         onLineClick={selectLine}
         renderAfterLine={(idx) => (
-          aiBlocks[`mock-${idx}`] ? (
-            <AIBlock
-              response={aiBlocks[`mock-${idx}`]}
+          mockAiBlocks[`mock-${idx}`] ? (
+            <HintResponseCard
+              response={mockAiBlocks[`mock-${idx}`]}
               collapsed={!!collapsedBlocks[idx]}
               onToggleCollapse={() => toggleCollapse(idx)}
               onChipClick={handleChipClick}
@@ -754,11 +439,11 @@ export default function DatalogPad() {
         )}
       >
         {activeStreams.map(([id, text]) => (
-          <StreamingText key={id} text={text} />
+          <StreamingMessageCard key={id} text={text} />
         ))}
 
-        {Object.entries(aiBlocks).filter(([key]) => key.startsWith("hint-")).map(([key, response]) => (
-          <AIBlock
+        {completedHints.map(([key, response]) => (
+          <HintResponseCard
             key={key}
             response={response}
             collapsed={!!collapsedBlocks[key]}
@@ -772,7 +457,7 @@ export default function DatalogPad() {
         {/* Error block */}
         {errorBlock && (
           <div style={{ padding: "0 60px" }}>
-            <ErrorBlock
+            <DiagnosisCard
               error={errorBlock.error}
               fix={errorBlock.fix}
               diagnosing={diagnosing}
@@ -786,59 +471,7 @@ export default function DatalogPad() {
         )}
 
         {/* Run result */}
-        {runResult && (
-          <div style={{
-            margin: "12px 60px",
-            borderRadius: 8,
-            overflow: "hidden",
-            border: "1px solid var(--border-result)",
-          }}>
-            <div style={{
-              padding: "6px 14px",
-              background: "var(--bg-result)",
-              fontSize: 11,
-              color: "rgba(80, 200, 120, 0.8)",
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              display: "flex",
-              justifyContent: "space-between",
-            }}>
-              <span>✓ {runResult.rows.length} RESULTS</span>
-              {runResult.took != null && <span>{(runResult.took * 1000).toFixed(1)}ms</span>}
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr>
-                    {runResult.columns.map((col, i) => (
-                      <th key={i} style={{
-                        textAlign: "left",
-                        padding: "8px 14px",
-                        borderBottom: "1px solid var(--border-subtle)",
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                        fontSize: 12,
-                      }}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {runResult.rows.map((row, ri) => (
-                    <tr key={ri}>
-                      {row.map((cell, ci) => (
-                        <td key={ci} style={{
-                          padding: "6px 14px",
-                          borderBottom: "1px solid rgba(255,255,255,0.02)",
-                          color: "var(--text-primary)",
-                        }}>{typeof cell === "object" ? JSON.stringify(cell) : String(cell)}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {runResult && <QueryResultsTable result={runResult} />}
       {/* Status bar */}
       <div style={{
         padding: "6px 20px",
@@ -851,7 +484,7 @@ export default function DatalogPad() {
         fontFamily: "'IBM Plex Sans', sans-serif",
       }}>
         <span>Ln {cursorLine + 1}, Col {(lines[cursorLine] || "").length + 1}</span>
-        <span>{Object.keys(aiBlocks).length} AI responses · {lines.filter(l => !l.startsWith("#")).filter(l => l.trim()).length} code lines</span>
+        <span>{aiResponseCount} AI responses · {lines.filter(l => !l.startsWith("#")).filter(l => l.trim()).length} code lines</span>
         <span>CozoScript · {ws.connected ? "Connected" : "Offline"}</span>
       </div>
     </div>
