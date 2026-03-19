@@ -96,6 +96,11 @@ export interface NotebookDocument {
   runtime?: Record<string, CellRuntime>;
 }
 
+export interface NotebookMutationResult {
+  document?: NotebookDocument;
+  cell?: NotebookCell;
+}
+
 export async function bootstrapNotebook() {
   return requestJSON<NotebookDocument>("/api/notebooks/bootstrap");
 }
@@ -115,7 +120,7 @@ export interface InsertCellPayload {
 }
 
 export async function insertNotebookCell(notebookId: string, payload: InsertCellPayload) {
-  return requestJSON<NotebookCell>(`/api/notebooks/${notebookId}/cells`, {
+  return requestJSON<NotebookMutationResult>(`/api/notebooks/${notebookId}/cells`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -136,7 +141,7 @@ export async function updateNotebookCell(cellId: string, payload: UpdateCellPayl
 }
 
 export async function moveNotebookCell(cellId: string, targetIndex: number) {
-  return requestJSON<{ ok: boolean }>(`/api/notebook-cells/${cellId}/move`, {
+  return requestJSON<NotebookMutationResult>(`/api/notebook-cells/${cellId}/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target_index: targetIndex }),
@@ -144,7 +149,7 @@ export async function moveNotebookCell(cellId: string, targetIndex: number) {
 }
 
 export async function deleteNotebookCell(cellId: string) {
-  return requestJSON<{ ok: boolean }>(`/api/notebook-cells/${cellId}`, {
+  return requestJSON<NotebookMutationResult>(`/api/notebook-cells/${cellId}`, {
     method: "DELETE",
   });
 }

@@ -110,12 +110,12 @@ func (s *Server) handleInsertCell(w http.ResponseWriter, r *http.Request, notebo
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	cell, err := s.Notebook.InsertCell(r.Context(), notebookID, req.AfterCellID, req.Kind, req.Source)
+	result, err := s.Notebook.InsertCell(r.Context(), notebookID, req.AfterCellID, req.Kind, req.Source)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusCreated, cell)
+	writeJSON(w, http.StatusCreated, result)
 }
 
 func (s *Server) HandleNotebookCell(w http.ResponseWriter, r *http.Request) {
@@ -157,11 +157,12 @@ func (s *Server) handleCellResource(w http.ResponseWriter, r *http.Request, cell
 		}
 		writeJSON(w, http.StatusOK, cell)
 	case http.MethodDelete:
-		if err := s.Notebook.DeleteCell(r.Context(), cellID); err != nil {
+		result, err := s.Notebook.DeleteCell(r.Context(), cellID)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		writeJSON(w, http.StatusOK, result)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -177,11 +178,12 @@ func (s *Server) handleMoveCell(w http.ResponseWriter, r *http.Request, cellID s
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if err := s.Notebook.MoveCell(r.Context(), cellID, req.TargetIndex); err != nil {
+	result, err := s.Notebook.MoveCell(r.Context(), cellID, req.TargetIndex)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleRunCell(w http.ResponseWriter, r *http.Request, cellID string) {

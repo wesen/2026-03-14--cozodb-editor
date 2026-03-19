@@ -284,16 +284,12 @@ func (s *Store) InsertCell(ctx context.Context, notebookID string, afterCellID s
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	insertPosition, err := nextInsertPosition(ctx, tx, notebookID, afterCellID)
+	cells, err := s.listCellsTx(ctx, tx, notebookID)
 	if err != nil {
 		return nil, err
 	}
-
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE nb_cells
-		SET position = position + 1, updated_at_ms = ?
-		WHERE notebook_id = ? AND position >= ?
-	`, now, notebookID, insertPosition); err != nil {
+	insertPosition, err := nextInsertPosition(ctx, tx, notebookID, afterCellID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -309,7 +305,13 @@ func (s *Store) InsertCell(ctx context.Context, notebookID string, afterCellID s
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO nb_cells(cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms)
 		VALUES(?, ?, ?, ?, ?, ?, ?)
-	`, cell.ID, cell.NotebookID, cell.Position, cell.Kind, cell.Source, cell.CreatedAtMs, cell.UpdatedAtMs); err != nil {
+	`, cell.ID, cell.NotebookID, -(len(cells) + 1000), cell.Kind, cell.Source, cell.CreatedAtMs, cell.UpdatedAtMs); err != nil {
+		return nil, err
+	}
+	cell.Position = insertPosition
+
+	orderedCellIDs := insertCellIDAtPosition(cells, cell.ID, insertPosition)
+	if err := s.rewriteNotebookOrderTx(ctx, tx, notebookID, orderedCellIDs, now); err != nil {
 		return nil, err
 	}
 
@@ -369,10 +371,11 @@ func (s *Store) MoveCell(ctx context.Context, cellID string, targetIndex int) er
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	maxPos, err := maxCellPosition(ctx, tx, cell.NotebookID)
+	cells, err := s.listCellsTx(ctx, tx, cell.NotebookID)
 	if err != nil {
 		return err
 	}
+	maxPos := len(cells) - 1
 	if targetIndex < 0 {
 		targetIndex = 0
 	}
@@ -384,29 +387,11 @@ func (s *Store) MoveCell(ctx context.Context, cellID string, targetIndex int) er
 	}
 
 	now := time.Now().UnixMilli()
-	if targetIndex < cell.Position {
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE nb_cells
-			SET position = position + 1, updated_at_ms = ?
-			WHERE notebook_id = ? AND position >= ? AND position < ?
-		`, now, cell.NotebookID, targetIndex, cell.Position); err != nil {
-			return err
-		}
-	} else {
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE nb_cells
-			SET position = position - 1, updated_at_ms = ?
-			WHERE notebook_id = ? AND position > ? AND position <= ?
-		`, now, cell.NotebookID, cell.Position, targetIndex); err != nil {
-			return err
-		}
+	orderedCellIDs, err := moveCellIDToIndex(cells, cellID, targetIndex)
+	if err != nil {
+		return err
 	}
-
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE nb_cells
-		SET position = ?, updated_at_ms = ?
-		WHERE cell_id = ?
-	`, targetIndex, now, cellID); err != nil {
+	if err := s.rewriteNotebookOrderTx(ctx, tx, cell.NotebookID, orderedCellIDs, now); err != nil {
 		return err
 	}
 
@@ -436,21 +421,25 @@ func (s *Store) DeleteCell(ctx context.Context, cellID string) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	cells, err := s.listCellsTx(ctx, tx, cell.NotebookID)
+	if err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `DELETE FROM nb_cells WHERE cell_id = ?`, cellID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE nb_cells
-		SET position = position - 1, updated_at_ms = ?
-		WHERE notebook_id = ? AND position > ?
-	`, time.Now().UnixMilli(), cell.NotebookID, cell.Position); err != nil {
+
+	now := time.Now().UnixMilli()
+	orderedCellIDs := removeCellID(cells, cellID)
+	if err := s.rewriteNotebookOrderTx(ctx, tx, cell.NotebookID, orderedCellIDs, now); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE nb_notebooks
 		SET updated_at_ms = ?
 		WHERE notebook_id = ?
-	`, time.Now().UnixMilli(), cell.NotebookID); err != nil {
+	`, now, cell.NotebookID); err != nil {
 		return err
 	}
 
@@ -585,4 +574,103 @@ func maxCellPosition(ctx context.Context, tx *sql.Tx, notebookID string) (int, e
 		return 0, nil
 	}
 	return int(maxPos.Int64), nil
+}
+
+func (s *Store) listCellsTx(ctx context.Context, tx *sql.Tx, notebookID string) ([]NotebookCell, error) {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms
+		FROM nb_cells
+		WHERE notebook_id = ?
+		ORDER BY position ASC
+	`, notebookID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := []NotebookCell{}
+	for rows.Next() {
+		var cell NotebookCell
+		if err := rows.Scan(&cell.ID, &cell.NotebookID, &cell.Position, &cell.Kind, &cell.Source, &cell.CreatedAtMs, &cell.UpdatedAtMs); err != nil {
+			return nil, err
+		}
+		out = append(out, cell)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) rewriteNotebookOrderTx(ctx context.Context, tx *sql.Tx, notebookID string, orderedCellIDs []string, now int64) error {
+	for index, cellID := range orderedCellIDs {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE nb_cells
+			SET position = ?, updated_at_ms = ?
+			WHERE notebook_id = ? AND cell_id = ?
+		`, -(index + 1), now, notebookID, cellID); err != nil {
+			return err
+		}
+	}
+
+	for index, cellID := range orderedCellIDs {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE nb_cells
+			SET position = ?, updated_at_ms = ?
+			WHERE notebook_id = ? AND cell_id = ?
+		`, index, now, notebookID, cellID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func insertCellIDAtPosition(cells []NotebookCell, cellID string, position int) []string {
+	orderedCellIDs := make([]string, 0, len(cells)+1)
+	inserted := false
+	for index, cell := range cells {
+		if !inserted && index == position {
+			orderedCellIDs = append(orderedCellIDs, cellID)
+			inserted = true
+		}
+		orderedCellIDs = append(orderedCellIDs, cell.ID)
+	}
+	if !inserted {
+		orderedCellIDs = append(orderedCellIDs, cellID)
+	}
+	return orderedCellIDs
+}
+
+func moveCellIDToIndex(cells []NotebookCell, cellID string, targetIndex int) ([]string, error) {
+	orderedCellIDs := make([]string, 0, len(cells))
+	currentIndex := -1
+	for index, cell := range cells {
+		if cell.ID == cellID {
+			currentIndex = index
+			continue
+		}
+		orderedCellIDs = append(orderedCellIDs, cell.ID)
+	}
+	if currentIndex < 0 {
+		return nil, sql.ErrNoRows
+	}
+	if targetIndex < 0 {
+		targetIndex = 0
+	}
+	if targetIndex > len(orderedCellIDs) {
+		targetIndex = len(orderedCellIDs)
+	}
+	orderedCellIDs = append(orderedCellIDs, "")
+	copy(orderedCellIDs[targetIndex+1:], orderedCellIDs[targetIndex:])
+	orderedCellIDs[targetIndex] = cellID
+	return orderedCellIDs, nil
+}
+
+func removeCellID(cells []NotebookCell, cellID string) []string {
+	orderedCellIDs := make([]string, 0, len(cells))
+	for _, cell := range cells {
+		if cell.ID == cellID {
+			continue
+		}
+		orderedCellIDs = append(orderedCellIDs, cell.ID)
+	}
+	return orderedCellIDs
 }

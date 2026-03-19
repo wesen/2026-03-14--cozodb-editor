@@ -48,9 +48,9 @@ describe("useNotebookDocument", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(bootstrapNotebook).mockResolvedValue(structuredClone(baseDocument));
-    vi.mocked(deleteNotebookCell).mockResolvedValue({ ok: true });
-    vi.mocked(insertNotebookCell).mockResolvedValue(baseDocument.cells[0]!);
-    vi.mocked(moveNotebookCell).mockResolvedValue({ ok: true });
+    vi.mocked(deleteNotebookCell).mockResolvedValue({ document: structuredClone(baseDocument) });
+    vi.mocked(insertNotebookCell).mockResolvedValue({ document: structuredClone(baseDocument), cell: baseDocument.cells[0]! });
+    vi.mocked(moveNotebookCell).mockResolvedValue({ document: structuredClone(baseDocument) });
     vi.mocked(updateNotebookTitle).mockResolvedValue(structuredClone(baseDocument));
   });
 
@@ -101,5 +101,46 @@ describe("useNotebookDocument", () => {
       source: "?[x] := [[42]]",
     });
     expect(runNotebookCell).toHaveBeenCalledWith("cell_1");
+  });
+
+  it("preserves dirty local drafts when an insert response replaces notebook order", async () => {
+    const insertedCell = {
+      id: "cell_2",
+      notebook_id: "nb_1",
+      kind: "code" as const,
+      source: "?[y] := [[2]]",
+      position: 1,
+      created_at_ms: 2000,
+      updated_at_ms: 2000,
+    };
+
+    vi.mocked(insertNotebookCell).mockResolvedValue({
+      cell: insertedCell,
+      document: {
+        ...structuredClone(baseDocument),
+        cells: [
+          structuredClone(baseDocument.cells[0]!),
+          insertedCell,
+        ],
+      },
+    });
+
+    const { result } = renderHook(() => useNotebookDocument());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setCellSource("cell_1", "?[x] := [[42]]");
+    });
+
+    await act(async () => {
+      const inserted = await result.current.insertCellAfter("cell_1", "code", "?[y] := [[2]]");
+      expect(inserted?.id).toBe("cell_2");
+    });
+
+    expect(result.current.document?.cells.map((cell) => cell.id)).toEqual(["cell_1", "cell_2"]);
+    expect(result.current.document?.cells[0]?.source).toBe("?[x] := [[42]]");
   });
 });

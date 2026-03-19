@@ -12,6 +12,7 @@ import type {
   CellRuntime,
   NotebookCell,
   NotebookDocument,
+  NotebookMutationResult,
   UpdateCellPayload,
 } from "../transport/httpClient";
 import { buildNotebookExecutionState, type NotebookExecutionState } from "./runtimeState";
@@ -26,6 +27,35 @@ function reorderCells(cells: NotebookCell[], cellId: string, targetIndex: number
   const [cell] = next.splice(currentIndex, 1);
   next.splice(targetIndex, 0, cell!);
   return next.map((item, index) => ({ ...item, position: index }));
+}
+
+function mergeServerDocumentWithLocalDrafts(
+  serverDocument: NotebookDocument,
+  currentDocument: NotebookDocument | null,
+  localDirtyCellIds: Set<string>,
+): NotebookDocument {
+  if (!currentDocument || localDirtyCellIds.size === 0) {
+    return serverDocument;
+  }
+
+  const localCellsById = new Map(currentDocument.cells.map((cell) => [cell.id, cell]));
+  return {
+    ...serverDocument,
+    cells: serverDocument.cells.map((cell) => {
+      if (!localDirtyCellIds.has(cell.id)) {
+        return cell;
+      }
+      const localCell = localCellsById.get(cell.id);
+      if (!localCell) {
+        return cell;
+      }
+      return {
+        ...cell,
+        kind: localCell.kind,
+        source: localCell.source,
+      };
+    }),
+  };
 }
 
 export interface UseNotebookDocumentResult {
@@ -51,6 +81,27 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
   const [localDirtyCellIds, setLocalDirtyCellIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  function applyMutationResult(response: NotebookMutationResult): NotebookCell | null {
+    if (!response.document) {
+      return null;
+    }
+
+    const mergedDocument = mergeServerDocumentWithLocalDrafts(response.document, document, localDirtyCellIds);
+    const cellIDs = new Set(mergedDocument.cells.map((cell) => cell.id));
+    setDocument(mergedDocument);
+    setRuntimeByCell(mergedDocument.runtime || {});
+    setLocalDirtyCellIds((current) => {
+      const next = new Set<string>();
+      for (const cellID of current) {
+        if (cellIDs.has(cellID)) {
+          next.add(cellID);
+        }
+      }
+      return next;
+    });
+    return response.cell || null;
+  }
 
   async function loadNotebook() {
     setLoading(true);
@@ -145,13 +196,9 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
       kind,
       source,
     });
-    if ("id" in response) {
-      const cell = response as NotebookCell;
-      setDocument((current) => current ? {
-        ...current,
-        cells: [...current.cells, cell].sort((left, right) => left.position - right.position),
-      } : current);
-      if (cell.kind === "code" && cell.source.trim() !== "") {
+    if ("document" in response) {
+      const cell = applyMutationResult(response as NotebookMutationResult);
+      if (cell?.kind === "code" && cell.source.trim() !== "") {
         setLocalDirtyCellIds((current) => new Set(current).add(cell.id));
       }
       return cell;
@@ -168,10 +215,12 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
     } : current);
 
     const response = await moveNotebookCell(cellId, targetIndex);
-    if (!("ok" in response) || response.ok !== true) {
+    if (!("document" in response)) {
       setError("message" in response ? response.message : "Failed to move cell");
       await loadNotebook();
+      return;
     }
+    applyMutationResult(response as NotebookMutationResult);
   }
 
   async function removeCell(cellId: string): Promise<void> {
@@ -191,10 +240,12 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
     });
 
     const response = await deleteNotebookCell(cellId);
-    if (!("ok" in response) || response.ok !== true) {
+    if (!("document" in response)) {
       setError("message" in response ? response.message : "Failed to delete cell");
       await loadNotebook();
+      return;
     }
+    applyMutationResult(response as NotebookMutationResult);
   }
 
   async function runCellAction(cellId: string): Promise<CellRuntime | null> {

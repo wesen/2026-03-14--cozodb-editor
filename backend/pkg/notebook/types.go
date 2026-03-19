@@ -52,6 +52,11 @@ type NotebookDocument struct {
 	Runtime  map[string]*CellRuntimeState `json:"runtime,omitempty"`
 }
 
+type MutationResult struct {
+	Document *NotebookDocument `json:"document,omitempty"`
+	Cell     *NotebookCell     `json:"cell,omitempty"`
+}
+
 type TimelineSnapshotLink struct {
 	NotebookID      string `json:"notebook_id"`
 	CellID          string `json:"cell_id,omitempty"`

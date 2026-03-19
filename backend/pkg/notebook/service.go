@@ -85,20 +85,50 @@ func (s *Service) UpdateNotebookTitle(ctx context.Context, notebookID string, ti
 	return s.store.UpdateNotebookTitle(ctx, notebookID, title)
 }
 
-func (s *Service) InsertCell(ctx context.Context, notebookID string, afterCellID string, kind string, source string) (*NotebookCell, error) {
-	return s.store.InsertCell(ctx, notebookID, afterCellID, kind, source)
+func (s *Service) InsertCell(ctx context.Context, notebookID string, afterCellID string, kind string, source string) (*MutationResult, error) {
+	cell, err := s.store.InsertCell(ctx, notebookID, afterCellID, kind, source)
+	if err != nil {
+		return nil, err
+	}
+	doc, err := s.GetNotebook(ctx, notebookID)
+	if err != nil {
+		return nil, err
+	}
+	return &MutationResult{Document: doc, Cell: cell}, nil
 }
 
 func (s *Service) UpdateCell(ctx context.Context, cellID string, kind string, source string) (*NotebookCell, error) {
 	return s.store.UpdateCell(ctx, cellID, kind, source)
 }
 
-func (s *Service) MoveCell(ctx context.Context, cellID string, targetIndex int) error {
-	return s.store.MoveCell(ctx, cellID, targetIndex)
+func (s *Service) MoveCell(ctx context.Context, cellID string, targetIndex int) (*MutationResult, error) {
+	cell, err := s.store.GetCell(ctx, cellID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.MoveCell(ctx, cellID, targetIndex); err != nil {
+		return nil, err
+	}
+	doc, err := s.GetNotebook(ctx, cell.NotebookID)
+	if err != nil {
+		return nil, err
+	}
+	return &MutationResult{Document: doc}, nil
 }
 
-func (s *Service) DeleteCell(ctx context.Context, cellID string) error {
-	return s.store.DeleteCell(ctx, cellID)
+func (s *Service) DeleteCell(ctx context.Context, cellID string) (*MutationResult, error) {
+	cell, err := s.store.GetCell(ctx, cellID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.DeleteCell(ctx, cellID); err != nil {
+		return nil, err
+	}
+	doc, err := s.GetNotebook(ctx, cell.NotebookID)
+	if err != nil {
+		return nil, err
+	}
+	return &MutationResult{Document: doc}, nil
 }
 
 func (s *Service) RunCell(ctx context.Context, cellID string) (*CellRuntimeState, error) {
