@@ -3,8 +3,8 @@ module github.com/wesen/cozodb-editor/backend
 go 1.26.1
 
 require (
-	github.com/go-go-golems/geppetto v0.10.16
-	github.com/go-go-golems/pinocchio v0.0.0-00010101000000-000000000000
+	github.com/go-go-golems/geppetto v0.10.15
+	github.com/go-go-golems/pinocchio v0.10.9
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/mattn/go-sqlite3 v1.14.32
@@ -128,7 +128,3 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/go-go-golems/geppetto => ../../corporate-headquarters/geppetto
-
-replace github.com/go-go-golems/pinocchio => ../../corporate-headquarters/pinocchio
