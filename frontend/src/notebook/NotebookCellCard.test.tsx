@@ -1,60 +1,73 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createSemProjectionState } from "../sem/semProjection";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeStore } from "../app/store";
+import { runNotebookCell } from "../transport/httpClient";
 import { NotebookCellCard } from "./NotebookCellCard";
+import { notebookLoaded, setActiveCellId } from "./state/notebookSlice";
 
-const baseCell = {
-  id: "cell_1",
-  notebook_id: "nb_1",
-  kind: "code" as const,
-  source: "?[x] := [[1]]",
-  position: 0,
-  created_at_ms: 1000,
-  updated_at_ms: 1000,
+vi.mock("../transport/httpClient", () => ({
+  bootstrapNotebook: vi.fn(),
+  deleteNotebookCell: vi.fn(),
+  insertNotebookCell: vi.fn(),
+  moveNotebookCell: vi.fn(),
+  runNotebookCell: vi.fn(),
+  updateNotebookCell: vi.fn(),
+  updateNotebookTitle: vi.fn(),
+}));
+
+const baseDocument = {
+  notebook: {
+    id: "nb_1",
+    title: "Notebook",
+    created_at_ms: 1000,
+    updated_at_ms: 1000,
+  },
+  cells: [
+    {
+      id: "cell_1",
+      notebook_id: "nb_1",
+      kind: "code" as const,
+      source: "?[x] := [[1]]",
+      position: 0,
+      created_at_ms: 1000,
+      updated_at_ms: 1000,
+    },
+  ],
+  runtime: {},
 };
 
 function renderCellCard() {
-  const onRun = vi.fn();
+  const store = makeStore();
   const onRunAndInsertBelow = vi.fn();
 
+  store.dispatch(notebookLoaded(structuredClone(baseDocument)));
+  store.dispatch(setActiveCellId("cell_1"));
+
   render(
-    <NotebookCellCard
-      aiPrompt=""
-      cell={baseCell}
-      cellIndex={0}
-      isActive
-      collapsedThreads={{}}
-      dismissedThreads={{}}
-      executionState={{ dirty: false, hasRun: false, mutationRisk: "read_only", stale: false }}
-      onAskAI={vi.fn()}
-      onChangeSource={vi.fn()}
-      onDelete={vi.fn()}
-      onDiagnose={vi.fn()}
-      onDismissThread={vi.fn()}
-      onFocus={vi.fn()}
-      onInsertCodeBelow={vi.fn()}
-      onInsertMarkdownBelow={vi.fn()}
-      onMoveDown={vi.fn()}
-      onMoveUp={vi.fn()}
-      onPersistSource={vi.fn()}
-      onRun={onRun}
-      onRunAndInsertBelow={onRunAndInsertBelow}
-      onSetAIPrompt={vi.fn()}
-      onToggleThreadCollapse={vi.fn()}
-      runtime={undefined}
-      semProjection={createSemProjectionState()}
-      wsConnected={false}
-    />,
+    <Provider store={store}>
+      <NotebookCellCard
+        cellId="cell_1"
+        cellIndex={0}
+        onAskAI={vi.fn()}
+        onDiagnose={vi.fn()}
+        onRunAndInsertBelow={onRunAndInsertBelow}
+        wsConnected={false}
+      />
+    </Provider>,
   );
 
   return {
     editor: screen.getByRole("textbox"),
-    onRun,
     onRunAndInsertBelow,
   };
 }
 
 describe("NotebookCellCard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -66,20 +79,31 @@ describe("NotebookCellCard", () => {
   });
 
   it("runs and inserts below on ctrl+enter", () => {
-    const { editor, onRun, onRunAndInsertBelow } = renderCellCard();
+    const { editor, onRunAndInsertBelow } = renderCellCard();
 
     fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true });
 
     expect(onRunAndInsertBelow).toHaveBeenCalledWith("cell_1");
-    expect(onRun).not.toHaveBeenCalled();
   });
 
-  it("keeps shift+enter as run", () => {
-    const { editor, onRun, onRunAndInsertBelow } = renderCellCard();
+  it("keeps shift+enter as run", async () => {
+    vi.mocked(runNotebookCell).mockResolvedValue({
+      run: {
+        id: "run_1",
+        cell_id: "cell_1",
+        notebook_id: "nb_1",
+        status: "complete",
+        execution_count: 1,
+      },
+    });
+
+    const { editor, onRunAndInsertBelow } = renderCellCard();
 
     fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
 
-    expect(onRun).toHaveBeenCalledWith("cell_1");
+    await waitFor(() => {
+      expect(runNotebookCell).toHaveBeenCalledWith("cell_1");
+    });
     expect(onRunAndInsertBelow).not.toHaveBeenCalled();
   });
 });

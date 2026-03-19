@@ -1,19 +1,22 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeStore } from "../../app/store";
 import {
   bootstrapNotebook,
-  deleteNotebookCell,
   insertNotebookCell,
-  moveNotebookCell,
   runNotebookCell,
   updateNotebookCell,
-  updateNotebookTitle,
   type CellRuntime,
   type NotebookDocument,
-} from "../transport/httpClient";
-import { useNotebookDocument } from "./useNotebookDocument";
+} from "../../transport/httpClient";
+import {
+  insertNotebookCellBelow,
+  loadNotebook,
+  runNotebookCellById,
+  selectNotebookDocument,
+  setCellSource,
+} from "./notebookSlice";
 
-vi.mock("../transport/httpClient", () => ({
+vi.mock("../../transport/httpClient", () => ({
   bootstrapNotebook: vi.fn(),
   deleteNotebookCell: vi.fn(),
   insertNotebookCell: vi.fn(),
@@ -44,17 +47,22 @@ const baseDocument: NotebookDocument = {
   runtime: {},
 };
 
-describe("useNotebookDocument", () => {
+describe("notebookSlice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(bootstrapNotebook).mockResolvedValue(structuredClone(baseDocument));
-    vi.mocked(deleteNotebookCell).mockResolvedValue({ document: structuredClone(baseDocument) });
-    vi.mocked(insertNotebookCell).mockResolvedValue({ document: structuredClone(baseDocument), cell: baseDocument.cells[0]! });
-    vi.mocked(moveNotebookCell).mockResolvedValue({ document: structuredClone(baseDocument) });
-    vi.mocked(updateNotebookTitle).mockResolvedValue(structuredClone(baseDocument));
+  });
+
+  it("loads notebook state into normalized selectors", async () => {
+    const store = makeStore();
+
+    await store.dispatch(loadNotebook());
+
+    expect(selectNotebookDocument(store.getState())?.cells.map((cell) => cell.id)).toEqual(["cell_1"]);
   });
 
   it("persists dirty cell source before running", async () => {
+    const store = makeStore();
     const persistedCell = {
       ...baseDocument.cells[0]!,
       source: "?[x] := [[42]]",
@@ -80,22 +88,12 @@ describe("useNotebookDocument", () => {
     vi.mocked(updateNotebookCell).mockResolvedValue(persistedCell);
     vi.mocked(runNotebookCell).mockResolvedValue(runtime);
 
-    const { result } = renderHook(() => useNotebookDocument());
+    await store.dispatch(loadNotebook());
+    store.dispatch(setCellSource({ cellId: "cell_1", source: "?[x] := [[42]]" }));
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-      expect(result.current.document?.cells[0]?.source).toBe("?[x] := [[1]]");
-    });
+    const nextRuntime = await store.dispatch(runNotebookCellById("cell_1"));
 
-    act(() => {
-      result.current.setCellSource("cell_1", "?[x] := [[42]]");
-    });
-
-    await act(async () => {
-      const nextRuntime = await result.current.runCell("cell_1");
-      expect(nextRuntime).toEqual(runtime);
-    });
-
+    expect(nextRuntime).toEqual(runtime);
     expect(updateNotebookCell).toHaveBeenCalledWith("cell_1", {
       kind: "code",
       source: "?[x] := [[42]]",
@@ -104,6 +102,7 @@ describe("useNotebookDocument", () => {
   });
 
   it("preserves dirty local drafts when an insert response replaces notebook order", async () => {
+    const store = makeStore();
     const insertedCell = {
       id: "cell_2",
       notebook_id: "nb_1",
@@ -125,22 +124,13 @@ describe("useNotebookDocument", () => {
       },
     });
 
-    const { result } = renderHook(() => useNotebookDocument());
+    await store.dispatch(loadNotebook());
+    store.dispatch(setCellSource({ cellId: "cell_1", source: "?[x] := [[42]]" }));
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
+    const inserted = await store.dispatch(insertNotebookCellBelow("cell_1", "code", "?[y] := [[2]]"));
 
-    act(() => {
-      result.current.setCellSource("cell_1", "?[x] := [[42]]");
-    });
-
-    await act(async () => {
-      const inserted = await result.current.insertCellAfter("cell_1", "code", "?[y] := [[2]]");
-      expect(inserted?.id).toBe("cell_2");
-    });
-
-    expect(result.current.document?.cells.map((cell) => cell.id)).toEqual(["cell_1", "cell_2"]);
-    expect(result.current.document?.cells[0]?.source).toBe("?[x] := [[42]]");
+    expect(inserted?.id).toBe("cell_2");
+    expect(selectNotebookDocument(store.getState())?.cells.map((cell) => cell.id)).toEqual(["cell_1", "cell_2"]);
+    expect(selectNotebookDocument(store.getState())?.cells[0]?.source).toBe("?[x] := [[42]]");
   });
 });

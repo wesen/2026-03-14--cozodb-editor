@@ -1,44 +1,58 @@
-import { useCallback, useEffect, useState } from "react";
-import { NotebookCellCard } from "./NotebookCellCard";
-import { useNotebookDocument } from "./useNotebookDocument";
-import { createSemProjectionState, applySemEvent } from "../sem/semProjection";
+import { useCallback, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { registerCozoSemHandlers } from "../sem/registerCozoSemHandlers";
 import { registerDefaultSemHandlers } from "../sem/registerDefaultSemHandlers";
-import { useHintsSocket } from "../transport/hintsSocket";
-import type { SemEvent } from "../transport/hintsSocket";
 import type { NotebookCell } from "../transport/httpClient";
+import { useHintsSocket, type SemEvent } from "../transport/hintsSocket";
+import { NotebookCellCard } from "./NotebookCellCard";
+import {
+  insertNotebookCellBelow,
+  loadNotebook,
+  persistNotebookTitle,
+  runNotebookCellById,
+  selectActiveCellId,
+  selectActiveCellIndex,
+  selectCellsById,
+  selectNotebookDocument,
+  selectNotebookError,
+  selectNotebookRuntimeByCell,
+  selectNotebookStatus,
+  setActiveCellId,
+  semEventProjected,
+} from "./state/notebookSlice";
 import "./notebook.css";
 import "../theme/cards.css";
 import "../theme/layout.css";
 import "../theme/tokens.css";
 
+const EMPTY_CELLS: NotebookCell[] = [];
+
+function clampIndex(index: number, maxIndex: number): number {
+  return Math.max(0, Math.min(maxIndex, index));
+}
+
 export default function NotebookPage() {
+  const dispatch = useAppDispatch();
   const ws = useHintsSocket();
-  const {
-    document,
-    error,
-    executionStateByCell,
-    loading,
-    runtimeByCell,
-    insertCellAfter,
-    moveCell,
-    persistCell,
-    persistTitle,
-    removeCell,
-    runCell,
-    setCellSource,
-    setCellRuntime,
-  } = useNotebookDocument();
-  const [semProjection, setSemProjection] = useState(() => createSemProjectionState());
-  const [collapsedThreads, setCollapsedThreads] = useState<Record<string, boolean>>({});
-  const [dismissedThreads, setDismissedThreads] = useState<Record<string, boolean>>({});
-  const [aiPrompts, setAIPrompts] = useState<Record<string, string>>({});
-  const [rawActiveCellIndex, setActiveCellIndex] = useState(0);
-  const activeCellIndex = document ? Math.min(rawActiveCellIndex, Math.max(0, document.cells.length - 1)) : 0;
+  const document = useAppSelector(selectNotebookDocument);
+  const error = useAppSelector(selectNotebookError);
+  const status = useAppSelector(selectNotebookStatus);
+  const activeCellId = useAppSelector(selectActiveCellId);
+  const activeCellIndex = useAppSelector(selectActiveCellIndex);
+  const runtimeByCell = useAppSelector(selectNotebookRuntimeByCell);
+  const cellsById = useAppSelector(selectCellsById);
+  const cells = document?.cells ?? EMPTY_CELLS;
+  const loading = status === "idle" || status === "loading";
+
+  useEffect(() => {
+    if (status === "idle") {
+      void dispatch(loadNotebook());
+    }
+  }, [dispatch, status]);
 
   useEffect(() => {
     const onProject = (event: SemEvent) => {
-      setSemProjection((current) => applySemEvent(current, event));
+      dispatch(semEventProjected(event));
     };
 
     const unsubscribers = [
@@ -49,124 +63,24 @@ export default function NotebookPage() {
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [ws]);
+  }, [dispatch, ws]);
 
-  // Run active cell and advance focus to the next code cell
-  async function handleRunAndAdvance(cellId: string) {
-    const runtime = await runCell(cellId);
-    if (runtime) {
-      setCellRuntime((current) => ({ ...current, [cellId]: runtime }));
-    }
-    if (!document) return;
-    // Advance to next code cell, or stay if none
-    const currentIdx = document.cells.findIndex((c) => c.id === cellId);
-    for (let i = currentIdx + 1; i < document.cells.length; i++) {
-      if (document.cells[i]?.kind === "code") {
-        setActiveCellIndex(i);
-        return;
-      }
-    }
-  }
-
-  async function handleRunAndInsertBelow(cellId: string) {
-    const runtime = await runCell(cellId);
-    if (runtime) {
-      setCellRuntime((current) => ({ ...current, [cellId]: runtime }));
-    }
-    await handleInsertCodeBelow(cellId);
-  }
-
-  // Keyboard navigation at notebook level
-  const handleNotebookKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
-    if (!document) return;
-    const target = event.target as HTMLElement;
-    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT";
-
-    // Ctrl+Shift+ArrowUp/Down: move between cells even when in editor
-    if (event.ctrlKey && event.shiftKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-      event.preventDefault();
-      setActiveCellIndex((current) => {
-        const max = document.cells.length - 1;
-        return event.key === "ArrowUp" ? Math.max(0, current - 1) : Math.min(max, current + 1);
-      });
+  const focusCellAtIndex = useCallback((index: number) => {
+    if (cells.length === 0) {
+      dispatch(setActiveCellId(null));
       return;
     }
 
-    // Alt/Ctrl+Enter in editor: run and insert a new code cell below
-    if ((event.altKey || event.ctrlKey) && event.key === "Enter" && isInInput) {
-      event.preventDefault();
-      const activeCell = document.cells[activeCellIndex];
-      if (activeCell?.kind === "code") {
-        handleRunAndInsertBelow(activeCell.id);
-      }
-      return;
-    }
+    const nextCell = cells[clampIndex(index, cells.length - 1)];
+    dispatch(setActiveCellId(nextCell?.id || null));
+  }, [cells, dispatch]);
 
-    // Don't intercept other keys when typing in an input
-    if (isInInput) return;
-
-    // Arrow keys / j/k: navigate cells
-    if (event.key === "ArrowUp" || event.key === "k") {
-      event.preventDefault();
-      setActiveCellIndex((current) => Math.max(0, current - 1));
-    } else if (event.key === "ArrowDown" || event.key === "j") {
-      event.preventDefault();
-      setActiveCellIndex((current) => Math.min(document.cells.length - 1, current + 1));
-    } else if (event.key === "Enter" && event.shiftKey) {
-      // Shift+Enter outside editor: run active cell and advance
-      event.preventDefault();
-      const activeCell = document.cells[activeCellIndex];
-      if (activeCell?.kind === "code") {
-        handleRunAndAdvance(activeCell.id);
-      }
-    } else if (event.key === "Enter" && (event.altKey || event.ctrlKey)) {
-      event.preventDefault();
-      const activeCell = document.cells[activeCellIndex];
-      if (activeCell?.kind === "code") {
-        handleRunAndInsertBelow(activeCell.id);
-      }
-    } else if (event.key === "Enter") {
-      // Enter: focus editor of active cell
-      event.preventDefault();
-      const card = window.document.querySelector(`.mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview`);
-      if (card instanceof HTMLElement) card.click();
-      if (card instanceof HTMLTextAreaElement) card.focus();
-    } else if (event.key === "a") {
-      // a: insert code cell after active
-      event.preventDefault();
-      const activeCell = document.cells[activeCellIndex];
-      if (activeCell) handleInsertCodeBelow(activeCell.id);
-    } else if (event.key === "m") {
-      // m: insert markdown cell after active
-      event.preventDefault();
-      const activeCell = document.cells[activeCellIndex];
-      if (activeCell) handleInsertMarkdownBelow(activeCell.id);
-    } else if (event.key === "x") {
-      // x: delete active cell
-      event.preventDefault();
-      const activeCell = document.cells[activeCellIndex];
-      if (activeCell) removeCell(activeCell.id);
-    } else if (event.key === "Escape") {
-      // Escape: blur any focused element, return to nav mode
-      (window.document.activeElement as HTMLElement)?.blur?.();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [document, activeCellIndex]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleNotebookKeyDown);
-    return () => window.removeEventListener("keydown", handleNotebookKeyDown);
-  }, [handleNotebookKeyDown]);
-
-  function setAIPrompt(cellId: string, value: string) {
-    setAIPrompts((current) => ({ ...current, [cellId]: value }));
-  }
-
-  function handleAskAI(cellId: string, question: string) {
+  const handleAskAI = useCallback((cellId: string, question: string) => {
     const trimmed = question.trim();
     if (!trimmed || !document?.notebook?.id) {
       return;
     }
+
     ws.send("hint.request", {
       question: trimmed,
       history: [],
@@ -174,17 +88,15 @@ export default function NotebookPage() {
       ownerCellId: cellId,
       runId: runtimeByCell[cellId]?.run?.id || "",
     });
-    setAIPrompts((current) => ({ ...current, [cellId]: "" }));
-  }
+  }, [document, runtimeByCell, ws]);
 
-  function handleDiagnose(cell: NotebookCell) {
-    if (!document?.notebook?.id) {
+  const handleDiagnose = useCallback((cellId: string) => {
+    const cell = cellsById[cellId];
+    const output = runtimeByCell[cellId]?.output;
+    if (!document?.notebook?.id || !cell || !output) {
       return;
     }
-    const output = runtimeByCell[cell.id]?.output;
-    if (!output) {
-      return;
-    }
+
     ws.send("diagnosis.request", {
       error: output.display || output.message || "Unknown error",
       script: cell.source,
@@ -192,39 +104,144 @@ export default function NotebookPage() {
       ownerCellId: cell.id,
       runId: runtimeByCell[cell.id]?.run?.id || "",
     });
-  }
+  }, [cellsById, document, runtimeByCell, ws]);
 
-  async function handlePersistSource(cell: NotebookCell) {
-    await persistCell(cell.id, {
-      kind: cell.kind,
-      source: cell.source,
-    });
-  }
-
-  async function handleRunCell(cellId: string) {
-    const runtime = await runCell(cellId);
+  const handleRunAndAdvance = useCallback(async (cellId: string) => {
+    const runtime = await dispatch(runNotebookCellById(cellId));
     if (!runtime) {
       return;
     }
-    setCellRuntime((current) => ({ ...current, [cellId]: runtime }));
-  }
 
-  async function handleInsertCodeBelow(cellId: string, source = "") {
-    const newCell = await insertCellAfter(cellId, "code", source);
-    if (newCell && document) {
-      // Focus the new cell
-      const idx = document.cells.findIndex((c) => c.id === cellId);
-      if (idx >= 0) setActiveCellIndex(idx + 1);
+    const currentIndex = cells.findIndex((cell) => cell.id === cellId);
+    for (let index = currentIndex + 1; index < cells.length; index += 1) {
+      if (cells[index]?.kind === "code") {
+        dispatch(setActiveCellId(cells[index]?.id || null));
+        return;
+      }
     }
-  }
+  }, [cells, dispatch]);
 
-  async function handleInsertMarkdownBelow(cellId: string) {
-    const newCell = await insertCellAfter(cellId, "markdown", "");
-    if (newCell && document) {
-      const idx = document.cells.findIndex((c) => c.id === cellId);
-      if (idx >= 0) setActiveCellIndex(idx + 1);
+  const handleInsertBelow = useCallback(async (
+    afterCellId: string,
+    kind: "code" | "markdown",
+    source = "",
+  ) => {
+    const newCell = await dispatch(insertNotebookCellBelow(afterCellId, kind, source));
+    if (newCell) {
+      dispatch(setActiveCellId(newCell.id));
     }
-  }
+  }, [dispatch]);
+
+  const handleRunAndInsertBelow = useCallback(async (cellId: string) => {
+    const runtime = await dispatch(runNotebookCellById(cellId));
+    if (!runtime) {
+      return;
+    }
+
+    const newCell = await dispatch(insertNotebookCellBelow(cellId, "code", ""));
+    if (newCell) {
+      dispatch(setActiveCellId(newCell.id));
+    }
+  }, [dispatch]);
+
+  const handleNotebookKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
+    if (!document) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT";
+    const currentIndex = activeCellIndex < 0 ? 0 : activeCellIndex;
+    const activeCell = activeCellId ? cellsById[activeCellId] || null : cells[currentIndex] || null;
+
+    if (event.ctrlKey && event.shiftKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+      event.preventDefault();
+      focusCellAtIndex(event.key === "ArrowUp" ? currentIndex - 1 : currentIndex + 1);
+      return;
+    }
+
+    if ((event.altKey || event.ctrlKey) && event.key === "Enter" && isInInput) {
+      event.preventDefault();
+      if (activeCell?.kind === "code") {
+        void handleRunAndInsertBelow(activeCell.id);
+      }
+      return;
+    }
+
+    if (isInInput) {
+      return;
+    }
+
+    if (event.key === "ArrowUp" || event.key === "k") {
+      event.preventDefault();
+      focusCellAtIndex(currentIndex - 1);
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "j") {
+      event.preventDefault();
+      focusCellAtIndex(currentIndex + 1);
+      return;
+    }
+
+    if (event.key === "Enter" && event.shiftKey) {
+      event.preventDefault();
+      if (activeCell?.kind === "code") {
+        void handleRunAndAdvance(activeCell.id);
+      }
+      return;
+    }
+
+    if (event.key === "Enter" && (event.altKey || event.ctrlKey)) {
+      event.preventDefault();
+      if (activeCell?.kind === "code") {
+        void handleRunAndInsertBelow(activeCell.id);
+      }
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const card = window.document.querySelector(".mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview");
+      if (card instanceof HTMLElement) {
+        card.click();
+      }
+      if (card instanceof HTMLTextAreaElement) {
+        card.focus();
+      }
+      return;
+    }
+
+    if (event.key === "a") {
+      event.preventDefault();
+      void handleInsertBelow(activeCell?.id || "", "code");
+      return;
+    }
+
+    if (event.key === "m") {
+      event.preventDefault();
+      void handleInsertBelow(activeCell?.id || "", "markdown");
+      return;
+    }
+
+    if (event.key === "x") {
+      event.preventDefault();
+      const closeButton = window.document.querySelector(".mac-cell-card.is-active .mac-window__close");
+      if (closeButton instanceof HTMLElement) {
+        closeButton.click();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      (window.document.activeElement as HTMLElement | null)?.blur?.();
+    }
+  }, [activeCellId, activeCellIndex, cells, cellsById, document, focusCellAtIndex, handleInsertBelow, handleRunAndAdvance, handleRunAndInsertBelow]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleNotebookKeyDown);
+    return () => window.removeEventListener("keydown", handleNotebookKeyDown);
+  }, [handleNotebookKeyDown]);
 
   if (loading) {
     return (
@@ -262,6 +279,8 @@ export default function NotebookPage() {
     );
   }
 
+  const lastCellId = document.cells.at(-1)?.id || "";
+
   return (
     <div className="mac-desktop">
       <div className="mac-menubar">
@@ -285,14 +304,16 @@ export default function NotebookPage() {
               className="mac-window__title-input"
               defaultValue={document.notebook.title}
               key={`${document.notebook.id}:${document.notebook.updated_at_ms}`}
-              onBlur={(event) => persistTitle(event.target.value)}
+              onBlur={(event) => {
+                void dispatch(persistNotebookTitle(event.target.value));
+              }}
             />
           </div>
           <div className="mac-window__titlebar-right">
-            <button className="mac-btn" onClick={() => insertCellAfter(document.cells.at(-1)?.id || "", "code", "")}>
+            <button className="mac-btn" onClick={() => { void handleInsertBelow(lastCellId, "code"); }}>
               New Code Cell
             </button>
-            <button className="mac-btn" onClick={() => insertCellAfter(document.cells.at(-1)?.id || "", "markdown", "")}>
+            <button className="mac-btn" onClick={() => { void handleInsertBelow(lastCellId, "markdown"); }}>
               New Markdown Cell
             </button>
           </div>
@@ -304,30 +325,11 @@ export default function NotebookPage() {
           {document.cells.map((cell, index) => (
             <NotebookCellCard
               key={cell.id}
-              aiPrompt={aiPrompts[cell.id] || ""}
-              cell={cell}
+              cellId={cell.id}
               cellIndex={index}
-              isActive={index === activeCellIndex}
-              collapsedThreads={collapsedThreads}
-              dismissedThreads={dismissedThreads}
               onAskAI={handleAskAI}
-              onChangeSource={setCellSource}
-              onDelete={removeCell}
               onDiagnose={handleDiagnose}
-              onDismissThread={(threadId: string) => setDismissedThreads((current) => ({ ...current, [threadId]: true }))}
-              onFocus={setActiveCellIndex}
-              onInsertCodeBelow={handleInsertCodeBelow}
-              onInsertMarkdownBelow={handleInsertMarkdownBelow}
-              onMoveDown={moveCell}
-              onMoveUp={moveCell}
-              onPersistSource={handlePersistSource}
-              onRun={handleRunCell}
               onRunAndInsertBelow={handleRunAndInsertBelow}
-              onSetAIPrompt={setAIPrompt}
-              onToggleThreadCollapse={(threadId: string) => setCollapsedThreads((current) => ({ ...current, [threadId]: !current[threadId] }))}
-              executionState={executionStateByCell[cell.id]}
-              runtime={runtimeByCell[cell.id]}
-              semProjection={semProjection}
               wsConnected={ws.connected}
             />
           ))}
@@ -337,8 +339,8 @@ export default function NotebookPage() {
               <div className="mac-empty-state__icon">&#9000;</div>
               <div className="mac-empty-state__text">No cells yet.</div>
               <div className="mac-empty-state__actions">
-                <button className="mac-btn" onClick={() => insertCellAfter("", "code", "")}>New Code Cell</button>
-                <button className="mac-btn" onClick={() => insertCellAfter("", "markdown", "")}>New Markdown Cell</button>
+                <button className="mac-btn" onClick={() => { void handleInsertBelow("", "code"); }}>New Code Cell</button>
+                <button className="mac-btn" onClick={() => { void handleInsertBelow("", "markdown"); }}>New Markdown Cell</button>
               </div>
             </div>
           ) : null}
