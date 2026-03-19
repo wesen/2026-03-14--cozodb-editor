@@ -176,14 +176,6 @@ export default function NotebookPage() {
       return;
     }
 
-    if ((event.altKey || event.ctrlKey) && event.key === "Enter" && isInInput) {
-      event.preventDefault();
-      if (activeCell?.kind === "code") {
-        void handleRunAndInsertBelow(activeCell.id);
-      }
-      return;
-    }
-
     if (isInInput) {
       return;
     }

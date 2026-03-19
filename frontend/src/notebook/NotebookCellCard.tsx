@@ -138,6 +138,7 @@ export function NotebookCellCard({
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && (event.altKey || event.ctrlKey) && isCode) {
       event.preventDefault();
+      event.stopPropagation();
       void onRunAndInsertBelow(resolvedCell.id);
       return;
     }
