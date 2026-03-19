@@ -24,14 +24,14 @@ func main() {
 
 	// Open CozoDB
 	log.Printf("[MAIN] Opening CozoDB (engine=%s, path=%s)", *engine, *dbPath)
-	db, err := cozo.NewDB(*engine, *dbPath)
+	runtime, err := cozo.NewManager(*engine, *dbPath)
 	if err != nil {
 		log.Fatalf("Failed to open CozoDB: %v", err)
 	}
-	defer db.Close()
+	defer runtime.Close()
 
 	// Test the database
-	result, err := db.Query("?[] <- [[1, 'hello']]", nil)
+	result, err := runtime.Query("?[] <- [[1, 'hello']]", nil)
 	if err != nil {
 		log.Fatalf("CozoDB test query failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// Set up HTTP handlers
-	notebookSvc, err := notebook.OpenService(*appDBPath, db)
+	notebookSvc, err := notebook.OpenService(*appDBPath, runtime)
 	if err != nil {
 		log.Fatalf("Failed to open notebook service: %v", err)
 	}
@@ -61,8 +61,8 @@ func main() {
 		}
 	}()
 
-	srv := &api.Server{DB: db, Notebook: notebookSvc}
-	wsHandler := &api.WSHandler{DB: db, Engine: hintEngine}
+	srv := &api.Server{Runtime: runtime, Notebook: notebookSvc}
+	wsHandler := &api.WSHandler{Runtime: runtime, Engine: hintEngine}
 
 	mux := http.NewServeMux()
 
@@ -81,6 +81,7 @@ func main() {
 	mux.HandleFunc("/api/notebooks/bootstrap", srv.HandleBootstrapNotebook)
 	mux.HandleFunc("/api/notebooks/", srv.HandleNotebook)
 	mux.HandleFunc("/api/notebook-cells/", srv.HandleNotebookCell)
+	mux.HandleFunc("/api/runtime/reset-kernel", srv.HandleResetKernel)
 
 	// WebSocket
 	mux.HandleFunc("/ws/hints", wsHandler.HandleWS)

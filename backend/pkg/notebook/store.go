@@ -15,6 +15,14 @@ import (
 
 const defaultNotebookID = "nbk_default"
 
+var defaultStarterCells = []struct {
+	kind   string
+	source string
+}{
+	{kind: "markdown", source: "## Cozo Notebook\n\nWrite a query in the next cell and run it."},
+	{kind: "code", source: "?[x] <- [[1], [2], [3]]"},
+}
+
 type Store struct {
 	db     *sql.DB
 	dbPath string
@@ -139,21 +147,11 @@ func (s *Store) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, e
 		return nil, err
 	}
 
-	cells := []struct {
-		id       string
-		position int
-		kind     string
-		source   string
-	}{
-		{id: "cell_intro", position: 0, kind: "markdown", source: "## Cozo Notebook\n\nWrite a query in the next cell and run it."},
-		{id: "cell_query", position: 1, kind: "code", source: "?[x] <- [[1], [2], [3]]"},
-	}
-
-	for _, cell := range cells {
+	for _, cell := range initialDefaultNotebookCells(now) {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO nb_cells(cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms)
 			VALUES(?, ?, ?, ?, ?, ?, ?)
-		`, cell.id, defaultNotebookID, cell.position, cell.kind, cell.source, now, now); err != nil {
+		`, cell.ID, defaultNotebookID, cell.Position, cell.Kind, cell.Source, now, now); err != nil {
 			return nil, err
 		}
 	}
@@ -446,6 +444,74 @@ func (s *Store) DeleteCell(ctx context.Context, cellID string) error {
 	return tx.Commit()
 }
 
+func (s *Store) ClearNotebook(ctx context.Context, notebookID string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM nb_notebooks WHERE notebook_id = ?`, notebookID).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return sql.ErrNoRows
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM nb_link_timeline_snapshots WHERE notebook_id = ?`, notebookID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM nb_cells WHERE notebook_id = ?`, notebookID); err != nil {
+		return err
+	}
+
+	now := time.Now().UnixMilli()
+	for _, cell := range starterCellsForNotebook(notebookID, now) {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO nb_cells(cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms)
+			VALUES(?, ?, ?, ?, ?, ?, ?)
+		`, cell.ID, cell.NotebookID, cell.Position, cell.Kind, cell.Source, cell.CreatedAtMs, cell.UpdatedAtMs); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE nb_notebooks
+		SET updated_at_ms = ?
+		WHERE notebook_id = ?
+	`, now, notebookID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *Store) ClearRuntimeState(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM nb_link_timeline_snapshots`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM nb_runs`); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (s *Store) NextExecutionCount(ctx context.Context, notebookID string, cellID string) (int, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -542,6 +608,45 @@ func normalizeCellKind(kind string) string {
 		return "code"
 	}
 	return kind
+}
+
+func initialDefaultNotebookCells(now int64) []NotebookCell {
+	return []NotebookCell{
+		{
+			ID:          "cell_intro",
+			NotebookID:  defaultNotebookID,
+			Position:    0,
+			Kind:        defaultStarterCells[0].kind,
+			Source:      defaultStarterCells[0].source,
+			CreatedAtMs: now,
+			UpdatedAtMs: now,
+		},
+		{
+			ID:          "cell_query",
+			NotebookID:  defaultNotebookID,
+			Position:    1,
+			Kind:        defaultStarterCells[1].kind,
+			Source:      defaultStarterCells[1].source,
+			CreatedAtMs: now,
+			UpdatedAtMs: now,
+		},
+	}
+}
+
+func starterCellsForNotebook(notebookID string, now int64) []NotebookCell {
+	cells := make([]NotebookCell, 0, len(defaultStarterCells))
+	for index, cell := range defaultStarterCells {
+		cells = append(cells, NotebookCell{
+			ID:          "cell_" + uuid.NewString(),
+			NotebookID:  notebookID,
+			Position:    index,
+			Kind:        cell.kind,
+			Source:      cell.source,
+			CreatedAtMs: now,
+			UpdatedAtMs: now,
+		})
+	}
+	return cells
 }
 
 func nextInsertPosition(ctx context.Context, tx *sql.Tx, notebookID string, afterCellID string) (int, error) {

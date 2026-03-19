@@ -21,8 +21,8 @@ var upgrader = websocket.Upgrader{
 
 // WSHandler handles WebSocket connections for streaming hints.
 type WSHandler struct {
-	DB     *cozo.DB
-	Engine *hints.Engine
+	Engine  *hints.Engine
+	Runtime *cozo.Manager
 }
 
 // HandleWS handles the /ws/hints WebSocket endpoint.
@@ -93,7 +93,7 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 	}
 
 	// Get current schema
-	schema, _ := h.DB.GetSchema()
+	schema, _ := h.Runtime.GetSchema()
 
 	bundleID := uuid.NewString()
 	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
@@ -212,7 +212,7 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		return
 	}
 
-	schema, _ := h.DB.GetSchema()
+	schema, _ := h.Runtime.GetSchema()
 
 	bundleID := uuid.NewString()
 	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{

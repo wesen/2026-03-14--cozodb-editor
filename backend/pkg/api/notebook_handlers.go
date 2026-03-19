@@ -65,6 +65,11 @@ func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
 		s.handleInsertCell(w, r, strings.Trim(notebookID, "/"))
 		return
 	}
+	if strings.HasSuffix(path, "/clear") {
+		notebookID := strings.TrimSuffix(path, "/clear")
+		s.handleClearNotebook(w, r, strings.Trim(notebookID, "/"))
+		return
+	}
 
 	notebookID := path
 	switch r.Method {
@@ -98,6 +103,24 @@ func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Server) handleClearNotebook(w http.ResponseWriter, r *http.Request, notebookID string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	doc, err := s.Notebook.ClearNotebook(r.Context(), notebookID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, doc)
 }
 
 func (s *Server) handleInsertCell(w http.ResponseWriter, r *http.Request, notebookID string) {
@@ -197,6 +220,27 @@ func (s *Server) handleRunCell(w http.ResponseWriter, r *http.Request, cellID st
 		return
 	}
 	writeJSON(w, http.StatusOK, runtime)
+}
+
+func (s *Server) HandleResetKernel(w http.ResponseWriter, r *http.Request) {
+	if s.Notebook == nil {
+		http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	result, err := s.Notebook.ResetKernel(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, ResetKernelResponse{
+		KernelGeneration: result.KernelGeneration,
+		OK:               result.OK,
+	})
 }
 
 func notebookDocOr404(svc *notebook.Service, w http.ResponseWriter, r *http.Request, notebookID string) *notebook.NotebookDocument {

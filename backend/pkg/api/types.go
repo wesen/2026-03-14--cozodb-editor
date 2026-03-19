@@ -91,3 +91,8 @@ type UpdateCellRequest struct {
 type MoveCellRequest struct {
 	TargetIndex int `json:"target_index"`
 }
+
+type ResetKernelResponse struct {
+	KernelGeneration int64 `json:"kernel_generation"`
+	OK               bool  `json:"ok"`
+}

@@ -101,6 +101,11 @@ export interface NotebookMutationResult {
   cell?: NotebookCell;
 }
 
+export interface ResetKernelResponse {
+  kernel_generation: number;
+  ok: true;
+}
+
 export async function bootstrapNotebook() {
   return requestJSON<NotebookDocument>("/api/notebooks/bootstrap");
 }
@@ -124,6 +129,12 @@ export async function insertNotebookCell(notebookId: string, payload: InsertCell
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function clearNotebook(notebookId: string) {
+  return requestJSON<NotebookDocument>(`/api/notebooks/${notebookId}/clear`, {
+    method: "POST",
   });
 }
 
@@ -156,6 +167,12 @@ export async function deleteNotebookCell(cellId: string) {
 
 export async function runNotebookCell(cellId: string) {
   return requestJSON<CellRuntime>(`/api/notebook-cells/${cellId}/run`, {
+    method: "POST",
+  });
+}
+
+export async function resetNotebookKernel() {
+  return requestJSON<ResetKernelResponse>("/api/runtime/reset-kernel", {
     method: "POST",
   });
 }

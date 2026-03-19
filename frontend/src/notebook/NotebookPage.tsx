@@ -6,9 +6,11 @@ import type { NotebookCell } from "../transport/httpClient";
 import { useHintsSocket, type SemEvent } from "../transport/hintsSocket";
 import { NotebookCellCard } from "./NotebookCellCard";
 import {
+  clearCurrentNotebook,
   insertNotebookCellBelow,
   loadNotebook,
   persistNotebookTitle,
+  resetNotebookKernelState,
   runNotebookCellById,
   selectActiveCellId,
   selectActiveCellIndex,
@@ -142,6 +144,20 @@ export default function NotebookPage() {
     if (newCell) {
       dispatch(setActiveCellId(newCell.id));
     }
+  }, [dispatch]);
+
+  const handleClearNotebook = useCallback(async () => {
+    if (!window.confirm("Clear the notebook and restore the starter cells? This removes current cells and outputs.")) {
+      return;
+    }
+    await dispatch(clearCurrentNotebook());
+  }, [dispatch]);
+
+  const handleResetKernel = useCallback(async () => {
+    if (!window.confirm("Reset the kernel and clear runtime outputs? Notebook cells will be preserved.")) {
+      return;
+    }
+    await dispatch(resetNotebookKernelState());
   }, [dispatch]);
 
   const handleNotebookKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
@@ -315,6 +331,12 @@ export default function NotebookPage() {
             </button>
             <button className="mac-btn" onClick={() => { void handleInsertBelow(lastCellId, "markdown"); }}>
               New Markdown Cell
+            </button>
+            <button className="mac-btn" onClick={() => { void handleClearNotebook(); }}>
+              Clear Notebook
+            </button>
+            <button className="mac-btn" onClick={() => { void handleResetKernel(); }}>
+              Reset Kernel
             </button>
           </div>
         </div>

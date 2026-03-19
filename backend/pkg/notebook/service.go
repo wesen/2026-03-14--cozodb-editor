@@ -19,12 +19,12 @@ import (
 type Service struct {
 	store      *Store
 	timeline   chatstore.TimelineStore
-	cozo       *cozo.DB
+	runtime    *cozo.Manager
 	sessionID  string
 	runtimeKey string
 }
 
-func OpenService(appDBPath string, cozoDB *cozo.DB) (*Service, error) {
+func OpenService(appDBPath string, runtime *cozo.Manager) (*Service, error) {
 	store, err := OpenStore(appDBPath)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func OpenService(appDBPath string, cozoDB *cozo.DB) (*Service, error) {
 	return &Service{
 		store:      store,
 		timeline:   timeline,
-		cozo:       cozoDB,
+		runtime:    runtime,
 		sessionID:  "cozodb-editor-notebook",
 		runtimeKey: "cozodb-notebook",
 	}, nil
@@ -131,6 +131,27 @@ func (s *Service) DeleteCell(ctx context.Context, cellID string) (*MutationResul
 	return &MutationResult{Document: doc}, nil
 }
 
+func (s *Service) ClearNotebook(ctx context.Context, notebookID string) (*NotebookDocument, error) {
+	if err := s.store.ClearNotebook(ctx, notebookID); err != nil {
+		return nil, err
+	}
+	return s.GetNotebook(ctx, notebookID)
+}
+
+func (s *Service) ResetKernel(ctx context.Context) (*ResetKernelResult, error) {
+	generation, err := s.runtime.Reset()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.ClearRuntimeState(ctx); err != nil {
+		return nil, err
+	}
+	return &ResetKernelResult{
+		KernelGeneration: generation,
+		OK:               true,
+	}, nil
+}
+
 func (s *Service) RunCell(ctx context.Context, cellID string) (*CellRuntimeState, error) {
 	cell, err := s.store.GetCell(ctx, cellID)
 	if err != nil {
@@ -159,7 +180,7 @@ func (s *Service) RunCell(ctx context.Context, cellID string) (*CellRuntimeState
 		return nil, err
 	}
 
-	result, err := s.cozo.Query(cell.Source, nil)
+	result, err := s.runtime.Query(cell.Source, nil)
 	if err != nil {
 		output := &CellOutput{
 			Kind:    "error_result",

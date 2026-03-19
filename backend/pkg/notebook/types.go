@@ -57,6 +57,11 @@ type MutationResult struct {
 	Cell     *NotebookCell     `json:"cell,omitempty"`
 }
 
+type ResetKernelResult struct {
+	KernelGeneration int64 `json:"kernel_generation"`
+	OK               bool  `json:"ok"`
+}
+
 type TimelineSnapshotLink struct {
 	NotebookID      string `json:"notebook_id"`
 	CellID          string `json:"cell_id,omitempty"`

@@ -1,9 +1,11 @@
 import { createSelector, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
   bootstrapNotebook,
+  clearNotebook,
   deleteNotebookCell,
   insertNotebookCell,
   moveNotebookCell,
+  resetNotebookKernel,
   runNotebookCell,
   updateNotebookCell,
   updateNotebookTitle,
@@ -12,6 +14,7 @@ import {
   type NotebookCell,
   type NotebookDocument,
   type NotebookMutationResult,
+  type ResetKernelResponse,
 } from "../../transport/httpClient";
 import { applySemEvent, createSemProjectionState, type SemProjectionState } from "../../sem/semProjection";
 import type { SemEvent } from "../../transport/hintsSocket";
@@ -32,6 +35,7 @@ export interface NotebookState {
   collapsedThreads: Record<string, boolean>;
   dismissedThreads: Record<string, boolean>;
   error: string | null;
+  kernelGeneration: number;
   localDirtyByCellId: Record<string, true>;
   notebook: Notebook | null;
   orderedCellIds: string[];
@@ -120,16 +124,10 @@ function applyNotebookDocumentToState(
   }
 }
 
-function reorderCellIds(orderedCellIds: string[], cellId: string, targetIndex: number): string[] {
-  const currentIndex = orderedCellIds.indexOf(cellId);
-  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedCellIds.length) {
-    return orderedCellIds;
-  }
-
-  const next = [...orderedCellIds];
-  const [id] = next.splice(currentIndex, 1);
-  next.splice(targetIndex, 0, id!);
-  return next;
+function resetProjectionState(state: NotebookState) {
+  state.collapsedThreads = {};
+  state.dismissedThreads = {};
+  state.semProjection = createSemProjectionState();
 }
 
 export const initialNotebookState: NotebookState = {
@@ -139,6 +137,7 @@ export const initialNotebookState: NotebookState = {
   collapsedThreads: {},
   dismissedThreads: {},
   error: null,
+  kernelGeneration: 1,
   localDirtyByCellId: {},
   notebook: null,
   orderedCellIds: [],
@@ -153,6 +152,19 @@ const notebookSlice = createSlice({
   reducers: {
     dismissThread(state, action: PayloadAction<string>) {
       state.dismissedThreads[action.payload] = true;
+    },
+    kernelResetApplied(state, action: PayloadAction<number>) {
+      state.kernelGeneration = action.payload;
+      state.runtimeByCell = {};
+      resetProjectionState(state);
+      state.error = null;
+    },
+    notebookCleared(state, action: PayloadAction<NotebookDocument>) {
+      applyNotebookDocumentToState(state, action.payload, { clearDirty: true });
+      state.aiPrompts = {};
+      resetProjectionState(state);
+      state.error = null;
+      state.status = "ready";
     },
     mutationResultApplied(state, action: PayloadAction<NotebookMutationResult>) {
       if (action.payload.document) {
@@ -219,6 +231,8 @@ const notebookSlice = createSlice({
 
 export const {
   dismissThread,
+  kernelResetApplied,
+  notebookCleared,
   mutationResultApplied,
   notebookLoadFailed,
   notebookLoadStarted,
@@ -311,6 +325,21 @@ export const insertNotebookCellBelow = (
   return null;
 };
 
+export const clearCurrentNotebook = (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+  const notebookId = getState().notebook.notebook?.id;
+  if (!notebookId) {
+    return;
+  }
+
+  const response = await clearNotebook(notebookId);
+  if ("notebook" in response) {
+    dispatch(notebookCleared(response as NotebookDocument));
+    return;
+  }
+
+  dispatch(setNotebookError(getErrorMessage(response, "Failed to clear notebook")));
+};
+
 export const moveNotebookCellToIndex = (
   cellId: string,
   targetIndex: number,
@@ -370,6 +399,16 @@ export const runNotebookCellById = (cellId: string): AppThunk<Promise<CellRuntim
   return null;
 };
 
+export const resetNotebookKernelState = (): AppThunk<Promise<void>> => async (dispatch) => {
+  const response = await resetNotebookKernel();
+  if ("ok" in response && response.ok === true) {
+    dispatch(kernelResetApplied((response as ResetKernelResponse).kernel_generation));
+    return;
+  }
+
+  dispatch(setNotebookError(getErrorMessage(response, "Failed to reset kernel")));
+};
+
 const selectNotebookState = (state: RootState) => state.notebook;
 const selectCellIdParam = (_state: RootState, cellId: string) => cellId;
 
@@ -408,6 +447,11 @@ export const selectOrderedNotebookCells = createSelector(
 export const selectNotebookRuntimeByCell = createSelector(
   [selectNotebookState],
   (notebook) => notebook.runtimeByCell,
+);
+
+export const selectKernelGeneration = createSelector(
+  [selectNotebookState],
+  (notebook) => notebook.kernelGeneration,
 );
 
 export const selectNotebookDocument = createSelector(
@@ -508,9 +552,4 @@ export const selectTargetCellIdByOffset = createSelector(
     const nextIndex = Math.min(orderedCellIds.length - 1, Math.max(0, safeIndex + offset));
     return orderedCellIds[nextIndex] || null;
   },
-);
-
-export const selectReorderedCellIds = createSelector(
-  [selectOrderedCellIds, selectCellIdParam, (_state: RootState, _cellId: string, targetIndex: number) => targetIndex],
-  reorderCellIds,
 );

@@ -12,7 +12,7 @@ import (
 
 // Server holds the HTTP API handlers.
 type Server struct {
-	DB       *cozo.DB
+	Runtime  *cozo.Manager
 	Notebook *notebook.Service
 }
 
@@ -42,7 +42,12 @@ func (s *Server) HandleQuery(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[API] query: %s", truncate(req.Script, 120))
 
-	result, err := s.DB.Query(req.Script, req.Params)
+	if s.Runtime == nil {
+		http.Error(w, "runtime unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	result, err := s.Runtime.Query(req.Script, req.Params)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, QueryResponse{
 			OK:      false,
@@ -69,7 +74,12 @@ func (s *Server) HandleSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	names, err := s.DB.ListRelations()
+	if s.Runtime == nil {
+		http.Error(w, "runtime unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	names, err := s.Runtime.ListRelations()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -92,7 +102,12 @@ func (s *Server) HandleSchemaDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info, err := s.DB.DescribeRelation(name)
+	if s.Runtime == nil {
+		http.Error(w, "runtime unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	info, err := s.Runtime.DescribeRelation(name)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return

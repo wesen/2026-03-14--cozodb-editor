@@ -2,25 +2,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeStore } from "../../app/store";
 import {
   bootstrapNotebook,
+  clearNotebook,
   insertNotebookCell,
+  resetNotebookKernel,
   runNotebookCell,
   updateNotebookCell,
   type CellRuntime,
   type NotebookDocument,
 } from "../../transport/httpClient";
 import {
+  clearCurrentNotebook,
   insertNotebookCellBelow,
   loadNotebook,
+  resetNotebookKernelState,
   runNotebookCellById,
+  runtimeUpdated,
+  semEventProjected,
   selectNotebookDocument,
+  selectNotebookRuntimeByCell,
+  selectSemProjection,
   setCellSource,
 } from "./notebookSlice";
 
 vi.mock("../../transport/httpClient", () => ({
   bootstrapNotebook: vi.fn(),
+  clearNotebook: vi.fn(),
   deleteNotebookCell: vi.fn(),
   insertNotebookCell: vi.fn(),
   moveNotebookCell: vi.fn(),
+  resetNotebookKernel: vi.fn(),
   runNotebookCell: vi.fn(),
   updateNotebookCell: vi.fn(),
   updateNotebookTitle: vi.fn(),
@@ -51,6 +61,8 @@ describe("notebookSlice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(bootstrapNotebook).mockResolvedValue(structuredClone(baseDocument));
+    vi.mocked(clearNotebook).mockResolvedValue(structuredClone(baseDocument));
+    vi.mocked(resetNotebookKernel).mockResolvedValue({ ok: true, kernel_generation: 2 });
   });
 
   it("loads notebook state into normalized selectors", async () => {
@@ -132,5 +144,76 @@ describe("notebookSlice", () => {
     expect(inserted?.id).toBe("cell_2");
     expect(selectNotebookDocument(store.getState())?.cells.map((cell) => cell.id)).toEqual(["cell_1", "cell_2"]);
     expect(selectNotebookDocument(store.getState())?.cells[0]?.source).toBe("?[x] := [[42]]");
+  });
+
+  it("clears notebook cells back to the server starter document", async () => {
+    const store = makeStore();
+    const clearedDocument: NotebookDocument = {
+      notebook: structuredClone(baseDocument.notebook),
+      cells: [
+        {
+          id: "cell_intro",
+          notebook_id: "nb_1",
+          kind: "markdown",
+          source: "## Cozo Notebook",
+          position: 0,
+          created_at_ms: 2000,
+          updated_at_ms: 2000,
+        },
+        {
+          id: "cell_query",
+          notebook_id: "nb_1",
+          kind: "code",
+          source: "?[x] <- [[1], [2], [3]]",
+          position: 1,
+          created_at_ms: 2000,
+          updated_at_ms: 2000,
+        },
+      ],
+      runtime: {},
+    };
+
+    vi.mocked(clearNotebook).mockResolvedValue(clearedDocument);
+
+    await store.dispatch(loadNotebook());
+    store.dispatch(setCellSource({ cellId: "cell_1", source: "?[x] := [[999]]" }));
+
+    await store.dispatch(clearCurrentNotebook());
+
+    expect(selectNotebookDocument(store.getState())?.cells.map((cell) => cell.id)).toEqual(["cell_intro", "cell_query"]);
+    expect(selectNotebookDocument(store.getState())?.cells[1]?.source).toBe("?[x] <- [[1], [2], [3]]");
+  });
+
+  it("clears runtime and sem state on kernel reset while preserving cells", async () => {
+    const store = makeStore();
+
+    await store.dispatch(loadNotebook());
+    store.dispatch(runtimeUpdated({
+      cellId: "cell_1",
+      runtime: {
+        run: {
+          id: "run_1",
+          cell_id: "cell_1",
+          notebook_id: "nb_1",
+          status: "complete",
+          execution_count: 1,
+        },
+      },
+    }));
+    store.dispatch(semEventProjected({
+      type: "hint.result",
+      id: "hint-1",
+      data: {
+        notebookId: "nb_1",
+        ownerCellId: "cell_1",
+        text: "Try a join here.",
+      },
+    }));
+
+    await store.dispatch(resetNotebookKernelState());
+
+    expect(selectNotebookDocument(store.getState())?.cells.map((cell) => cell.id)).toEqual(["cell_1"]);
+    expect(selectNotebookRuntimeByCell(store.getState())).toEqual({});
+    expect(selectSemProjection(store.getState()).order).toEqual([]);
   });
 });
