@@ -396,6 +396,7 @@ export default function DatalogPad() {
               <HintResponseCard
                 response={mockAiBlocks[`mock-${idx}`]}
                 collapsed={!!collapsedBlocks[idx]}
+                onAddToNotebook={() => {}}
                 onToggleCollapse={() => toggleCollapse(idx)}
                 onChipClick={handleChipClick}
                 onInsert={handleInsert}

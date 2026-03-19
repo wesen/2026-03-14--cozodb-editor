@@ -1,13 +1,15 @@
+import { buildQuerySuggestionMarkdownNote } from "../../../notebook/aiNoteMarkdown";
 import type { SemEntity } from "../../../sem/semProjection";
 import type { QuerySuggestionViewModel } from "../view-models/toQuerySuggestionViewModel";
 
 interface Props {
+  onAddToNotebook?: (markdown: string) => void;
   entity: SemEntity;
   onInsertCode?: (code: string) => void;
   viewModel: QuerySuggestionViewModel;
 }
 
-export function QuerySuggestionCard({ entity, onInsertCode, viewModel }: Props) {
+export function QuerySuggestionCard({ entity, onAddToNotebook, onInsertCode, viewModel }: Props) {
   const isErrored = entity?.status === "error";
 
   return (
@@ -37,9 +39,21 @@ export function QuerySuggestionCard({ entity, onInsertCode, viewModel }: Props) 
               {viewModel.code}
             </div>
           </div>
-          <button className="mac-btn" onClick={() => onInsertCode?.(viewModel.code)}>
-            Insert suggestion
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="mac-btn" onClick={() => onInsertCode?.(viewModel.code)}>
+              Insert suggestion
+            </button>
+            <button
+              className="mac-btn"
+              onClick={() => onAddToNotebook?.(buildQuerySuggestionMarkdownNote({
+                code: viewModel.code,
+                label: viewModel.label,
+                reason: viewModel.reason,
+              }))}
+            >
+              Add to notebook
+            </button>
+          </div>
         </>
       )}
     </div>

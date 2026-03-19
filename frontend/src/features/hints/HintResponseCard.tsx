@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import { buildHintMarkdownNote } from "../../notebook/aiNoteMarkdown";
 import { DocPreviewChip } from "./DocPreviewChip";
 import { toHintCardViewModel } from "./hintViewModel";
 
@@ -10,6 +11,7 @@ interface HintResponse {
 }
 
 interface Props {
+  onAddToNotebook: (markdown: string) => void;
   collapsed: boolean;
   onChipClick: (chip: string) => void;
   onInsert: (code: string) => void;
@@ -29,7 +31,7 @@ function formatHintText(text: string): ReactNode[] {
   });
 }
 
-export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCollapse, response }: Props) {
+export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onInsert, onToggleCollapse, response }: Props) {
   const [openDocs, setOpenDocs] = useState<Record<number, boolean>>({});
   const [copied, setCopied] = useState(false);
   const viewModel = toHintCardViewModel(response);
@@ -160,9 +162,21 @@ export function HintResponseCard({ collapsed, onChipClick, onInsert, onToggleCol
       )}
 
       {viewModel.code && (
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="mac-btn" onClick={() => onInsert(viewModel.code)}>
             Insert code
+          </button>
+          <button
+            className="mac-btn"
+            onClick={() => onAddToNotebook(buildHintMarkdownNote({
+              chips: viewModel.chips,
+              code: viewModel.code,
+              docs: viewModel.docs,
+              heading: "AI Assistant Suggestion",
+              text: viewModel.text,
+            }))}
+          >
+            Add to notebook
           </button>
         </div>
       )}

@@ -168,6 +168,11 @@ export function NotebookCellCard({
     }
   }
 
+  async function handleApplyFixToCurrentCell(source: string) {
+    dispatch(setCellSource({ cellId: resolvedCell.id, source }));
+    await dispatch(persistNotebookCell(resolvedCell.id));
+  }
+
   async function handleInsertBelow(kind: "code" | "markdown", source = "") {
     const newCell = await dispatch(insertNotebookCellBelow(resolvedCell.id, kind, source));
     if (newCell) {
@@ -293,7 +298,8 @@ export function NotebookCellCard({
                         text: typeof diagnosisResponse.text === "string" ? diagnosisResponse.text : "See the suggested fix.",
                         code: typeof diagnosisResponse.code === "string" ? diagnosisResponse.code : undefined,
                       }}
-                      onApplyFix={typeof diagnosisResponse.code === "string" ? () => { void handleInsertBelow("code", diagnosisResponse.code as string); } : undefined}
+                      onAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
+                      onApplyFix={typeof diagnosisResponse.code === "string" ? () => { void handleApplyFixToCurrentCell(diagnosisResponse.code as string); } : undefined}
                     />
                   ) : (
                     <CellErrorCard output={runtime.output} onDiagnose={() => onDiagnose(resolvedCell.id)} />
@@ -309,6 +315,7 @@ export function NotebookCellCard({
                 {!diagnosisEntity && threads.length === 0 && fallbackHint ? (
                   <div style={{ marginTop: 8 }}>
                     <HintResponseCard
+                      onAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
                       collapsed={Boolean(collapsedThreads[`hint:${resolvedCell.id}`])}
                       onChipClick={(chip) => {
                         dispatch(setAIPrompt({ cellId: resolvedCell.id, value: chip }));
@@ -324,6 +331,7 @@ export function NotebookCellCard({
                 {threads.map((thread) => (
                   <div key={thread.id} style={{ marginTop: 8 }}>
                     <CozoSemRenderer
+                      onAddToNotebook={(markdown: string) => { void handleInsertBelow("markdown", markdown); }}
                       collapsed={Boolean(collapsedThreads[thread.id])}
                       onAskQuestion={(question: string) => {
                         dispatch(setAIPrompt({ cellId: resolvedCell.id, value: question }));

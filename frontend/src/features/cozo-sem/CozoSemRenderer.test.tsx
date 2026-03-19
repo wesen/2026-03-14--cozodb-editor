@@ -10,6 +10,7 @@ afterEach(() => {
 describe("CozoSemRenderer", () => {
   it("renders a foldable thread with a hint and child widgets", () => {
     const onInsertCode = vi.fn();
+    const onAddToNotebook = vi.fn();
 
     render(
       <CozoSemRenderer
@@ -43,6 +44,7 @@ describe("CozoSemRenderer", () => {
           ],
         } as unknown as SemThread}
         onDismiss={vi.fn()}
+        onAddToNotebook={onAddToNotebook}
         onAskQuestion={vi.fn()}
         onInsertCode={onInsertCode}
         onToggleCollapse={vi.fn()}
@@ -52,6 +54,7 @@ describe("CozoSemRenderer", () => {
     expect(screen.getByText(/SEM THREAD/)).toBeTruthy();
     expect(screen.getByText(/Use an inline rule/)).toBeTruthy();
     expect(screen.getByText(/Insert code/)).toBeTruthy();
+    expect(screen.getAllByText(/Add to notebook/).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/Filter to age > 30/)).toBeTruthy();
     expect(screen.getByText(/Insert suggestion/)).toBeTruthy();
     expect(screen.getByText(/Inline rules/)).toBeTruthy();
@@ -76,6 +79,7 @@ describe("CozoSemRenderer", () => {
         } as unknown as SemThread}
         collapsed
         onDismiss={vi.fn()}
+        onAddToNotebook={vi.fn()}
         onAskQuestion={vi.fn()}
         onInsertCode={vi.fn()}
         onToggleCollapse={vi.fn()}
@@ -110,6 +114,7 @@ describe("CozoSemRenderer", () => {
         } as unknown as SemThread}
         collapsed
         onDismiss={vi.fn()}
+        onAddToNotebook={vi.fn()}
         onAskQuestion={vi.fn()}
         onInsertCode={vi.fn()}
         onToggleCollapse={vi.fn()}

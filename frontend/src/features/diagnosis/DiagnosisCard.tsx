@@ -1,3 +1,5 @@
+import { buildDiagnosisMarkdownNote } from "../../notebook/aiNoteMarkdown";
+
 interface DiagnosisFix {
   text: string;
   code?: string;
@@ -7,11 +9,12 @@ interface Props {
   diagnosing: boolean;
   error: string;
   fix: DiagnosisFix | null;
+  onAddToNotebook?: (markdown: string) => void;
   onApplyFix?: () => void;
   onDiagnose?: () => void;
 }
 
-export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }: Props) {
+export function DiagnosisCard({ diagnosing, error, fix, onAddToNotebook, onApplyFix, onDiagnose }: Props) {
   return (
     <div className="cozo-diagnosis-card">
       <div style={{
@@ -57,11 +60,23 @@ export function DiagnosisCard({ diagnosing, error, fix, onApplyFix, onDiagnose }
               {fix.code}
             </div>
           )}
-          {fix.code && (
-            <button className="mac-btn" onClick={onApplyFix}>
-              Apply fix
-            </button>
-          )}
+          {fix.code ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="mac-btn" onClick={onApplyFix}>
+                Apply fix
+              </button>
+              <button
+                className="mac-btn"
+                onClick={() => onAddToNotebook?.(buildDiagnosisMarkdownNote({
+                  error,
+                  fixCode: fix.code,
+                  fixText: fix.text,
+                }))}
+              >
+                Add to notebook
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : onDiagnose ? (
         <div style={{

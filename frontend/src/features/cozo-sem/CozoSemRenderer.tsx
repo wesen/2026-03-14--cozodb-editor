@@ -12,7 +12,12 @@ import { toDocRefViewModel } from "./view-models/toDocRefViewModel";
 import { toHintViewModel } from "./view-models/toHintViewModel";
 import { toQuerySuggestionViewModel } from "./view-models/toQuerySuggestionViewModel";
 
-function renderEntity(entity: SemEntity, onAskQuestion?: (q: string) => void, onInsertCode?: (code: string) => void): ReactNode {
+function renderEntity(
+  entity: SemEntity,
+  onAskQuestion?: (q: string) => void,
+  onInsertCode?: (code: string) => void,
+  onAddToNotebook?: (markdown: string) => void,
+): ReactNode {
   if (!entity) {
     return null;
   }
@@ -22,6 +27,7 @@ function renderEntity(entity: SemEntity, onAskQuestion?: (q: string) => void, on
       return (
         <HintCard
           entity={entity}
+          onAddToNotebook={onAddToNotebook}
           onAskQuestion={onAskQuestion}
           onInsertCode={onInsertCode}
           viewModel={toHintViewModel(entity)}
@@ -31,6 +37,7 @@ function renderEntity(entity: SemEntity, onAskQuestion?: (q: string) => void, on
       return (
         <QuerySuggestionCard
           entity={entity}
+          onAddToNotebook={onAddToNotebook}
           onInsertCode={onInsertCode}
           viewModel={toQuerySuggestionViewModel(entity)}
         />
@@ -59,6 +66,7 @@ function summarizeThread(thread: SemThread): string {
 }
 
 interface Props {
+  onAddToNotebook?: (markdown: string) => void;
   collapsed?: boolean;
   onAskQuestion?: (question: string) => void;
   onDismiss: () => void;
@@ -68,6 +76,7 @@ interface Props {
 }
 
 export function CozoSemRenderer({
+  onAddToNotebook,
   onAskQuestion,
   onDismiss,
   onInsertCode,
@@ -152,13 +161,13 @@ export function CozoSemRenderer({
 
       {collapsed ? null : (
         <div style={{ display: "grid", gap: 12 }}>
-          {thread.hint ? renderEntity(thread.hint, onAskQuestion, onInsertCode) : null}
+          {thread.hint ? renderEntity(thread.hint, onAskQuestion, onInsertCode, onAddToNotebook) : null}
 
           {hasChildren ? (
             <div style={{ display: "grid", gap: 12 }}>
               {thread.children.map((entity) => (
                 <div key={entity.id} style={{ marginLeft: thread.hint ? 16 : 0 }}>
-                  {renderEntity(entity, onAskQuestion, onInsertCode)}
+                  {renderEntity(entity, onAskQuestion, onInsertCode, onAddToNotebook)}
                 </div>
               ))}
             </div>

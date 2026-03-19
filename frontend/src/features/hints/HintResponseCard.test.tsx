@@ -7,6 +7,7 @@ describe("HintResponseCard", () => {
     render(
       <HintResponseCard
         collapsed={false}
+        onAddToNotebook={vi.fn()}
         onChipClick={vi.fn()}
         onInsert={vi.fn()}
         onToggleCollapse={vi.fn()}
@@ -22,6 +23,7 @@ describe("HintResponseCard", () => {
     expect(screen.getByText(/Use/)).toBeTruthy();
     expect(screen.getByText("insert data")).toBeTruthy();
     expect(screen.getByText(/Insert code/)).toBeTruthy();
+    expect(screen.getByText(/Add to notebook/)).toBeTruthy();
     expect(screen.getByText(/copy/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /create/i })).toBeTruthy();
   });

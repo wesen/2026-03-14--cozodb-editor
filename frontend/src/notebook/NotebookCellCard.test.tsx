@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { Provider } from "react-redux";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeStore } from "../app/store";
-import { runNotebookCell } from "../transport/httpClient";
+import { insertNotebookCell, runNotebookCell, updateNotebookCell, type NotebookDocument } from "../transport/httpClient";
 import { NotebookCellCard } from "./NotebookCellCard";
-import { notebookLoaded, setActiveCellId } from "./state/notebookSlice";
+import { notebookLoaded, runtimeUpdated, semEventProjected, setActiveCellId } from "./state/notebookSlice";
 
 vi.mock("../transport/httpClient", () => ({
   bootstrapNotebook: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("../transport/httpClient", () => ({
   updateNotebookTitle: vi.fn(),
 }));
 
-const baseDocument = {
+const baseDocument: NotebookDocument = {
   notebook: {
     id: "nb_1",
     title: "Notebook",
@@ -59,6 +59,7 @@ function renderCellCard() {
 
   return {
     editor: screen.getByRole("textbox"),
+    store,
     onRunAndInsertBelow,
   };
 }
@@ -105,5 +106,46 @@ describe("NotebookCellCard", () => {
       expect(runNotebookCell).toHaveBeenCalledWith("cell_1");
     });
     expect(onRunAndInsertBelow).not.toHaveBeenCalled();
+  });
+
+  it("applies AI fixes by replacing the current cell source", async () => {
+    const persistedCell = {
+      ...baseDocument.cells[0]!,
+      source: "?[x] := [[42]]",
+      updated_at_ms: 2000,
+    };
+    vi.mocked(updateNotebookCell).mockResolvedValue(persistedCell);
+
+    const { store } = renderCellCard();
+
+    store.dispatch(runtimeUpdated({
+      cellId: "cell_1",
+      runtime: {
+        output: {
+          kind: "error_result",
+          message: "boom",
+          display: "boom",
+        },
+      },
+    }));
+    store.dispatch(semEventProjected({
+      type: "hint.result",
+      id: "diag-1",
+      data: {
+        ownerCellId: "cell_1",
+        text: "Use a constant relation instead.",
+        code: "?[x] := [[42]]",
+      },
+    }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /Apply fix/i }));
+
+    await waitFor(() => {
+      expect(updateNotebookCell).toHaveBeenCalledWith("cell_1", {
+        kind: "code",
+        source: "?[x] := [[42]]",
+      });
+    });
+    expect(insertNotebookCell).not.toHaveBeenCalled();
   });
 });

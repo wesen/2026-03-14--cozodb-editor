@@ -1,14 +1,16 @@
+import { buildHintMarkdownNote } from "../../../notebook/aiNoteMarkdown";
 import type { SemEntity } from "../../../sem/semProjection";
 import type { HintViewModel } from "../view-models/toHintViewModel";
 
 interface Props {
+  onAddToNotebook?: (markdown: string) => void;
   entity: SemEntity;
   onAskQuestion?: (question: string) => void;
   onInsertCode?: (code: string) => void;
   viewModel: HintViewModel;
 }
 
-export function HintCard({ entity, onAskQuestion, onInsertCode, viewModel }: Props) {
+export function HintCard({ entity, onAddToNotebook, onAskQuestion, onInsertCode, viewModel }: Props) {
   const tone = entity?.status === "preview" ? "rgba(198, 176, 52, 0.2)" : "var(--accent-dim)";
   const isErrored = entity?.status === "error";
 
@@ -69,9 +71,20 @@ export function HintCard({ entity, onAskQuestion, onInsertCode, viewModel }: Pro
           ) : null}
 
           {viewModel.code ? (
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button className="mac-btn" onClick={() => onInsertCode?.(viewModel.code)}>
                 Insert code
+              </button>
+              <button
+                className="mac-btn"
+                onClick={() => onAddToNotebook?.(buildHintMarkdownNote({
+                  chips: viewModel.chips,
+                  code: viewModel.code,
+                  heading: "SEM Hint",
+                  text: viewModel.text,
+                }))}
+              >
+                Add to notebook
               </button>
             </div>
           ) : null}
