@@ -198,6 +198,22 @@ export function useNotebookDocument(): UseNotebookDocumentResult {
   }
 
   async function runCellAction(cellId: string): Promise<CellRuntime | null> {
+    const cell = document?.cells.find((item) => item.id === cellId) || null;
+    if (!cell) {
+      setError("Cell not found");
+      return null;
+    }
+
+    if (localDirtyCellIds.has(cellId)) {
+      const persisted = await persistCell(cellId, {
+        kind: cell.kind,
+        source: cell.source,
+      });
+      if (!persisted) {
+        return null;
+      }
+    }
+
     const response = await runNotebookCell(cellId);
     if ("run" in response) {
       const runtime = response as CellRuntime;

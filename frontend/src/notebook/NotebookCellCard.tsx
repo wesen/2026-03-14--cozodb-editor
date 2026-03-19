@@ -63,6 +63,7 @@ export interface NotebookCellCardProps {
   onMoveUp: (cellId: string, targetIndex: number) => void;
   onPersistSource: (cell: NotebookCell) => void;
   onRun: (cellId: string) => void;
+  onRunAndInsertBelow: (cellId: string) => void;
   onSetAIPrompt: (cellId: string, value: string) => void;
   onToggleThreadCollapse: (threadId: string) => void;
   executionState?: NotebookExecutionState;
@@ -90,6 +91,7 @@ export function NotebookCellCard({
   onMoveUp,
   onPersistSource,
   onRun,
+  onRunAndInsertBelow,
   onSetAIPrompt,
   aiPrompt,
   onDismissThread,
@@ -128,10 +130,24 @@ export function NotebookCellCard({
     }
   }, [editing, isActive]);
 
+  useEffect(() => {
+    if (!editorRef.current) {
+      return;
+    }
+    editorRef.current.style.height = "0px";
+    editorRef.current.style.height = `${editorRef.current.scrollHeight}px`;
+  }, [cell.source, editing]);
+
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && (event.altKey || event.ctrlKey) && isCode) {
+      event.preventDefault();
+      onRunAndInsertBelow(cell.id);
+      return;
+    }
     if (event.key === "Enter" && event.shiftKey && isCode) {
       event.preventDefault();
       onRun(cell.id);
+      return;
     }
     if (event.key === "Escape" && isMarkdown) {
       event.preventDefault();
@@ -214,8 +230,8 @@ export function NotebookCellCard({
             onKeyDown={handleKeyDown}
             onFocus={() => onFocus(cellIndex)}
             spellCheck={false}
-            rows={cell.kind === "markdown" ? 4 : 5}
-            placeholder={isCode ? "-- Enter Datalog query... (Shift+Enter to run)" : "Enter markdown... (Esc to preview)"}
+            rows={1}
+            placeholder={isCode ? "-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)" : "Enter markdown... (Esc to preview)"}
           />
         )}
 

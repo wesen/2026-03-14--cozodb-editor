@@ -99,7 +99,9 @@
 
 .mac-cell-editor {
   width: 100%;
-  resize: vertical;
+  resize: none;
+  overflow-y: hidden;
+  min-height: calc(1.5em + 16px);
   border: 1px solid #000;
   background: var(--bg-field);
   color: var(--text-primary);

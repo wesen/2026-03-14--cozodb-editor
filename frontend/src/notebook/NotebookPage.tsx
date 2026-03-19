@@ -68,6 +68,14 @@ export default function NotebookPage() {
     }
   }
 
+  async function handleRunAndInsertBelow(cellId: string) {
+    const runtime = await runCell(cellId);
+    if (runtime) {
+      setCellRuntime((current) => ({ ...current, [cellId]: runtime }));
+    }
+    await handleInsertCodeBelow(cellId);
+  }
+
   // Keyboard navigation at notebook level
   const handleNotebookKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
     if (!document) return;
@@ -84,12 +92,12 @@ export default function NotebookPage() {
       return;
     }
 
-    // Ctrl+Enter in editor: run and advance
-    if (event.ctrlKey && event.key === "Enter" && isInInput) {
+    // Alt/Ctrl+Enter in editor: run and insert a new code cell below
+    if ((event.altKey || event.ctrlKey) && event.key === "Enter" && isInInput) {
       event.preventDefault();
       const activeCell = document.cells[activeCellIndex];
       if (activeCell?.kind === "code") {
-        handleRunAndAdvance(activeCell.id);
+        handleRunAndInsertBelow(activeCell.id);
       }
       return;
     }
@@ -110,6 +118,12 @@ export default function NotebookPage() {
       const activeCell = document.cells[activeCellIndex];
       if (activeCell?.kind === "code") {
         handleRunAndAdvance(activeCell.id);
+      }
+    } else if (event.key === "Enter" && (event.altKey || event.ctrlKey)) {
+      event.preventDefault();
+      const activeCell = document.cells[activeCellIndex];
+      if (activeCell?.kind === "code") {
+        handleRunAndInsertBelow(activeCell.id);
       }
     } else if (event.key === "Enter") {
       // Enter: focus editor of active cell
@@ -257,7 +271,7 @@ export default function NotebookPage() {
         <span className="mac-menubar__item">Cell</span>
         <span className="mac-menubar__item">Runtime</span>
         <span className="mac-menubar__spacer" />
-        <span className="mac-menubar__hint">j/k nav | Enter edit | Shift+Enter run+advance | a +code | m +md | x delete</span>
+        <span className="mac-menubar__hint">j/k nav | Enter edit | Shift+Enter run+advance | Alt/Ctrl+Enter run+new | a +code | m +md | x delete</span>
         <span className={`mac-menubar__status ${ws.connected ? "is-connected" : ""}`}>
           {ws.connected ? "Connected" : "Offline"}
         </span>
@@ -308,6 +322,7 @@ export default function NotebookPage() {
               onMoveUp={moveCell}
               onPersistSource={handlePersistSource}
               onRun={handleRunCell}
+              onRunAndInsertBelow={handleRunAndInsertBelow}
               onSetAIPrompt={setAIPrompt}
               onToggleThreadCollapse={(threadId: string) => setCollapsedThreads((current) => ({ ...current, [threadId]: !current[threadId] }))}
               executionState={executionStateByCell[cell.id]}
