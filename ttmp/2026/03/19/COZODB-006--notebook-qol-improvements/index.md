@@ -20,15 +20,16 @@ WhenToUse: "Use when reviewing or extending notebook quality-of-life behavior in
 
 ## Overview
 
-This ticket tracks a small but user-visible notebook polish slice. The implemented changes restore save-before-run behavior for dirty cells, add `Alt+Enter` / `Ctrl+Enter` as run-and-insert shortcuts, and make notebook editors start compact and auto-grow with content.
+This ticket now tracks two layers of notebook work. The first completed layer restored save-before-run behavior for dirty cells, added `Alt+Enter` / `Ctrl+Enter` as run-and-insert shortcuts, and made notebook editors start compact and auto-grow with content.
 
-The code is recorded in commit `96fcedef6046242e709460cbcf3479960c8dc9e8` (`feat(notebook): improve run shortcuts and editor sizing`). The implementation diary lives under `reference/01-diary.md`.
+The second layer is the design and implementation planning work for the next refactor: fix insertion-position integrity, add `clear notebook` and `reset kernel`, and move notebook orchestration into a Redux Toolkit slice. The code is recorded in commit `96fcedef6046242e709460cbcf3479960c8dc9e8` (`feat(notebook): improve run shortcuts and editor sizing`). The implementation diary lives under `reference/01-diary.md`, and the detailed intern guide lives under `design-doc/01-notebook-state-refactor-and-qol-implementation-guide.md`.
 
 ## Key Links
 
 - **Related Files**: See frontmatter RelatedFiles field
 - **External Sources**: See frontmatter ExternalSources field
 - **Diary**: [reference/01-diary.md](./reference/01-diary.md)
+- **Design Doc**: [design-doc/01-notebook-state-refactor-and-qol-implementation-guide.md](./design-doc/01-notebook-state-refactor-and-qol-implementation-guide.md)
 
 ## Status
 

@@ -226,3 +226,87 @@ I then wrote this diary, related the changed notebook files to it, and prepared 
 - Ticket path: `/home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/19/COZODB-006--notebook-qol-improvements`
 - Diary path: `/home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/19/COZODB-006--notebook-qol-improvements/reference/01-diary.md`
 
+## Step 4: Write the implementation guide before building the next slice
+
+The next user request changed the order of operations. Instead of implementing the next notebook features immediately, I first stopped to map the current system and write a detailed intern-facing design and implementation guide for the upcoming refactor.
+
+That guide focuses on three concrete requirements: fix the insert-suggestion unique-index failure, add `clear notebook` and `reset kernel`, and move notebook orchestration into a Redux slice. I anchored the recommendations to current frontend and backend files so the document could serve as an implementation plan rather than a brainstorming note.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I get UNIQUE constraint failed: nb_cells.notebook_id, nb_cells.position (i think) when I press insert suggestion.
+
+Also, add a clear notebook and reset kernel functionality. 
+
+
+Actually, at this point I think the notebook state should be modelled in a redux slice, things are starting to get messy here. 
+
+Before building, add an iplementation guide / analysis do the ticket.
+
+Create a detailed analysis / design / implementation guide that is very detailed for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file
+  references.
+  It should be very clear and detailed. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Pause implementation and first produce a very detailed, evidence-backed design and implementation guide in the current ticket, covering the insert bug, clear/reset actions, and a Redux-based state refactor, then upload that documentation to reMarkable.
+
+**Inferred user intent:** Reduce implementation risk by documenting the system thoroughly before another round of notebook changes, and make the result usable as onboarding material for a new intern.
+
+**Commit (code):** N/A
+
+### What I did
+- Created a new design doc at `ttmp/2026/03/19/COZODB-006--notebook-qol-improvements/design-doc/01-notebook-state-refactor-and-qol-implementation-guide.md`.
+- Inspected the notebook store, notebook service, API handlers, notebook hook/page/card, transport, websocket projection, and package manifest for evidence-backed claims.
+- Wrote a detailed guide covering:
+  - current architecture,
+  - root-cause analysis of the unique-position failure,
+  - frontend state-shape problems,
+  - proposed Redux Toolkit state model,
+  - proposed clear notebook and reset kernel APIs,
+  - phased implementation plan,
+  - testing strategy and risks.
+- Updated the ticket index and tasks to point at the new design doc and the next implementation step.
+- Validated ticket docs with `docmgr validate frontmatter` and `docmgr doctor`.
+- Uploaded a bundled ticket PDF to reMarkable at `/ai/2026/03/19/COZODB-006`.
+
+### Why
+- The next requested feature set spans frontend state, backend mutation semantics, and runtime lifecycle. It is large enough that building first and explaining later would be wasteful and error-prone.
+- The insert failure exposed a deeper mismatch between backend ordering semantics and frontend local state assumptions, so the best next artifact is a system-level guide.
+
+### What worked
+- The current codebase already has enough modular separation to describe a clean target architecture.
+- The guide could be anchored directly to current files instead of relying on memory or speculation.
+- `remarquee upload bundle --dry-run ...` and the real upload both succeeded, and `remarquee cloud ls /ai/2026/03/19/COZODB-006 --long --non-interactive` confirmed the uploaded document.
+
+### What didn't work
+- `rg -n "configureStore|createSlice|redux|@reduxjs/toolkit|react-redux" frontend src backend -S`
+  returned `rg: src: No such file or directory (os error 2)` because I passed `src` as a repo-root path even though the repo uses `frontend/src`.
+- `docmgr validate frontmatter --doc ttmp/2026/03/19/COZODB-006--notebook-qol-improvements/reference/01-diary.md --suggest-fixes`
+  failed with `open .../ttmp/ttmp/...: no such file or directory` because `docmgr validate frontmatter` resolves document paths relative to the docs root, so the extra `ttmp/` prefix was wrong.
+- `remarquee cloud ls /ai/2026/03/19/COZODB-006 --long --non-interactive`
+  initially returned `Error: no matches for 'COZODB-006'` because I ran the listing before the upload process had finished creating the remote folder.
+
+### What I learned
+- The insert-suggestion failure is only one half of the problem. The backend position rewrite can violate the unique index, and the frontend can still drift locally because it only appends the new cell instead of replacing the server-authoritative order.
+- The next refactor should use Redux Toolkit slices and thunks, not RTK Query, because the core problem is orchestration rather than HTTP caching.
+
+### What was tricky to build
+- The tricky part was keeping the guide concrete instead of vague. The underlying cause is that the requested work crosses many layers: SQLite invariants, notebook hook state, page-level keyboard and focus orchestration, websocket-owned SEM state, and process-owned Cozo runtime state. The visible symptom is a unique-index error on insert suggestion, but the real implementation challenge is that the notebook state model has no single source of truth. I handled that by tracing each relevant path from UI event to backend mutation and then designing the target architecture around those real boundaries.
+
+### What warrants a second pair of eyes
+- The proposed `reset kernel` design introduces a runtime manager seam in the backend. That is the right long-term move, but it should be reviewed carefully because it affects both HTTP handlers and websocket-driven AI flows.
+
+### What should be done in the future
+- Implement the plan in the guide in phased order rather than cherry-picking isolated parts of it.
+
+### Code review instructions
+- Start with `/home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/19/COZODB-006--notebook-qol-improvements/design-doc/01-notebook-state-refactor-and-qol-implementation-guide.md`.
+- Then read `/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/store.go` and `/home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/useNotebookDocument.ts` against the guide.
+- Validate the ticket docs with `docmgr doctor --ticket COZODB-006 --stale-after 30`.
+
+### Technical details
+- New design doc path: `/home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/19/COZODB-006--notebook-qol-improvements/design-doc/01-notebook-state-refactor-and-qol-implementation-guide.md`
+- Ticket updated files:
+  - `index.md`
+  - `tasks.md`
+  - `reference/01-diary.md`
+- reMarkable upload path: `/ai/2026/03/19/COZODB-006/COZODB-006 Notebook Refactor Guide`
