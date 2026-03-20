@@ -41,7 +41,7 @@ func NewEngine() (*Engine, error) {
 		return nil, fmt.Errorf("ANTHROPIC_API_KEY not set")
 	}
 
-	stepSettings, err := aistettings.NewStepSettings()
+	stepSettings, err := aistettings.NewInferenceSettings()
 	if err != nil {
 		return nil, fmt.Errorf("create step settings: %w", err)
 	}
@@ -69,7 +69,19 @@ func NewEngine() (*Engine, error) {
 	stepSettings.API.APIKeys["claude-api-key"] = key
 	stepSettings.API.BaseUrls["claude-base-url"] = defaultClaudeBaseURL
 
-	baseEngine, err := factory.NewEngineFromStepSettings(stepSettings)
+	return NewEngineFromSettings(stepSettings)
+}
+
+func intPtr(v int) *int {
+	return &v
+}
+
+func NewEngineFromSettings(stepSettings *aistettings.InferenceSettings) (*Engine, error) {
+	if stepSettings == nil {
+		return nil, fmt.Errorf("inference settings are nil")
+	}
+
+	baseEngine, err := factory.NewEngineFromSettings(stepSettings)
 	if err != nil {
 		return nil, fmt.Errorf("create geppetto engine: %w", err)
 	}
@@ -80,8 +92,26 @@ func NewEngine() (*Engine, error) {
 	}, nil
 }
 
-func intPtr(v int) *int {
-	return &v
+func DescribeInferenceSettings(stepSettings *aistettings.InferenceSettings) string {
+	if stepSettings == nil || stepSettings.Chat == nil {
+		return "provider=unconfigured model=unconfigured"
+	}
+
+	provider := "unconfigured"
+	if stepSettings.Chat.ApiType != nil {
+		if value := strings.TrimSpace(string(*stepSettings.Chat.ApiType)); value != "" {
+			provider = value
+		}
+	}
+
+	model := "unconfigured"
+	if stepSettings.Chat.Engine != nil {
+		if value := strings.TrimSpace(*stepSettings.Chat.Engine); value != "" {
+			model = value
+		}
+	}
+
+	return fmt.Sprintf("provider=%s model=%s", provider, model)
 }
 
 type inferenceRunResult struct {

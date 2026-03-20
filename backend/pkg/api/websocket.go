@@ -120,7 +120,7 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 			ID:       idStr,
 			StreamID: bundleID,
 			Data: map[string]any{
-				"text":  "AI hints are not available (ANTHROPIC_API_KEY not set). Try writing CozoScript directly!",
+				"text":  "AI hints are not available (no inference engine configured). Try writing CozoScript directly!",
 				"chips": []string{"show CozoScript syntax", "create a relation"},
 				"docs": []hints.DocRef{{
 					Title:   "CozoScript basics",
@@ -236,7 +236,7 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 			ID:       idStr,
 			StreamID: bundleID,
 			Data: map[string]any{
-				"text":        "AI diagnosis is not available (ANTHROPIC_API_KEY not set). Check the error message and CozoScript docs.",
+				"text":        "AI diagnosis is not available (no inference engine configured). Check the error message and CozoScript docs.",
 				"chips":       []string{"CozoScript syntax help"},
 				"notebookId":  req.NotebookID,
 				"ownerCellId": req.OwnerCellID,
