@@ -28,7 +28,7 @@ RelatedFiles:
       Note: Source that defined both the migration steps and the clarity gaps recorded in the diary
 ExternalSources: []
 Summary: Detailed diary for the tutorial-driven COZODB-010 ticket creation and later implementation work.
-LastUpdated: 2026-03-19T18:48:16.044826272-04:00
+LastUpdated: 2026-03-20T10:45:00-04:00
 WhatFor: Record how the ticket was created from the migration tutorial, including every lookup, ambiguity, and documentation clarity gap encountered.
 WhenToUse: Use when implementing COZODB-010, reviewing whether the tutorial was sufficient, or continuing work after the initial ticket-creation pass.
 ---
@@ -680,3 +680,62 @@ After defaulting the registry source, the next request was to restore the infere
 
 - `design-doc/01-pinocchio-geppetto-bootstrap-migration-implementation-guide.md`
 - `../tasks.md`
+
+## Step 9: Replace the backend-local debug path with the shared Geppetto helper
+
+After the Geppetto extraction was implemented, I came back to the backend and removed the last local debug-only bootstrap glue. That changed the backend in an important way: it no longer owns a custom inference-debug section, a custom hidden-base trace reconstruction helper, or a custom redaction path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, now design granular detailed tasks for the ticket, and execute them one after the other, committing at appropriate intervals, keeping a detailed diary."
+
+**Assistant interpretation:** Finish the downstream migration by deleting the backend-local debug helper path and using the shared Geppetto implementation.
+
+**Inferred user intent:** Prove that the new shared helper is real and useful by simplifying the downstream app, not just Pinocchio itself.
+
+**Commit (code):** `07cdd50`
+
+### What I did
+- Replaced the local debug section in `backend/main.go` with `geppetto/pkg/cli/bootstrap.NewInferenceDebugSection()`.
+- Replaced the local debug execution path with `HandleInferenceDebugOutput(...)`.
+- Deleted:
+  - `buildInferenceTraceParsedValues(...)`
+  - `writeRedactedYAML(...)`
+  - the backend-local sensitive-value masking helpers
+- Removed the source-only compatibility flags and kept only `--print-inference-settings`.
+- Updated `backend/main_test.go`.
+- Ran:
+  - `go test ./...`
+  - `go run . --help`
+  - `go run . --print-inference-settings`
+
+### Why
+- The backend should not keep its own copy of generic inference-debug behavior after the shared Geppetto helper exists.
+
+### What worked
+- The backend test suite still passed.
+- The runtime debug output now includes both `settings` and `sources`.
+- Sensitive values are masked as `***`.
+
+### What didn't work
+- The original tutorial is now clearly stale for this part of the migration. It still documents:
+  - `NewInferenceDebugParameterLayer()`
+  - `PrintInferenceSources`
+  - `--print-inference-settings-sources`
+
+### What I learned
+- The correct downstream shape is even smaller than the earlier backend implementation: the app only needs its bootstrap config and its app-specific profile defaults.
+
+### What was tricky to build
+- The tricky part was deleting the local helpers confidently. They had already been made to work, so the temptation was to leave them behind as a fallback. That would have defeated the whole extraction.
+
+### What warrants a second pair of eyes
+- Review whether the backend ticket should explicitly call out the removed source-only debug aliases as a user-visible CLI change.
+
+### What should be done in the future
+- Update the Pinocchio migration tutorial so it reflects the final shared helper names and the single debug flag.
+
+### Code review instructions
+- Compare the current `backend/main.go` against the Step 8 version above.
+- Confirm the backend no longer owns any custom debug-only trace or masking helpers.
+- Confirm the new help output exposes only `--print-inference-settings`.

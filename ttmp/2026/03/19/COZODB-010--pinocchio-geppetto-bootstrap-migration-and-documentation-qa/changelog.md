@@ -70,3 +70,12 @@ Reintroduced `--print-inference-settings` plus `--print-inference-settings-sourc
 
 - /home/manuel/workspaces/2026-03-17/add-opinionated-apis/2026-03-14--cozodb-editor/backend/main.go — Local debug section and redacted inference/provenance exits
 - /home/manuel/workspaces/2026-03-17/add-opinionated-apis/2026-03-14--cozodb-editor/backend/main_test.go — CLI-surface regression coverage for the debug flags
+
+## 2026-03-20
+
+Replaced the backend’s local inference-debug section, trace reconstruction, and redaction helpers with the shared `geppetto/pkg/cli/bootstrap` helper. The backend now exposes only `--print-inference-settings`, prints combined `settings` and `sources`, and masks sensitive values as `***`.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-17/add-opinionated-apis/2026-03-14--cozodb-editor/backend/main.go — Shared Geppetto inference debug helper now owns the debug surface and output path
+- /home/manuel/workspaces/2026-03-17/add-opinionated-apis/2026-03-14--cozodb-editor/backend/main_test.go — CLI-surface assertions updated to the single debug flag
