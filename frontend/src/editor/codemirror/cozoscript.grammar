@@ -1,0 +1,395 @@
+// CozoScript Lezer Grammar
+// Ported from tree-sitter-cozoscript/grammar.js
+// CozoScript is a Datalog dialect used by the CozoDB database.
+// Based on The CozoScript Manual, Release 0.4.0
+
+@top SourceFile { (SystemOp | BracedQuery)* BareQuery? }
+
+@skip { space | Comment }
+
+// ── System Operations (::) ──────────────────────────
+SystemOp {
+  SysRelations |
+  SysColumns |
+  SysRemove |
+  SysRename |
+  SysShowTriggers |
+  SysSetTriggers |
+  SysAccessLevel |
+  SysRunning |
+  SysKill |
+  SysCompact |
+  SysExplain
+}
+
+SysRelations { ColonColon kw<"relations"> }
+SysColumns { ColonColon kw<"columns"> relationName }
+SysRemove { ColonColon kw<"remove"> relationNameList }
+SysRename { ColonColon kw<"rename"> RenamePair ("," RenamePair)* }
+SysShowTriggers { ColonColon kw<"show_triggers"> relationName }
+SysSetTriggers { ColonColon kw<"set_triggers"> relationName TriggerClause* }
+SysAccessLevel { ColonColon kw<"access_level"> AccessLevel relationNameList }
+SysRunning { ColonColon kw<"running"> }
+SysKill { ColonColon kw<"kill"> expression }
+SysCompact { ColonColon kw<"compact"> }
+SysExplain { ColonColon kw<"explain"> "{" BareQuery "}" }
+
+RenamePair { relationName Arrow relationName }
+TriggerClause { kw<"on"> triggerEvent "{" BareQuery "}" }
+triggerEvent { kw<"put"> | kw<"rm"> | kw<"replace"> }
+AccessLevel { kw<"normal"> | kw<"protected"> | kw<"read_only"> | kw<"hidden"> }
+relationNameList { relationName ("," relationName)* }
+
+// Relation names can have dots (e.g., rel.rev)
+// Simple names are just Identifiers
+relationName { Identifier ("." Identifier)* }
+
+// ── Query Blocks ────────────────────────────────────
+BracedQuery { "{" BareQuery "}" }
+
+BareQuery { RuleDef+ QueryOption* }
+
+// ── Rule Definitions ────────────────────────────────
+RuleDef {
+  InlineRule |
+  FixedRule |
+  ConstRule
+}
+
+InlineRule { RuleHead Assign RuleBody }
+FixedRule { RuleHead FixedArrow FixedRuleBody }
+ConstRule { RuleHead ConstArrow ListLiteral }
+
+// ── Rule Head ───────────────────────────────────────
+RuleHead { RuleName "[" ruleHeadArgs? "]" }
+
+RuleName { EntryMarker | Identifier }
+EntryMarker { "?" }
+
+ruleHeadArgs { ruleHeadVar ("," ruleHeadVar)* }
+
+ruleHeadVar {
+  AggregationExpr |
+  Identifier |
+  Wildcard
+}
+
+AggregationExpr { AggregationOp "(" expression ")" }
+Wildcard { @specialize[@name=Wildcard]<Identifier, "_"> }
+
+AggregationOp {
+  ckw<"min"> | ckw<"max"> | ckw<"union"> | ckw<"intersection"> |
+  ckw<"choice"> | ckw<"min_cost"> | ckw<"shortest"> |
+  ckw<"bit_and"> | ckw<"bit_or"> | ckw<"count"> |
+  ckw<"count_unique"> | ckw<"collect"> | ckw<"unique"> |
+  ckw<"group_count"> | ckw<"bit_xor"> | ckw<"latest_by"> |
+  ckw<"smallest_by"> | ckw<"choice_rand"> | ckw<"mean"> |
+  ckw<"sum"> | ckw<"product"> | ckw<"variance"> | ckw<"std_dev">
+}
+
+// ── Inline Rule Body ────────────────────────────────
+RuleBody { Disjunction }
+
+Disjunction { Conjunction (kw<"or"> Conjunction)* }
+
+Conjunction { Clause (("," | kw<"and">) Clause)* }
+
+Clause {
+  NegatedClause |
+  Atom
+}
+
+NegatedClause { kw<"not"> Atom }
+
+Atom {
+  StoredRelationApplication |
+  RuleApplication |
+  UnificationAtom |
+  InAtom |
+  ExpressionAtom
+}
+
+RuleApplication { (Identifier | kw<"_new"> | kw<"_old">) "[" bindingList? "]" }
+
+StoredRelationApplication {
+  "*" relationName (
+    "[" bindingList? "]" |
+    "{" namedBindingList? "}"
+  )
+}
+
+bindingList { Binding ("," Binding)* }
+
+Binding { Identifier | Wildcard | Literal }
+
+namedBindingList { NamedBinding ("," NamedBinding)* }
+
+NamedBinding { Identifier ":" Binding | Identifier }
+
+UnificationAtom { Identifier "=" expression }
+
+InAtom { Identifier kw<"in"> expression }
+
+ExpressionAtom { expression }
+
+// ── Fixed Rule Body ─────────────────────────────────
+FixedRuleBody { AlgorithmName "(" fixedRuleArgs? ")" }
+
+AlgorithmName {
+  ckw<"Constant"> | ckw<"ReorderSort"> | ckw<"CsvReader"> |
+  ckw<"ConnectedComponents"> | ckw<"StronglyConnectedComponents"> |
+  ckw<"SCC"> | ckw<"ShortestPathDijkstra"> |
+  ckw<"ShortestPathAStar"> | ckw<"KShortestPathYen"> |
+  ckw<"BreadthFirstSearch"> | ckw<"BFS"> |
+  ckw<"DepthFirstSearch"> | ckw<"DFS"> |
+  ckw<"ClusteringCoefficients"> | ckw<"CommunityDetectionLouvain"> |
+  ckw<"LabelPropagation"> | ckw<"DegreeCentrality"> |
+  ckw<"PageRank"> | ckw<"ClosenessCentrality"> |
+  ckw<"BetweennessCentrality"> | ckw<"RandomWalk"> |
+  Identifier
+}
+
+fixedRuleArgs { fixedRuleArg ("," fixedRuleArg)* }
+
+fixedRuleArg { NamedOption | RelationArg }
+
+NamedOption { Identifier ":" expression }
+
+RelationArg {
+  "*" relationName ("[" bindingList? "]")? |
+  Identifier "[" bindingList? "]"
+}
+
+// ── Query Options (single :) ────────────────────────
+QueryOption {
+  OptLimit |
+  OptOffset |
+  OptTimeout |
+  OptSleep |
+  OptSort |
+  OptAssert |
+  OptCreate |
+  OptPut |
+  OptRm |
+  OptEnsure |
+  OptEnsureNot |
+  OptReplace |
+  OptYield
+}
+
+OptLimit { QueryOptionLimit expression }
+OptOffset { QueryOptionOffset expression }
+OptTimeout { QueryOptionTimeout expression }
+OptSleep { QueryOptionSleep expression }
+OptSort { (QueryOptionSort | QueryOptionOrder) sortArgList }
+OptAssert { QueryOptionAssert (kw<"none"> | kw<"some">) }
+OptCreate { QueryOptionCreate relationName RelationSpec }
+OptPut { QueryOptionPut relationName RelationSpec }
+OptRm { QueryOptionRm relationName RelationSpec }
+OptEnsure { QueryOptionEnsure relationName RelationSpec }
+OptEnsureNot { QueryOptionEnsureNot relationName RelationSpec }
+OptReplace { QueryOptionReplace relationName RelationSpec }
+OptYield { QueryOptionYield Identifier }
+
+sortArgList { SortArg ("," SortArg)* }
+
+SortArg { ("+" | "-")? expression }
+
+RelationSpec { "{" keySpec (FatArrow valueSpec)? "}" }
+
+keySpec { ColSpec ("," ColSpec)* }
+
+valueSpec { ColSpec ("," ColSpec)* }
+
+ColSpec { Identifier colTypeAnnotation? colDefault? }
+
+colTypeAnnotation { ":" ColType }
+
+ColType { colTypeName "?"? }
+
+colTypeName {
+  kw<"Int"> | kw<"Float"> | kw<"String"> | kw<"Bool"> |
+  kw<"Bytes"> | kw<"Uuid"> | kw<"List"> | kw<"Validity">
+}
+
+colDefault { kw<"default"> expression }
+
+// ── Expressions (operator precedence) ───────────────
+
+@precedence {
+  call,
+  unary @left,
+  power @right,
+  multiply @left,
+  add @left,
+  coalesce @left,
+  equality @left,
+  modulo @left,
+  comparison @left,
+  and @left,
+  or @left
+}
+
+expression[@isGroup=Expression] {
+  BinaryExpression |
+  UnaryExpression |
+  PrimaryExpression
+}
+
+BinaryExpression {
+  expression !or "||" expression |
+  expression !and "&&" expression |
+  expression !comparison ComparisonOp expression |
+  expression !modulo "%" expression |
+  expression !equality EqualityOp expression |
+  expression !add AddOp expression |
+  expression !multiply MulOp expression |
+  expression !power "^" expression |
+  expression !coalesce "~" expression
+}
+
+UnaryExpression {
+  !unary ("-" | "!") expression
+}
+
+PrimaryExpression {
+  Literal |
+  SpecialForm |
+  FunctionCall |
+  ParenExpr |
+  ListLiteral |
+  Identifier
+}
+
+ComparisonOp { ">=" | "<=" | ">" | "<" }
+EqualityOp { "==" | "!=" }
+AddOp { "+" | "-" | Concat }
+MulOp { "*" | "/" }
+
+ParenExpr { "(" expression ")" }
+
+// ── Function Calls ──────────────────────────────────
+FunctionCall { FunctionName !call ArgList }
+
+FunctionName { Identifier }
+
+ArgList { "(" argListInner? ")" }
+
+argListInner { expression ("," expression)* }
+
+// ── Special Forms ───────────────────────────────────
+SpecialForm {
+  TryForm |
+  IfForm |
+  CondForm
+}
+
+TryForm { kw<"try"> "(" expression ("," expression)* ")" }
+IfForm { kw<"if"> "(" expression "," expression ("," expression)? ")" }
+CondForm { kw<"cond"> "(" expression "," expression ("," expression "," expression)* ")" }
+
+// ── Literals ────────────────────────────────────────
+Literal {
+  NullLiteral |
+  BoolLiteral |
+  Float |
+  Integer |
+  String
+}
+
+NullLiteral { kw<"null"> }
+BoolLiteral { @specialize[@name=BoolLiteral]<Identifier, "true" | "false"> }
+
+String {
+  DoubleQuotedString |
+  SingleQuotedString
+}
+
+DoubleQuotedString { dquote (doubleStringContent | EscapeSequence)* dquote }
+SingleQuotedString { squote (singleStringContent | EscapeSequence)* squote }
+
+ListLiteral { "[" listElementList? "]" }
+listElementList { expression ("," expression)* ","? }
+
+// ── Keyword Templates ───────────────────────────────
+kw<term> { @specialize[@name={term}]<Identifier, term> }
+ckw<term> { @extend[@name={term}]<Identifier, term> }
+
+// ── Tokens ──────────────────────────────────────────
+@tokens {
+  Identifier { $[a-zA-Z_] $[a-zA-Z0-9_]* }
+
+  Integer {
+    "0x" $[0-9a-fA-F] $[0-9a-fA-F_]* |
+    "0o" $[0-7] $[0-7_]* |
+    "0b" $[01] $[01_]* |
+    $[0-9] $[0-9_]*
+  }
+
+  Float {
+    $[0-9] $[0-9_]* "." $[0-9] $[0-9_]* ($[eE] $[+\-]? $[0-9]+)? |
+    $[0-9] $[0-9_]* $[eE] $[+\-]? $[0-9]+ |
+    "." $[0-9] $[0-9_]*
+  }
+
+  doubleStringContent { !["\\]+ }
+  singleStringContent { !['\\]+ }
+  EscapeSequence {
+    "\\" ($["'\\bfnrt/] | "u" $[0-9a-fA-F] $[0-9a-fA-F] $[0-9a-fA-F] $[0-9a-fA-F])
+  }
+
+  dquote[@export] { '"' }
+  squote[@export] { "'" }
+
+  Comment { ("#" | "//") ![\n]* }
+  space { $[ \t\n\r]+ }
+
+  // Multi-character operators
+  Assign { ":=" }
+  FixedArrow { "<~" }
+  ConstArrow { "<-" }
+  FatArrow { "=>" }
+  Arrow { "->" }
+  ColonColon { "::" }
+  Concat { "++" }
+
+  "||" "&&"
+  "==" "!="
+  ">=" "<="
+
+  // Query option tokens (Capitalized so they appear as named nodes in the tree)
+  QueryOptionLimit { ":limit" }
+  QueryOptionOffset { ":offset" }
+  QueryOptionTimeout { ":timeout" }
+  QueryOptionSleep { ":sleep" }
+  QueryOptionSort { ":sort" }
+  QueryOptionOrder { ":order" }
+  QueryOptionAssert { ":assert" }
+  QueryOptionCreate { ":create" }
+  QueryOptionPut { ":put" }
+  QueryOptionRm { ":rm" }
+  QueryOptionEnsureNot { ":ensure_not" }
+  QueryOptionEnsure { ":ensure" }
+  QueryOptionReplace { ":replace" }
+  QueryOptionYield { ":yield" }
+
+  @precedence {
+    Float, Integer,
+    ColonColon, Assign,
+    FixedArrow, ConstArrow, "<=",
+    ">=", "==", "!=",
+    "||", "&&", Concat,
+    Arrow, FatArrow,
+    QueryOptionEnsureNot, QueryOptionEnsure,
+    QueryOptionLimit, QueryOptionOffset, QueryOptionTimeout, QueryOptionSleep,
+    QueryOptionSort, QueryOptionOrder, QueryOptionAssert,
+    QueryOptionCreate, QueryOptionPut, QueryOptionRm,
+    QueryOptionReplace, QueryOptionYield,
+    ">" "<" "+" "-" "/" "%" "^" "~" "!" "*",
+    EscapeSequence, doubleStringContent, singleStringContent,
+    Comment, space,
+    Identifier
+  }
+}
+
+@detectDelim

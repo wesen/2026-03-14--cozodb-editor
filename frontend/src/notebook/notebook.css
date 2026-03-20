@@ -230,6 +230,26 @@
   padding: 4px 8px 8px;
 }
 
+/* ===== CodeMirror Container ===== */
+.mac-codemirror-container {
+  border: 1px solid var(--border-field);
+  background: var(--bg-code);
+  min-height: 28px;
+}
+
+.mac-codemirror-container .cm-editor {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+}
+
+.mac-codemirror-container .cm-editor.cm-focused {
+  outline: none;
+}
+
+.mac-codemirror-container .cm-tooltip-autocomplete {
+  font-family: "IBM Plex Sans", "Geneva", sans-serif;
+}
+
 /* ===== AI Form ===== */
 .mac-ai-form {
   margin-top: 8px;

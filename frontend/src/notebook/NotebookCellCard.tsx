@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
+import { CozoScriptEditor } from "../editor/CozoScriptEditor";
 import { CozoSemRenderer } from "../features/cozo-sem/CozoSemRenderer";
 import { DiagnosisCard } from "../features/diagnosis/DiagnosisCard";
 import { HintResponseCard } from "../features/hints/HintResponseCard";
@@ -96,14 +97,14 @@ export function NotebookCellCard({
   const isActive = activeCellId === cellId;
 
   useEffect(() => {
-    const editing = cell?.kind === "code" || markdownEditing;
-    if (editing && isActive && editorRef.current) {
+    if (markdownEditing && isActive && editorRef.current) {
       editorRef.current.focus();
     }
-  }, [cell?.kind, isActive, markdownEditing]);
+  }, [isActive, markdownEditing]);
 
+  // Auto-resize markdown textarea only (CodeMirror handles its own sizing)
   useEffect(() => {
-    if (!editorRef.current) {
+    if (cell?.kind !== "markdown" || !editorRef.current) {
       return;
     }
     editorRef.current.style.height = "0px";
@@ -218,7 +219,18 @@ export function NotebookCellCard({
       </div>
 
       <div className="mac-cell-body">
-        {isMarkdown && !editing ? (
+        {isCode ? (
+          <CozoScriptEditor
+            value={resolvedCell.source}
+            onChange={(source) => dispatch(setCellSource({ cellId: resolvedCell.id, source }))}
+            onRun={() => { void dispatch(runNotebookCellById(resolvedCell.id)); }}
+            onRunAndInsert={() => { void onRunAndInsertBelow(resolvedCell.id); }}
+            onBlur={handleEditorBlur}
+            onFocus={() => dispatch(setActiveCellId(resolvedCell.id))}
+            placeholder="-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)"
+            autoFocus={isActive}
+          />
+        ) : isMarkdown && !editing ? (
           <div
             className="mac-md-preview"
             onClick={handleMarkdownClick}
@@ -233,7 +245,7 @@ export function NotebookCellCard({
             onBlur={handleEditorBlur}
             onFocus={() => dispatch(setActiveCellId(resolvedCell.id))}
             onKeyDown={handleKeyDown}
-            placeholder={isCode ? "-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)" : "Enter markdown... (Esc to preview)"}
+            placeholder="Enter markdown... (Esc to preview)"
             rows={1}
             spellCheck={false}
           />
