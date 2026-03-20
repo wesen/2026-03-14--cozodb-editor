@@ -27,6 +27,10 @@ topics:
       description: Semantic event model work and related integration
     - slug: architecture
       description: Architecture analysis and design work
+    - slug: syntax-highlighting
+      description: Syntax highlighting, Lezer grammars, CodeMirror language packages
+    - slug: codemirror
+      description: CodeMirror 6 editor integration, extensions, and theming
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
