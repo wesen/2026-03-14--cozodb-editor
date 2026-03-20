@@ -11,4 +11,4 @@
 - [x] Replace textarea with CozoScriptEditor in NotebookCellCard.tsx (code cells only, keep textarea for markdown)
 - [x] Add .mac-codemirror-container CSS styles to notebook.css matching System 7 chrome
 - [x] Remove auto-resize useEffect (CodeMirror handles sizing automatically)
-- [ ] Test: highlighting, autocomplete, keyboard shortcuts, state sync, multi-cell focus, markdown cells unaffected
+- [x] Test: highlighting, autocomplete, keyboard shortcuts, state sync, multi-cell focus, markdown cells unaffected

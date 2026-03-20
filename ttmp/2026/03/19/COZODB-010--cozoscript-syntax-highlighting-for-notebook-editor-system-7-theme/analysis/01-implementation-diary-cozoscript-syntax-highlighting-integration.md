@@ -123,10 +123,137 @@ autocomplete code. This is a direct benefit of CodeMirror 6's architecture.
 
 ### Next steps
 
-1. Install CodeMirror dependencies in the notebook frontend
-2. Copy lang-cozoscript source files
-3. Create the System 7 theme file
-4. Create the CozoScriptEditor React component
-5. Wire into NotebookCellCard, replacing the textarea
-6. Add CSS for CodeMirror container
-7. Test highlighting, autocomplete, keyboard shortcuts, and state sync
+~~All completed — see implementation entry below.~~
+
+---
+
+## 2026-03-19 — Implementation
+
+### What I did
+
+Implemented all 8 tasks in sequence, committing at the halfway point after all
+code was complete and verified.
+
+### Task-by-task walkthrough
+
+**Task 2: Install npm dependencies.** Ran `npm install` for 8 packages:
+`@codemirror/view`, `@codemirror/state`, `@codemirror/language`,
+`@codemirror/commands`, `@codemirror/autocomplete`, `@codemirror/search`,
+`@lezer/highlight`, `@lezer/lr`. Added 276 packages total. No conflicts.
+
+**Task 3: Copy lang-cozoscript source files.** Copied `parser.js`,
+`parser.terms.js`, `highlight.js`, `complete.js`, and `cozoscript.grammar` into
+`frontend/src/editor/codemirror/`. Created a new `index.js` entry point that
+exports `cozoLanguage` and `cozoCompletions` WITHOUT the Catppuccin theme (the
+original `index.js` bundled the theme via `cozoscript()` — we don't want that).
+Also created `index.d.ts` for TypeScript compatibility.
+
+**Task 4: Create System 7 light theme.** Created
+`frontend/src/editor/cozoscriptSystem7Theme.ts` with two exports:
+- `system7EditorTheme` — `EditorView.theme()` for editor chrome (gutters,
+  tooltips, cursor, selection, etc.) using System 7 visual language: off-white
+  `#f5f5f0` background, black cursors, `2px 2px 0px #000` tooltip shadows,
+  inverted autocomplete selection (black bg / white text), no border-radius.
+- `system7HighlightStyle` — `HighlightStyle.define()` mapping tags to colors:
+  purple keywords, navy rule definitions, forest green strings, medium blue
+  numbers, dark teal function names, gold aggregations/algorithms, dark red
+  system ops and entry markers, gray italic comments.
+
+Changed gold from `#f57f17` to `#bf6900` during implementation — the original
+was too bright on a light background.
+
+**Task 5: Create CozoScriptEditor component.** Created
+`frontend/src/editor/CozoScriptEditor.tsx`. Key design decisions:
+- Used `useRef` for all callbacks (`onChangeRef`, `onRunRef`, etc.) to avoid
+  recreating the CodeMirror editor on every render. The `useEffect` that mounts
+  CodeMirror has an empty dependency array (`[]`) — it runs exactly once.
+- Implemented the `updatingFromProps` guard: when Redux pushes a new value in,
+  we set a flag before dispatching to CodeMirror so the update listener ignores
+  the resulting `docChanged` event.
+- Registered `Shift-Enter`, `Alt-Enter`, and `Ctrl-Enter` as custom keymaps
+  placed BEFORE the default keymap so they take priority.
+- Added a third `useEffect` watching `autoFocus` to call `view.focus()` when
+  the cell becomes active.
+
+**Task 6: Replace textarea in NotebookCellCard.** Changed the rendering
+from a single `isMarkdown && !editing ? preview : textarea` branch to a
+three-way branch:
+1. `isCode` → `<CozoScriptEditor />`
+2. `isMarkdown && !editing` → markdown preview div
+3. `else` (markdown editing) → `<textarea />`
+
+**Task 7: Add CSS.** Added `.mac-codemirror-container` styles to `notebook.css`:
+`1px solid var(--border-field)` border, `var(--bg-code)` background, suppressed
+CodeMirror's default focus outline (the cell card already shows active state).
+
+**Task 8: Scope auto-resize useEffect.** Changed the two `useEffect` hooks:
+- Focus effect: only fires for markdown cells (`markdownEditing && isActive`)
+- Height resize effect: guards with `cell?.kind !== "markdown"` early return
+
+### What went wrong
+
+**TypeScript error.** The first `tsc --noEmit` run failed with TS7016: "Could
+not find a declaration file for module './codemirror/index.js'." The JS files
+copied from lang-cozoscript had no type declarations. Fixed by adding
+`index.d.ts` that declares `cozoLanguage` as `LRLanguage` and
+`cozoCompletions` as a completion source function.
+
+**Playwright browser crash.** Attempted to visually test via Playwright MCP but
+Chrome's GPU process crashed repeatedly (`MESA: error: Failed to query drm
+device`). This is an environment issue (headless Linux without GPU drivers), not
+a code issue. The old Chrome process got stuck and couldn't be replaced within
+the same Playwright session.
+
+### What worked well
+
+- TypeScript compilation passed clean after the `.d.ts` fix
+- Vite production build succeeded: 74 modules transformed, 690 KB output
+  (220 KB gzipped)
+- The build included CodeMirror + Lezer parser + all autocomplete data
+- No runtime errors visible in the Vite build output
+
+### Verification summary
+
+| Check | Result |
+|-------|--------|
+| TypeScript `tsc --noEmit` | Pass |
+| Vite production build | Pass (690 KB / 220 KB gz) |
+| All 9 tasks checked off | Pass |
+| Browser visual test | Blocked (Chrome GPU crash) |
+
+### Commit
+
+```
+c6d424a feat(editor): add CozoScript syntax highlighting with System 7 theme
+  20 files changed, 3217 insertions(+), 6 deletions(-)
+```
+
+### Files created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/editor/CozoScriptEditor.tsx` | 151 | React wrapper for CodeMirror 6 |
+| `src/editor/cozoscriptSystem7Theme.ts` | 113 | System 7 editor + highlight theme |
+| `src/editor/codemirror/index.js` | 36 | Language entry (no theme) |
+| `src/editor/codemirror/index.d.ts` | 7 | TypeScript declarations |
+| `src/editor/codemirror/parser.js` | ~600 | Generated Lezer parser (copied) |
+| `src/editor/codemirror/parser.terms.js` | ~100 | Token IDs (copied) |
+| `src/editor/codemirror/highlight.js` | 73 | styleTags (copied) |
+| `src/editor/codemirror/complete.js` | 410 | Autocomplete (copied) |
+| `src/editor/codemirror/cozoscript.grammar` | 396 | Grammar reference (copied) |
+
+### Files modified
+
+| File | Change |
+|------|--------|
+| `package.json` | +8 CodeMirror/Lezer dependencies |
+| `NotebookCellCard.tsx` | Import CozoScriptEditor; replace textarea for code cells; scope useEffects to markdown |
+| `notebook.css` | +16 lines for `.mac-codemirror-container` |
+
+### What still needs manual verification
+
+- Visual check that highlighting colors look correct against the System 7 background
+- Autocomplete popup appears and is styled correctly (inverted selection)
+- Shift+Enter runs the cell
+- Multi-cell focus works (clicking a different cell moves focus correctly)
+- AI fix application updates CodeMirror content (tests the Redux→CM sync path)
