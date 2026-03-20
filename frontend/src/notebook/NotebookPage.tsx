@@ -210,12 +210,19 @@ export default function NotebookPage() {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      const card = window.document.querySelector(".mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview");
+      const card = window.document.querySelector(
+        ".mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview, .mac-cell-card.is-active .cm-editor"
+      );
       if (card instanceof HTMLElement) {
         card.click();
       }
       if (card instanceof HTMLTextAreaElement) {
         card.focus();
+      }
+      // Focus CodeMirror editor: .cm-content is the focusable element
+      const cmContent = card?.querySelector(".cm-content");
+      if (cmContent instanceof HTMLElement) {
+        cmContent.focus();
       }
       return;
     }
