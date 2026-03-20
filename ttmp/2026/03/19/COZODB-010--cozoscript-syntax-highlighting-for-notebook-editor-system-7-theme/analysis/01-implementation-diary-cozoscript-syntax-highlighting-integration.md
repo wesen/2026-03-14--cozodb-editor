@@ -254,6 +254,51 @@ c6d424a feat(editor): add CozoScript syntax highlighting with System 7 theme
 
 - Visual check that highlighting colors look correct against the System 7 background
 - Autocomplete popup appears and is styled correctly (inverted selection)
-- Shift+Enter runs the cell
+- Shift+Enter runs the cell (fixed double-fire — see bugfix entry below)
 - Multi-cell focus works (clicking a different cell moves focus correctly)
 - AI fix application updates CodeMirror content (tests the Redux→CM sync path)
+
+---
+
+## 2026-03-19 — Bugfix: Double Cell Execution on Shift+Enter
+
+### The bug
+
+User reported that submitting a cell (Shift+Enter) fired twice — the same bug
+that had been fixed before in commit `487f20a`.
+
+### Root cause
+
+Two handlers were both catching Enter+modifier keydown events:
+
+1. **CodeMirror's keymap** in `CozoScriptEditor.tsx` — registered via
+   `keymap.of([{ key: "Shift-Enter", run: ... }])`. CodeMirror calls
+   `preventDefault()` but NOT `stopPropagation()`.
+
+2. **Global window listener** in `NotebookPage.tsx` (line 250) —
+   `window.addEventListener("keydown", handleNotebookKeyDown)`. This handler
+   checks `isInInput` by looking at `target.tagName === "TEXTAREA" || "INPUT"`.
+   But CodeMirror uses `<div contenteditable>`, not a textarea. So `isInInput`
+   was `false`, and the global handler also fired `handleRunAndAdvance`.
+
+Both handlers dispatched `runNotebookCellById`, so the cell ran twice.
+
+### The fix (commit `edb3159`)
+
+Two-pronged:
+
+1. **CozoScriptEditor.tsx** — Added `EditorView.domEventHandlers({ keydown })`
+   that calls `event.stopPropagation()` for Enter events with Shift/Alt/Ctrl
+   modifiers. This prevents the event from bubbling to the window listener.
+
+2. **NotebookPage.tsx** — Extended the `isInInput` check to include
+   `target.closest(".cm-editor") != null`. This is a belt-and-suspenders fix
+   so even if propagation isn't stopped, the global handler won't double-fire.
+
+### Why this wasn't caught earlier
+
+The old textarea-based code already had `event.stopPropagation()` in its
+`handleKeyDown` prop, and the `isInInput` check matched `TEXTAREA`. When we
+replaced the textarea with CodeMirror, both safeguards were lost:
+- CodeMirror keymaps don't stop propagation
+- CodeMirror's contenteditable div doesn't match the tagName check
