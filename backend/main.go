@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"io"
 	"log"
@@ -12,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,7 +31,6 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
-	"gopkg.in/yaml.v3"
 )
 
 type ServerSettings struct {
@@ -50,12 +46,6 @@ type ServerCommand struct {
 }
 
 var _ cmds.WriterCommand = &ServerCommand{}
-
-type DebugSettings struct {
-	PrintInferenceSettings        bool `glazed:"print-inference-settings"`
-	PrintInferenceSettingsSource  bool `glazed:"print-inference-settings-source"`
-	PrintInferenceSettingsSources bool `glazed:"print-inference-settings-sources"`
-}
 
 const (
 	serverCommandName  = "cozodb-editor-backend"
@@ -110,7 +100,7 @@ func newServerCommand() (*ServerCommand, error) {
 	if err != nil {
 		return nil, err
 	}
-	debugSection, err := newInferenceDebugSection()
+	debugSection, err := geppettobootstrap.NewInferenceDebugSection()
 	if err != nil {
 		return nil, err
 	}
@@ -130,33 +120,6 @@ func newServerCommand() (*ServerCommand, error) {
 			cmds.WithSections(profileSettingsSection, debugSection),
 		),
 	}, nil
-}
-
-func newInferenceDebugSection() (schema.Section, error) {
-	return schema.NewSection(
-		"debug-settings",
-		"Debug settings",
-		schema.WithFields(
-			fields.New(
-				"print-inference-settings",
-				fields.TypeBool,
-				fields.WithDefault(false),
-				fields.WithHelp("Print the final resolved inference settings and exit"),
-			),
-			fields.New(
-				"print-inference-settings-source",
-				fields.TypeBool,
-				fields.WithDefault(false),
-				fields.WithHelp("Print the final resolved inference settings together with source logs and exit"),
-			),
-			fields.New(
-				"print-inference-settings-sources",
-				fields.TypeBool,
-				fields.WithDefault(false),
-				fields.WithHelp("Alias for --print-inference-settings-source"),
-			),
-		),
-	)
 }
 
 func appCobraMiddlewares(parsedCommandSections *values.Values, cmd *cobra.Command, args []string) ([]cmd_sources.Middleware, error) {
@@ -208,23 +171,20 @@ func (c *ServerCommand) RunIntoWriter(ctx context.Context, parsed *values.Values
 		defer resolved.Close()
 	}
 
-	debugSettings := &DebugSettings{}
-	if err := effectiveParsed.DecodeSectionInto("debug-settings", debugSettings); err != nil {
+	debugSettings := &geppettobootstrap.InferenceDebugSettings{}
+	if err := effectiveParsed.DecodeSectionInto(geppettobootstrap.InferenceDebugSectionSlug, debugSettings); err != nil {
 		return err
 	}
-	if debugSettings.PrintInferenceSettingsSource || debugSettings.PrintInferenceSettingsSources {
-		traceParsed, err := buildInferenceTraceParsedValues(effectiveParsed)
-		if err != nil {
-			return err
-		}
-		trace, err := profilebootstrap.BuildInferenceSettingsSourceTrace(nil, traceParsed, resolved)
-		if err != nil {
-			return err
-		}
-		return writeRedactedYAML(w, trace)
-	}
 	if debugSettings.PrintInferenceSettings {
-		return writeRedactedYAML(w, resolved.FinalInferenceSettings)
+		_, err := geppettobootstrap.HandleInferenceDebugOutput(
+			w,
+			appBootstrapConfig(),
+			effectiveParsed,
+			*debugSettings,
+			resolved,
+			geppettobootstrap.InferenceDebugOutputOptions{},
+		)
+		return err
 	}
 
 	return runServer(ctx, settings, resolved.FinalInferenceSettings)
@@ -261,119 +221,6 @@ func defaultPinocchioProfileRegistryIfPresent() string {
 	}
 
 	return path
-}
-
-func buildInferenceTraceParsedValues(parsed *values.Values) (*values.Values, error) {
-	cfg := appBootstrapConfig()
-	baseSections, err := cfg.BuildBaseSections()
-	if err != nil {
-		return nil, err
-	}
-
-	traceParsed := values.New()
-	baseSchema := schema.NewSchema(schema.WithSections(baseSections...))
-	configFiles, err := geppettobootstrap.ResolveCLIConfigFiles(cfg, parsed)
-	if err != nil {
-		return nil, err
-	}
-	if err := cmd_sources.Execute(
-		baseSchema,
-		traceParsed,
-		cmd_sources.FromEnv(cfg.EnvPrefix, fields.WithSource("env")),
-		cmd_sources.FromFiles(
-			configFiles,
-			cmd_sources.WithConfigFileMapper(cfg.ConfigFileMapper),
-			cmd_sources.WithParseOptions(fields.WithSource("config")),
-		),
-		cmd_sources.FromDefaults(fields.WithSource(fields.SourceDefaults)),
-	); err != nil {
-		return nil, err
-	}
-
-	if parsed != nil {
-		if err := traceParsed.Merge(parsed); err != nil {
-			return nil, err
-		}
-	}
-	return traceParsed, nil
-}
-
-func writeRedactedYAML(w io.Writer, value any) error {
-	raw, err := yaml.Marshal(value)
-	if err != nil {
-		return err
-	}
-
-	var decoded any
-	if err := yaml.Unmarshal(raw, &decoded); err != nil {
-		return err
-	}
-
-	encoder := yaml.NewEncoder(w)
-	defer func() {
-		_ = encoder.Close()
-	}()
-	return encoder.Encode(redactSensitiveValues(decoded, nil))
-}
-
-func redactSensitiveValues(value any, path []string) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(typed))
-		for key, item := range typed {
-			out[key] = redactSensitiveValues(item, append(path, key))
-		}
-		return out
-	case []any:
-		out := make([]any, len(typed))
-		for i, item := range typed {
-			out[i] = redactSensitiveValues(item, path)
-		}
-		return out
-	case string:
-		if isSensitivePath(path) && strings.TrimSpace(typed) != "" {
-			return summarizeSensitiveValue(typed)
-		}
-		return typed
-	default:
-		return value
-	}
-}
-
-func summarizeSensitiveValue(value string) string {
-	sum := sha256.Sum256([]byte(value))
-	fingerprint := hex.EncodeToString(sum[:4])
-	if len(value) <= 4 {
-		return "<redacted len=" + strconv.Itoa(len(value)) + " sha256=" + fingerprint + ">"
-	}
-	tail := value[len(value)-4:]
-	return "<redacted len=" + strconv.Itoa(len(value)) + " tail=" + tail + " sha256=" + fingerprint + ">"
-}
-
-func isSensitivePath(path []string) bool {
-	if len(path) == 0 {
-		return false
-	}
-
-	last := strings.ToLower(strings.TrimSpace(path[len(path)-1]))
-	if isSensitiveLeafKey(last) {
-		return true
-	}
-
-	if last != "value" && last != "map-value" {
-		return false
-	}
-
-	for _, part := range path[:len(path)-1] {
-		if isSensitiveLeafKey(strings.ToLower(strings.TrimSpace(part))) {
-			return true
-		}
-	}
-	return false
-}
-
-func isSensitiveLeafKey(key string) bool {
-	return key == "authorization" || strings.HasSuffix(key, "-api-key")
 }
 
 func applyApplicationProfileDefaults(parsed *values.Values) (*values.Values, error) {
