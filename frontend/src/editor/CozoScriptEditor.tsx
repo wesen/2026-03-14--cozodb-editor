@@ -149,8 +149,18 @@ export function CozoScriptEditor({
           }
         }),
 
-        // Blur/Focus handlers
+        // DOM event handlers
         EditorView.domEventHandlers({
+          keydown: (event) => {
+            // CodeMirror keymaps call preventDefault but not stopPropagation.
+            // Without this, Enter+modifier events bubble up and fire twice.
+            if (
+              event.key === "Enter" &&
+              (event.shiftKey || event.altKey || event.ctrlKey)
+            ) {
+              event.stopPropagation();
+            }
+          },
           blur: () => {
             onBlurRef.current?.();
           },

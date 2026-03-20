@@ -166,7 +166,7 @@ export default function NotebookPage() {
     }
 
     const target = event.target as HTMLElement;
-    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT";
+    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.closest(".cm-editor") != null;
     const currentIndex = activeCellIndex < 0 ? 0 : activeCellIndex;
     const activeCell = activeCellId ? cellsById[activeCellId] || null : cells[currentIndex] || null;
 
