@@ -224,6 +224,7 @@
   white-space: pre-wrap;
   line-height: 1.5;
   font-size: 12px;
+  font-family: "IBM Plex Mono", monospace;
 }
 
 .mac-cell-error__actions {
