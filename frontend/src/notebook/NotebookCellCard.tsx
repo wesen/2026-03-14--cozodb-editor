@@ -40,14 +40,20 @@ interface CellErrorCardProps {
   onDiagnose: () => void;
 }
 
+// Strip ANSI escape codes (e.g. [31m, [0m) from CozoDB error output
+function stripAnsi(text: string): string {
+  return text.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
 function CellErrorCard({ output, onDiagnose }: CellErrorCardProps) {
+  const raw = output.display || output.message || "Unknown error";
   return (
     <div className="mac-cell-error">
       <div className="mac-cell-error__header">
         ERROR
       </div>
       <div className="mac-cell-error__body">
-        {output.display || output.message || "Unknown error"}
+        {stripAnsi(raw)}
       </div>
       <div className="mac-cell-error__actions">
         <button className="mac-btn" onClick={onDiagnose}>Diagnose with AI</button>
@@ -305,7 +311,7 @@ export function NotebookCellCard({
                   diagnosisEntity ? (
                     <DiagnosisCard
                       diagnosing={false}
-                      error={runtime.output.display || runtime.output.message || "Unknown error"}
+                      error={stripAnsi(runtime.output.display || runtime.output.message || "Unknown error")}
                       fix={{
                         text: typeof diagnosisResponse.text === "string" ? diagnosisResponse.text : "See the suggested fix.",
                         code: typeof diagnosisResponse.code === "string" ? diagnosisResponse.code : undefined,
