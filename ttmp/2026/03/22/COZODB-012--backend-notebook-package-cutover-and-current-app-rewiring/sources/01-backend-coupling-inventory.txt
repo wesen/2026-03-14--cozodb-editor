@@ -1,0 +1,81 @@
+== main.go notebook wiring ==
+14:	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
+21:	appDBPath := flag.String("app-db-path", "./data/cozodb-editor-app.sqlite", "Application SQLite database path for notebooks and timeline state")
+54:	notebookSvc, err := notebook.OpenService(*appDBPath, runtime)
+56:		log.Fatalf("Failed to open notebook service: %v", err)
+59:		if err := notebookSvc.Close(); err != nil {
+60:			log.Printf("[MAIN] notebook service close error: %v", err)
+64:	srv := &api.Server{Runtime: runtime, Notebook: notebookSvc}
+65:	wsHandler := &api.WSHandler{Runtime: runtime, Engine: hintEngine}
+80:	mux.HandleFunc("/api/notebooks", srv.HandleCreateNotebook)
+81:	mux.HandleFunc("/api/notebooks/bootstrap", srv.HandleBootstrapNotebook)
+82:	mux.HandleFunc("/api/notebooks/", srv.HandleNotebook)
+83:	mux.HandleFunc("/api/notebook-cells/", srv.HandleNotebookCell)
+84:	mux.HandleFunc("/api/runtime/reset-kernel", srv.HandleResetKernel)
+87:	mux.HandleFunc("/ws/hints", wsHandler.HandleWS)
+
+== notebook service concrete deps ==
+11:	chatstore "github.com/go-go-golems/pinocchio/pkg/persistence/chatstore"
+21:	timeline   chatstore.TimelineStore
+22:	runtime    *cozo.Manager
+27:func OpenService(appDBPath string, runtime *cozo.Manager) (*Service, error) {
+32:	dsn, err := chatstore.SQLiteTimelineDSNForFile(store.DBPath())
+37:	timeline, err := chatstore.NewSQLiteTimelineStore(dsn)
+232:	if err := s.timeline.UpsertConversation(ctx, chatstore.ConversationRecord{
+
+== api package notebook/http coupling ==
+backend/pkg/api/types.go:58:	NotebookID  string   `json:"notebookId,omitempty"`
+backend/pkg/api/types.go:67:	NotebookID  string `json:"notebookId,omitempty"`
+backend/pkg/api/types.go:72:type CreateNotebookRequest struct {
+backend/pkg/api/types.go:76:type UpdateNotebookRequest struct {
+backend/pkg/api/websocket.go:104:		NotebookID:  req.NotebookID,
+backend/pkg/api/websocket.go:130:				"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:144:			"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:160:				"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:175:				"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:194:			"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:222:		NotebookID:  req.NotebookID,
+backend/pkg/api/websocket.go:241:				"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:254:			"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:269:				"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:284:				"notebookId":  req.NotebookID,
+backend/pkg/api/websocket.go:302:			"notebookId":  req.NotebookID,
+backend/pkg/api/notebook_handlers.go:12:func (s *Server) HandleBootstrapNotebook(w http.ResponseWriter, r *http.Request) {
+backend/pkg/api/notebook_handlers.go:13:	if s.Notebook == nil {
+backend/pkg/api/notebook_handlers.go:21:	doc, err := s.Notebook.EnsureDefaultNotebook(r.Context())
+backend/pkg/api/notebook_handlers.go:29:func (s *Server) HandleCreateNotebook(w http.ResponseWriter, r *http.Request) {
+backend/pkg/api/notebook_handlers.go:30:	if s.Notebook == nil {
+backend/pkg/api/notebook_handlers.go:38:	var req CreateNotebookRequest
+backend/pkg/api/notebook_handlers.go:43:	nb, err := s.Notebook.CreateNotebook(r.Context(), req.Title)
+backend/pkg/api/notebook_handlers.go:51:func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
+backend/pkg/api/notebook_handlers.go:52:	if s.Notebook == nil {
+backend/pkg/api/notebook_handlers.go:70:		s.handleClearNotebook(w, r, strings.Trim(notebookID, "/"))
+backend/pkg/api/notebook_handlers.go:77:		doc, err := s.Notebook.GetNotebook(r.Context(), notebookID)
+backend/pkg/api/notebook_handlers.go:88:		var req UpdateNotebookRequest
+backend/pkg/api/notebook_handlers.go:93:		if err := s.Notebook.UpdateNotebookTitle(r.Context(), notebookID, req.Title); err != nil {
+backend/pkg/api/notebook_handlers.go:97:		doc, err := s.Notebook.GetNotebook(r.Context(), notebookID)
+backend/pkg/api/notebook_handlers.go:108:func (s *Server) handleClearNotebook(w http.ResponseWriter, r *http.Request, notebookID string) {
+backend/pkg/api/notebook_handlers.go:114:	doc, err := s.Notebook.ClearNotebook(r.Context(), notebookID)
+backend/pkg/api/notebook_handlers.go:136:	result, err := s.Notebook.InsertCell(r.Context(), notebookID, req.AfterCellID, req.Kind, req.Source)
+backend/pkg/api/notebook_handlers.go:144:func (s *Server) HandleNotebookCell(w http.ResponseWriter, r *http.Request) {
+backend/pkg/api/notebook_handlers.go:145:	if s.Notebook == nil {
+backend/pkg/api/notebook_handlers.go:176:		cell, err := s.Notebook.UpdateCell(r.Context(), cellID, req.Kind, req.Source)
+backend/pkg/api/notebook_handlers.go:183:		result, err := s.Notebook.DeleteCell(r.Context(), cellID)
+backend/pkg/api/notebook_handlers.go:204:	result, err := s.Notebook.MoveCell(r.Context(), cellID, req.TargetIndex)
+backend/pkg/api/notebook_handlers.go:217:	runtime, err := s.Notebook.RunCell(r.Context(), cellID)
+backend/pkg/api/notebook_handlers.go:225:func (s *Server) HandleResetKernel(w http.ResponseWriter, r *http.Request) {
+backend/pkg/api/notebook_handlers.go:226:	if s.Notebook == nil {
+backend/pkg/api/notebook_handlers.go:235:	result, err := s.Notebook.ResetKernel(r.Context())
+backend/pkg/api/notebook_handlers.go:246:func notebookDocOr404(svc *notebook.Service, w http.ResponseWriter, r *http.Request, notebookID string) *notebook.NotebookDocument {
+backend/pkg/api/notebook_handlers.go:247:	doc, err := svc.GetNotebook(r.Context(), notebookID)
+backend/pkg/api/handlers.go:16:	Notebook *notebook.Service
+
+== websocket concrete deps ==
+backend/pkg/api/websocket.go:24:	Engine  *hints.Engine
+backend/pkg/api/websocket.go:25:	Runtime *cozo.Manager
+backend/pkg/api/websocket.go:28:// HandleWS handles the /ws/hints WebSocket endpoint.
+backend/pkg/api/websocket.go:29:func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
+backend/pkg/api/websocket.go:72:			go h.handleHintRequest(wsCtx, writeJSON, msg.Event, &requestID)
+backend/pkg/api/websocket.go:74:			go h.handleDiagnosisRequest(wsCtx, writeJSON, msg.Event, &requestID)
+backend/pkg/api/websocket.go:81:func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+backend/pkg/api/websocket.go:201:func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
