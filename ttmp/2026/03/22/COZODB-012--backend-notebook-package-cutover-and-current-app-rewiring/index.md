@@ -1,7 +1,7 @@
 ---
 Title: Backend notebook package cutover and current app rewiring
 Ticket: COZODB-012
-Status: active
+Status: complete
 Topics:
     - architecture
     - backend
@@ -12,11 +12,12 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: "Backend modularization ticket for moving notebook backend ownership into backend/pkg/notebook and rewiring the current app to use that package surface directly."
-LastUpdated: 2026-03-22T12:33:54-04:00
-WhatFor: "Track the backend cutover work that follows the completed frontend decomposition ticket."
-WhenToUse: "Use when continuing backend modularization, reviewing the backend cut sequence, or locating the implementation guide and diary for COZODB-012."
+Summary: Backend modularization ticket for moving notebook backend ownership into backend/pkg/notebook and rewiring the current app to use that package surface directly.
+LastUpdated: 2026-03-22T12:39:08.358609309-04:00
+WhatFor: Track the backend cutover work that follows the completed frontend decomposition ticket.
+WhenToUse: Use when continuing backend modularization, reviewing the backend cut sequence, or locating the implementation guide and diary for COZODB-012.
 ---
+
 
 # Backend notebook package cutover and current app rewiring
 
@@ -35,12 +36,14 @@ This ticket is the backend counterpart to `COZODB-011`. Its purpose is to move n
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 - Planning is complete.
 - Notebook service dependency inversion is complete.
 - Notebook REST route ownership is complete.
-- WebSocket and AI transport cutover is next.
+- Notebook WebSocket and AI transport cutover is complete.
+- Frontend and backend validation are complete.
+- `COZODB-010` is now unblocked for package extraction work.
 
 ## Topics
 

@@ -14,10 +14,10 @@
 - [x] Add notebook-owned REST route mounting
 - [x] Rewire `backend/main.go` to notebook-owned REST route mounting
 - [x] Remove old notebook REST handler usage from `backend/pkg/api`
-- [ ] Add notebook-local AI/WebSocket interfaces and notebook-owned SEM sink
-- [ ] Add notebook-owned WebSocket route mounting
-- [ ] Rewire `backend/main.go` to notebook-owned WebSocket route mounting
-- [ ] Remove old notebook WebSocket handler usage from `backend/pkg/api`
+- [x] Add notebook-local AI/WebSocket interfaces and notebook-owned SEM sink
+- [x] Add notebook-owned WebSocket route mounting
+- [x] Rewire `backend/main.go` to notebook-owned WebSocket route mounting
+- [x] Remove old notebook WebSocket handler usage from `backend/pkg/api`
 - [x] Run backend tests
-- [ ] Run frontend build/tests against the cutover backend
-- [ ] Reassess readiness for the broader package extraction work in `COZODB-010`
+- [x] Run frontend build/tests against the cutover backend
+- [x] Reassess readiness for the broader package extraction work in `COZODB-010`

@@ -12,11 +12,15 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: backend/main.go
-      Note: Main now mounts notebook HTTP routes from backend/pkg/notebook instead of backend/pkg/api (commit d7360dd)
+      Note: |-
+        Main now mounts notebook HTTP routes from backend/pkg/notebook instead of backend/pkg/api (commit d7360dd)
+        Main now mounts both notebook REST and WebSocket routes from backend/pkg/notebook (commit 1e13d38)
     - Path: backend/pkg/api/handlers.go
       Note: API server no longer carries notebook REST handler state (commit d7360dd)
     - Path: backend/pkg/api/types.go
-      Note: Notebook-specific REST payload structs were removed from the generic API package after route cutover (commit d7360dd)
+      Note: |-
+        Notebook-specific REST payload structs were removed from the generic API package after route cutover (commit d7360dd)
+        Generic API package no longer owns notebook WebSocket payload types after transport cutover (commit 1e13d38)
     - Path: backend/pkg/notebook/config.go
       Note: ServiceConfig defines the reusable notebook service construction surface (commit f5d575b)
     - Path: backend/pkg/notebook/http.go
@@ -31,12 +35,19 @@ RelatedFiles:
       Note: Notebook tests exercise the config constructor path instead of concrete OpenService-only assembly (commit f5d575b)
     - Path: backend/pkg/notebook/timeline.go
       Note: TimelineStore interface isolates timeline persistence and SQLite bootstrapping (commit f5d575b)
+    - Path: backend/pkg/notebook/websocket.go
+      Note: Notebook package now owns WebSocket hint and diagnosis transport plus AI engine abstraction (commit 1e13d38)
+    - Path: backend/pkg/notebook/websocket_test.go
+      Note: Fallback WebSocket transport test validates the cutover contract on /ws/hints (commit 1e13d38)
+    - Path: backend/pkg/notebook/ws_sem_sink.go
+      Note: Notebook package now owns SEM event translation for WebSocket streaming (commit 1e13d38)
 ExternalSources: []
 Summary: Chronological diary for the backend notebook package cutover and current app rewiring work.
-LastUpdated: 2026-03-22T12:33:54-04:00
+LastUpdated: 2026-03-22T12:38:20-04:00
 WhatFor: Record implementation slices, validation commands, integration decisions, and commit checkpoints for COZODB-012.
 WhenToUse: Use when continuing backend modularization work, reviewing the cutover sequence, or checking which commits landed each backend slice.
 ---
+
 
 
 
@@ -286,3 +297,88 @@ This is the first real app cutover in the backend ticket. The frontend contract 
   - `POST /api/notebook-cells/:cellId/move`
   - `POST /api/notebook-cells/:cellId/run`
   - `POST /api/runtime/reset-kernel`
+
+## Step 4: Move notebook WebSocket transport into the notebook package and validate the app
+
+The last backend transport slice was the AI hint and diagnosis WebSocket path. I moved the `/ws/hints` adapter and SEM event sink into `backend/pkg/notebook`, kept the message contract stable, then ran both backend and frontend validation suites to make sure the current app still sits cleanly on the new notebook-owned backend boundary.
+
+At this point the backend cutover described in this ticket is complete. The current app no longer depends on `backend/pkg/api` for notebook-specific HTTP or WebSocket behavior, which means `COZODB-010` can now focus on extracting reusable packaging and environment presets instead of untangling transport ownership first.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Finish the backend cutover end to end, keep committing in slices, and document enough detail that the next phase can proceed from a stable modular boundary.
+
+**Inferred user intent:** Reach a point where the current product already consumes notebook-owned backend surfaces, so later package extraction work is lower risk and mostly structural.
+
+**Commit (code):** 1e13d38 — "backend: move notebook websocket routes into notebook package"
+
+### What I did
+- Added `backend/pkg/notebook/websocket.go` with a notebook-owned WebSocket adapter and `MountWebSocketRoutes`.
+- Added a notebook-local `AIEngine` interface so the WebSocket adapter no longer depends on a concrete `*hints.Engine`.
+- Moved SEM event translation into `backend/pkg/notebook/ws_sem_sink.go`.
+- Added `backend/pkg/notebook/websocket_test.go` to validate the fallback `/ws/hints` path when no AI engine is configured.
+- Rewired `backend/main.go` to call `notebook.MountWebSocketRoutes(mux, runtime, hintEngine)`.
+- Removed the old notebook WebSocket adapter and SEM sink from `backend/pkg/api`.
+- Removed notebook WebSocket payload types from `backend/pkg/api/types.go`.
+- Ran backend validation:
+  - `cd backend && go test ./...`
+- Ran frontend validation:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `cd frontend && npx tsc --noEmit`
+- Reassessed readiness for `COZODB-010`.
+
+### Why
+- A reusable notebook backend package is not real if the current app still reaches into a separate API package for notebook-specific streaming behavior.
+- The frontend validation pass matters here because the whole point of this ticket is not just to reorganize code, but to prove the current app runs through the new ownership boundary without contract drift.
+
+### What worked
+- The WebSocket cutover preserved the existing `/ws/hints` endpoint and event vocabulary.
+- The fallback path is easy to validate in tests because it does not require live AI credentials.
+- Backend tests and frontend tests/builds all passed after the transport move.
+- The readiness question for `COZODB-010` now has a clear answer: backend cutover is no longer the blocker.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The backend transport split was most effective when done as two vertical cuts: REST first, then WebSocket/AI.
+- The remaining work for reusable packaging is now mostly about package API shape, composition presets, and theming/environment targeting rather than about dependency untangling inside the current app.
+
+### What was tricky to build
+- The subtle part was keeping the streaming message contract stable while replacing both the handler location and the SEM sink location. Unlike REST, the WebSocket path coordinates message decoding, request-scoped projection defaults, optional AI fallback behavior, structured SEM fanout, and incremental delta events.
+- I kept the public surface small again by exporting only `MountWebSocketRoutes` plus the `AIEngine` interface. The message structs remain notebook-internal so the package boundary stays focused on behavior rather than on exposing extra transport internals.
+
+### What warrants a second pair of eyes
+- Review whether the WebSocket adapter should eventually accept a more narrowly scoped schema provider interface instead of the broader `Runtime` interface.
+- Review whether the notebook package should eventually expose an aggregated module constructor that mounts both REST and WebSocket adapters together.
+
+### What should be done in the future
+- Start the broader package extraction work in `COZODB-010` from the new notebook-owned backend surface.
+- Decide how to package environment presets for the current app versus future notebook hosts without reintroducing transport ownership into the app shell.
+
+### Code review instructions
+- Start with `backend/pkg/notebook/websocket.go`, `backend/pkg/notebook/ws_sem_sink.go`, and `backend/pkg/notebook/websocket_test.go`.
+- Then inspect `backend/main.go` to confirm both notebook HTTP and notebook WebSocket routes are mounted from `backend/pkg/notebook`.
+- Finally inspect `backend/pkg/api/types.go` to confirm the generic API package no longer owns notebook WebSocket payloads.
+- Validate with:
+  - `cd backend && go test ./...`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `cd frontend && npx tsc --noEmit`
+
+### Technical details
+- Notebook WebSocket registration now happens through:
+  ```go
+  func MountWebSocketRoutes(mux *http.ServeMux, runtime Runtime, engine AIEngine)
+  ```
+- Readiness assessment for `COZODB-010`:
+  - `backend/pkg/notebook` now owns notebook service construction.
+  - `backend/pkg/notebook` now owns notebook REST transport.
+  - `backend/pkg/notebook` now owns notebook WebSocket and SEM transport.
+  - `backend/main.go` consumes notebook-owned adapters directly.
+  - That means package extraction can proceed without first restructuring app-only transport glue.

@@ -28,3 +28,20 @@ Step 3: moved notebook REST route ownership into backend/pkg/notebook and rewire
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/http.go — Notebook package now mounts and serves the notebook REST API directly
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/http_test.go — Transport tests cover bootstrap
 
+
+## 2026-03-22
+
+Step 4: moved notebook WebSocket transport into backend/pkg/notebook, validated backend and frontend, and confirmed readiness for COZODB-010 package extraction (commit 1e13d38)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/main.go — Current app now mounts notebook-owned REST and WebSocket adapters
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/websocket.go — Notebook package now owns /ws/hints and AI transport orchestration
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/websocket_test.go — Fallback WebSocket contract test covers the cutover endpoint
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/ws_sem_sink.go — SEM translation moved with the notebook WebSocket adapter
+
+
+## 2026-03-22
+
+Ticket closed
+
