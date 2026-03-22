@@ -1,26 +1,27 @@
 import type { ReactNode } from "react";
 import { MacButton } from "../components/primitives";
 import type { Notebook } from "../transport/httpClient";
-
-const NOTEBOOK_SHORTCUT_HINT = "j/k nav | Enter edit | Shift+Enter run+advance | Alt/Ctrl+Enter run+new | a +code | m +md | x delete";
+import { mergeNotebookShellConfig, type NotebookShellConfig } from "./config";
 
 interface NotebookShellProps {
   children: ReactNode;
   notebook?: Notebook | null;
+  shellConfig?: Partial<NotebookShellConfig>;
   wsConnected?: boolean;
 }
 
-function NotebookShell({ children, notebook, wsConnected = false }: NotebookShellProps) {
+function NotebookShell({ children, notebook, shellConfig, wsConnected = false }: NotebookShellProps) {
+  const resolvedShellConfig = mergeNotebookShellConfig(shellConfig);
+
   return (
     <div className="mac-desktop" data-part="notebook-root">
       <div className="mac-menubar" data-part="notebook-menubar">
         <span className="mac-menubar__apple" data-part="notebook-menubar-apple">&#63743;</span>
-        <span className="mac-menubar__item" data-part="notebook-menubar-item">File</span>
-        <span className="mac-menubar__item" data-part="notebook-menubar-item">Edit</span>
-        <span className="mac-menubar__item" data-part="notebook-menubar-item">Cell</span>
-        <span className="mac-menubar__item" data-part="notebook-menubar-item">Runtime</span>
+        {resolvedShellConfig.menuItems.map((item) => (
+          <span className="mac-menubar__item" data-part="notebook-menubar-item" key={item}>{item}</span>
+        ))}
         <span className="mac-menubar__spacer" />
-        <span className="mac-menubar__hint" data-part="notebook-shortcut-hint">{NOTEBOOK_SHORTCUT_HINT}</span>
+        <span className="mac-menubar__hint" data-part="notebook-shortcut-hint">{resolvedShellConfig.shortcutHint}</span>
         <span
           className={`mac-menubar__status ${wsConnected ? "is-connected" : ""}`}
           data-part="notebook-menubar-status"
@@ -37,6 +38,7 @@ export interface NotebookPageViewProps {
   error: string | null;
   loading: boolean;
   notebook: Notebook | null;
+  shellConfig?: Partial<NotebookShellConfig>;
   renderedCells: ReactNode;
   titleKey?: string;
   wsConnected: boolean;
@@ -51,6 +53,7 @@ export function NotebookPageView({
   error,
   loading,
   notebook,
+  shellConfig,
   renderedCells,
   titleKey,
   wsConnected,
@@ -62,12 +65,12 @@ export function NotebookPageView({
 }: NotebookPageViewProps) {
   if (loading) {
     return (
-      <NotebookShell>
+      <NotebookShell shellConfig={shellConfig}>
         <div className="mac-window mac-notebook-chrome" data-part="notebook-window">
           <div className="mac-window__titlebar">
             <div className="mac-window__titlebar-left">
               <span className="mac-window__close" data-state="inert" />
-              <span className="mac-window__title">CozoDB Notebook</span>
+              <span className="mac-window__title">{mergeNotebookShellConfig(shellConfig).appName}</span>
             </div>
           </div>
           <div className="mac-notebook-body">
@@ -80,12 +83,12 @@ export function NotebookPageView({
 
   if (!notebook) {
     return (
-      <NotebookShell>
+      <NotebookShell shellConfig={shellConfig}>
         <div className="mac-window mac-notebook-chrome" data-part="notebook-window">
           <div className="mac-window__titlebar">
             <div className="mac-window__titlebar-left">
               <span className="mac-window__close" data-state="inert" />
-              <span className="mac-window__title">CozoDB Notebook</span>
+              <span className="mac-window__title">{mergeNotebookShellConfig(shellConfig).appName}</span>
             </div>
           </div>
           <div className="mac-notebook-body">
@@ -97,7 +100,7 @@ export function NotebookPageView({
   }
 
   return (
-    <NotebookShell notebook={notebook} wsConnected={wsConnected}>
+    <NotebookShell notebook={notebook} shellConfig={shellConfig} wsConnected={wsConnected}>
       <div className="mac-window mac-notebook-chrome" data-part="notebook-window">
         <div className="mac-window__titlebar">
           <div className="mac-window__titlebar-left">

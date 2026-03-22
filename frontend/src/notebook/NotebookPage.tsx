@@ -3,18 +3,17 @@ import { MacButton } from "../components/primitives";
 import { NotebookCellCard } from "./NotebookCellCard";
 import { NotebookPageView } from "./NotebookPageView";
 import { useNotebookPageController } from "./useNotebookPageController";
-import "../components/primitives/primitives.css";
-import "./notebook.css";
-import "../theme/cards.css";
-import "../theme/layout.css";
-import "../theme/tokens.css";
+import type { NotebookShellConfig } from "./config";
+import type { NotebookSemHandlerRegistrar } from "./registerCurrentCozoSemHandlers";
 
 interface NotebookPageContainerProps {
   confirmAction?: (message: string) => boolean;
+  registerSemHandlers?: NotebookSemHandlerRegistrar;
+  shellConfig?: Partial<NotebookShellConfig>;
   ws: HintsSocket;
 }
 
-export function NotebookPageContainer({ confirmAction, ws }: NotebookPageContainerProps) {
+export function NotebookPageContainer({ confirmAction, registerSemHandlers, shellConfig, ws }: NotebookPageContainerProps) {
   const {
     document,
     error,
@@ -27,7 +26,7 @@ export function NotebookPageContainer({ confirmAction, ws }: NotebookPageContain
     loading,
     persistTitle,
     wsConnected,
-  } = useNotebookPageController({ confirmAction, ws });
+  } = useNotebookPageController({ confirmAction, registerSemHandlers, ws });
 
   const lastCellId = document?.cells.at(-1)?.id || "";
 
@@ -67,6 +66,7 @@ export function NotebookPageContainer({ confirmAction, ws }: NotebookPageContain
           ) : null}
         </div>
       ) : null}
+      shellConfig={shellConfig}
       titleKey={document ? `${document.notebook.id}:${document.notebook.updated_at_ms}` : undefined}
       wsConnected={wsConnected}
     />

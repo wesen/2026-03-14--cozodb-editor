@@ -1,7 +1,7 @@
-import NotebookPage from './notebook/NotebookPage'
+import { CurrentCozoNotebookApp } from "./notebook";
 
 function App() {
-  return <NotebookPage />
+  return <CurrentCozoNotebookApp />
 }
 
 export default App

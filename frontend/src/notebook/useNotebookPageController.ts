@@ -1,9 +1,8 @@
 import { useCallback, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { registerCozoSemHandlers } from "../sem/registerCozoSemHandlers";
-import { registerDefaultSemHandlers } from "../sem/registerDefaultSemHandlers";
 import type { HintsSocket, SemEvent } from "../transport/hintsSocket";
 import type { NotebookCell } from "../transport/httpClient";
+import { registerCurrentCozoSemHandlers, type NotebookSemHandlerRegistrar } from "./registerCurrentCozoSemHandlers";
 import {
   clearCurrentNotebook,
   insertNotebookCellBelow,
@@ -30,10 +29,11 @@ function clampIndex(index: number, maxIndex: number): number {
 
 export interface NotebookPageControllerOptions {
   confirmAction?: (message: string) => boolean;
+  registerSemHandlers?: NotebookSemHandlerRegistrar;
   ws: HintsSocket;
 }
 
-export function useNotebookPageController({ confirmAction, ws }: NotebookPageControllerOptions) {
+export function useNotebookPageController({ confirmAction, registerSemHandlers = registerCurrentCozoSemHandlers, ws }: NotebookPageControllerOptions) {
   const dispatch = useAppDispatch();
   const document = useAppSelector(selectNotebookDocument);
   const error = useAppSelector(selectNotebookError);
@@ -56,15 +56,12 @@ export function useNotebookPageController({ confirmAction, ws }: NotebookPageCon
       dispatch(semEventProjected(event));
     };
 
-    const unsubscribers = [
-      ...registerDefaultSemHandlers(ws, { onProject }),
-      ...registerCozoSemHandlers(ws, { onProject }),
-    ];
+    const unsubscribers = registerSemHandlers(ws, { onProject });
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [dispatch, ws]);
+  }, [dispatch, registerSemHandlers, ws]);
 
   const focusCellAtIndex = useCallback((index: number) => {
     if (cells.length === 0) {
