@@ -3,7 +3,11 @@ import type { AppStore } from "../app/store";
 import { useHintsSocket, type HintsSocket } from "../transport/hintsSocket";
 import { NotebookApp } from "./NotebookApp";
 import type { NotebookShellConfig } from "./config";
-import { createCurrentCozoNotebookStore, currentCozoNotebookShellConfig } from "./currentCozoConfig";
+import {
+  createCurrentCozoNotebookStore,
+  currentCozoNotebookExperienceConfig,
+  currentCozoNotebookShellConfig,
+} from "./currentCozoConfig";
 import { registerCurrentCozoSemHandlers } from "./registerCurrentCozoSemHandlers";
 import "../index.css";
 import "../components/primitives/primitives.css";
@@ -39,6 +43,7 @@ function CurrentCozoNotebookAppBase({
   return (
     <NotebookApp
       confirmAction={confirmAction}
+      experienceConfig={currentCozoNotebookExperienceConfig}
       registerSemHandlers={registerCurrentCozoSemHandlers}
       shellConfig={{ ...currentCozoNotebookShellConfig, ...shellConfig }}
       store={resolvedStore}

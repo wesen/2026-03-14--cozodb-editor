@@ -42,18 +42,64 @@ func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
 		config.logf("[NOTEBOOK] AI hints disabled (no ANTHROPIC_API_KEY)")
 	}
 
-	module, err := OpenModule(config.AppDBPath, runtime, engine)
+	profile := currentCozoNotebookProfile()
+	store, err := OpenStoreWithConfig(StoreConfig{
+		DBPath:  config.AppDBPath,
+		Profile: profile,
+	})
 	if err != nil {
 		runtime.Close()
 		return nil, err
 	}
 
-	module.BasePaths = config.BasePaths.withDefaults()
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
+	if err != nil {
+		_ = store.Close()
+		runtime.Close()
+		return nil, err
+	}
+
+	module, err := NewModule(ModuleConfig{
+		ServiceConfig: ServiceConfig{
+			Runtime:    runtime,
+			SessionID:  "cozo-notebook-session",
+			RuntimeKey: "cozo-runtime",
+			Store:      store,
+			Timeline:   timeline,
+		},
+		AI:        engine,
+		BasePaths: config.BasePaths,
+		WebSocket: currentCozoWebSocketConfig(),
+	})
+	if err != nil {
+		_ = timeline.Close()
+		_ = store.Close()
+		runtime.Close()
+		return nil, err
+	}
+
 	module.additionalClosers = append(module.additionalClosers, func() error {
 		runtime.Close()
 		return nil
 	})
 	return module, nil
+}
+
+func currentCozoNotebookProfile() NotebookProfile {
+	return NotebookProfile{
+		DefaultLanguage:      "cozoscript",
+		DefaultNotebookTitle: "Notebook Playground",
+		StarterCells: []StarterCellTemplate{
+			{
+				Kind:   "markdown",
+				Source: "## Cozo Notebook\n\nWrite a query in the next cell and run it.",
+			},
+			{
+				Kind:   "code",
+				Source: "?[x] <- [[1], [2], [3]]",
+			},
+		},
+	}
 }
 
 func (c CurrentCozoModuleConfig) logf(format string, args ...any) {

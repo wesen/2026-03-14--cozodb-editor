@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { NotebookApp } from "./NotebookApp";
-import { createCurrentCozoNotebookStore } from "./currentCozoConfig";
+import { createCurrentCozoNotebookStore, currentCozoNotebookExperienceConfig } from "./currentCozoConfig";
 import { registerCurrentCozoSemHandlers } from "./registerCurrentCozoSemHandlers";
 import { createNotebookFixture, createNotebookApiHandlers } from "../storybook/notebookApiHandlers";
 import { createStaticHintsSocket } from "../storybook/createStaticHintsSocket";
@@ -19,6 +19,7 @@ function EmbeddedNotebookHost() {
       </aside>
       <NotebookApp
         confirmAction={() => true}
+        experienceConfig={currentCozoNotebookExperienceConfig}
         registerSemHandlers={registerCurrentCozoSemHandlers}
         shellConfig={{
           appName: "Embedded Notebook",

@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { ActionRow, CodePanel, MacButton, PillButton, SectionLabel } from "../../components/primitives";
 import { buildHintMarkdownNote } from "../../notebook/aiNoteMarkdown";
+import { useNotebookExperience } from "../../notebook/experienceConfig";
 import { DocPreviewChip } from "./DocPreviewChip";
 import { toHintCardViewModel } from "./hintViewModel";
 
@@ -33,6 +34,7 @@ function formatHintText(text: string): ReactNode[] {
 }
 
 export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onInsert, onToggleCollapse, response }: Props) {
+  const { codeFenceLanguage } = useNotebookExperience();
   const [openDocs, setOpenDocs] = useState<Record<number, boolean>>({});
   const [copied, setCopied] = useState(false);
   const viewModel = toHintCardViewModel(response);
@@ -131,6 +133,7 @@ export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onIn
             onClick={() => onAddToNotebook(buildHintMarkdownNote({
               chips: viewModel.chips,
               code: viewModel.code,
+              codeFenceLanguage,
               docs: viewModel.docs,
               heading: "AI Assistant Suggestion",
               text: viewModel.text,

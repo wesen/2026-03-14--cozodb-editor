@@ -15,20 +15,25 @@ import (
 
 const defaultNotebookID = "nbk_default"
 
-var defaultStarterCells = []struct {
-	kind   string
-	source string
-}{
-	{kind: "markdown", source: "## Cozo Notebook\n\nWrite a query in the next cell and run it."},
-	{kind: "code", source: "?[x] <- [[1], [2], [3]]"},
+type StoreConfig struct {
+	DBPath  string
+	Profile NotebookProfile
 }
 
 type Store struct {
-	db     *sql.DB
-	dbPath string
+	db      *sql.DB
+	dbPath  string
+	profile NotebookProfile
 }
 
 func OpenStore(dbPath string) (*Store, error) {
+	return OpenStoreWithConfig(StoreConfig{DBPath: dbPath})
+}
+
+func OpenStoreWithConfig(config StoreConfig) (*Store, error) {
+	config.Profile = config.Profile.withDefaults()
+
+	dbPath := config.DBPath
 	dbPath = strings.TrimSpace(dbPath)
 	if dbPath == "" {
 		return nil, fmt.Errorf("notebook store: db path is empty")
@@ -40,7 +45,7 @@ func OpenStore(dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("notebook store: open sqlite: %w", err)
 	}
-	store := &Store{db: db, dbPath: dbPath}
+	store := &Store{db: db, dbPath: dbPath, profile: config.Profile}
 	if err := store.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -68,7 +73,7 @@ func (s *Store) migrate() error {
 		`CREATE TABLE IF NOT EXISTS nb_notebooks (
 			notebook_id TEXT PRIMARY KEY,
 			title TEXT NOT NULL,
-			language TEXT NOT NULL DEFAULT 'cozoscript',
+			language TEXT NOT NULL DEFAULT 'notebook',
 			created_at_ms INTEGER NOT NULL,
 			updated_at_ms INTEGER NOT NULL
 		);`,
@@ -142,12 +147,12 @@ func (s *Store) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, e
 
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO nb_notebooks(notebook_id, title, language, created_at_ms, updated_at_ms)
-		VALUES(?, ?, 'cozoscript', ?, ?)
-	`, defaultNotebookID, "Notebook Playground", now, now); err != nil {
+		VALUES(?, ?, ?, ?, ?)
+	`, defaultNotebookID, s.profile.DefaultNotebookTitle, s.profile.DefaultLanguage, now, now); err != nil {
 		return nil, err
 	}
 
-	for _, cell := range initialDefaultNotebookCells(now) {
+	for _, cell := range initialDefaultNotebookCells(now, s.profile) {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO nb_cells(cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms)
 			VALUES(?, ?, ?, ?, ?, ?, ?)
@@ -174,7 +179,7 @@ func (s *Store) CreateNotebook(ctx context.Context, title string) (*Notebook, er
 	nb := &Notebook{
 		ID:          "nbk_" + uuid.NewString(),
 		Title:       title,
-		Language:    "cozoscript",
+		Language:    s.profile.DefaultLanguage,
 		CreatedAtMs: now,
 		UpdatedAtMs: now,
 	}
@@ -471,7 +476,7 @@ func (s *Store) ClearNotebook(ctx context.Context, notebookID string) error {
 	}
 
 	now := time.Now().UnixMilli()
-	for _, cell := range starterCellsForNotebook(notebookID, now) {
+	for _, cell := range starterCellsForNotebook(notebookID, now, s.profile) {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO nb_cells(cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms)
 			VALUES(?, ?, ?, ?, ?, ?, ?)
@@ -610,14 +615,15 @@ func normalizeCellKind(kind string) string {
 	return kind
 }
 
-func initialDefaultNotebookCells(now int64) []NotebookCell {
+func initialDefaultNotebookCells(now int64, profile NotebookProfile) []NotebookCell {
+	starterCells := profile.withDefaults().StarterCells
 	return []NotebookCell{
 		{
 			ID:          "cell_intro",
 			NotebookID:  defaultNotebookID,
 			Position:    0,
-			Kind:        defaultStarterCells[0].kind,
-			Source:      defaultStarterCells[0].source,
+			Kind:        starterCells[0].Kind,
+			Source:      starterCells[0].Source,
 			CreatedAtMs: now,
 			UpdatedAtMs: now,
 		},
@@ -625,23 +631,24 @@ func initialDefaultNotebookCells(now int64) []NotebookCell {
 			ID:          "cell_query",
 			NotebookID:  defaultNotebookID,
 			Position:    1,
-			Kind:        defaultStarterCells[1].kind,
-			Source:      defaultStarterCells[1].source,
+			Kind:        starterCells[1].Kind,
+			Source:      starterCells[1].Source,
 			CreatedAtMs: now,
 			UpdatedAtMs: now,
 		},
 	}
 }
 
-func starterCellsForNotebook(notebookID string, now int64) []NotebookCell {
-	cells := make([]NotebookCell, 0, len(defaultStarterCells))
-	for index, cell := range defaultStarterCells {
+func starterCellsForNotebook(notebookID string, now int64, profile NotebookProfile) []NotebookCell {
+	starterCells := profile.withDefaults().StarterCells
+	cells := make([]NotebookCell, 0, len(starterCells))
+	for index, cell := range starterCells {
 		cells = append(cells, NotebookCell{
 			ID:          "cell_" + uuid.NewString(),
 			NotebookID:  notebookID,
 			Position:    index,
-			Kind:        cell.kind,
-			Source:      cell.source,
+			Kind:        cell.Kind,
+			Source:      cell.Source,
 			CreatedAtMs: now,
 			UpdatedAtMs: now,
 		})

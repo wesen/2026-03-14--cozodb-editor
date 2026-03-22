@@ -1,12 +1,12 @@
 import type { KeyboardEventHandler, RefObject } from "react";
 import { MacButton } from "../components/primitives";
-import { CozoSemRenderer } from "../features/cozo-sem/CozoSemRenderer";
 import { DiagnosisCard } from "../features/diagnosis/DiagnosisCard";
 import { HintResponseCard } from "../features/hints/HintResponseCard";
 import { QueryResultsTable } from "../features/query-results/QueryResultsTable";
 import { StreamingMessageCard } from "../features/hints/StreamingMessageCard";
 import type { HintResponsePayload, SemThread } from "../sem/semProjection";
 import type { CellRuntime, NotebookCell } from "../transport/httpClient";
+import { useNotebookExperience } from "./experienceConfig";
 import { renderMarkdown } from "./renderMarkdown";
 
 interface CellErrorCardProps {
@@ -147,6 +147,7 @@ export function NotebookCellCardView({
   const outputDimmed = isDirty || isStale;
   const hasAI = threads.length > 0 || Boolean(fallbackHint) || Boolean(diagnosisFix);
   const hintCollapsed = Boolean(collapsedThreadIds[`hint:${cell.id}`]);
+  const { SemThreadRenderer, codeCellPlaceholder } = useNotebookExperience();
 
   return (
     <div
@@ -201,7 +202,7 @@ export function NotebookCellCardView({
             onBlur={onEditorBlur}
             onFocus={onEditorFocus}
             onKeyDown={onEditorKeyDown}
-            placeholder={isCode ? "-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)" : "Enter markdown... (Esc to preview)"}
+            placeholder={isCode ? codeCellPlaceholder : "Enter markdown... (Esc to preview)"}
             rows={1}
             spellCheck={false}
           />
@@ -287,7 +288,7 @@ export function NotebookCellCardView({
 
                 {threads.map((thread) => (
                   <div key={thread.id} style={{ marginTop: 8 }}>
-                    <CozoSemRenderer
+                    <SemThreadRenderer
                       onAddToNotebook={onThreadAddToNotebook}
                       collapsed={Boolean(collapsedThreadIds[thread.id])}
                       onAskQuestion={onThreadAskQuestion}

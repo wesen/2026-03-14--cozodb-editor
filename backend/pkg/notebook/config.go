@@ -3,8 +3,8 @@ package notebook
 import "fmt"
 
 const (
-	defaultSessionID         = "cozodb-editor-notebook"
-	defaultRuntimeKey        = "cozodb-notebook"
+	defaultSessionID         = "notebook-editor-session"
+	defaultRuntimeKey        = "notebook-runtime"
 	defaultNotebooksPath     = "/api/notebooks"
 	defaultNotebookCellsPath = "/api/notebook-cells"
 	defaultResetKernelPath   = "/api/runtime/reset-kernel"
@@ -30,6 +30,7 @@ type ModuleConfig struct {
 	ServiceConfig ServiceConfig
 	AI            AIEngine
 	BasePaths     BasePaths
+	WebSocket     WebSocketConfig
 }
 
 func (c ServiceConfig) withDefaults() ServiceConfig {
@@ -90,6 +91,7 @@ func (p BasePaths) validate() error {
 func (c ModuleConfig) withDefaults() ModuleConfig {
 	c.ServiceConfig = c.ServiceConfig.withDefaults()
 	c.BasePaths = c.BasePaths.withDefaults()
+	c.WebSocket = c.WebSocket.withDefaults()
 	return c
 }
 

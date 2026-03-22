@@ -30,7 +30,10 @@ func newTestModule(t *testing.T, basePaths BasePaths) *Module {
 	require.NoError(t, err)
 	t.Cleanup(func() { runtime.Close() })
 
-	store, err := OpenStore(t.TempDir() + "/app.sqlite")
+	store, err := OpenStoreWithConfig(StoreConfig{
+		DBPath:  t.TempDir() + "/app.sqlite",
+		Profile: currentCozoNotebookProfile(),
+	})
 	require.NoError(t, err)
 
 	timeline, err := OpenSQLiteTimelineStore(store.DBPath())

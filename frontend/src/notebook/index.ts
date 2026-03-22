@@ -5,6 +5,7 @@ export {
 } from "./currentCozo";
 export {
   createCurrentCozoNotebookStore,
+  currentCozoNotebookExperienceConfig,
   currentCozoNotebookShellConfig,
 } from "./currentCozoConfig";
 export {
@@ -12,6 +13,15 @@ export {
   mergeNotebookShellConfig,
   type NotebookShellConfig,
 } from "./config";
+export {
+  NotebookExperienceProvider,
+} from "./experience";
+export {
+  defaultNotebookExperienceConfig,
+  useNotebookExperience,
+  type NotebookExperienceConfig,
+  type NotebookSemThreadRendererProps,
+} from "./experienceConfig";
 export {
   registerCurrentCozoSemHandlers,
   type NotebookSemHandlerOptions,

@@ -3,10 +3,13 @@ import type { AppStore } from "../app/store";
 import type { HintsSocket } from "../transport/hintsSocket";
 import { NotebookPageContainer } from "./NotebookPage";
 import type { NotebookShellConfig } from "./config";
+import { NotebookExperienceProvider } from "./experience";
+import type { NotebookExperienceConfig } from "./experienceConfig";
 import type { NotebookSemHandlerRegistrar } from "./registerCurrentCozoSemHandlers";
 
 export interface NotebookAppProps {
   confirmAction?: (message: string) => boolean;
+  experienceConfig?: Partial<NotebookExperienceConfig>;
   registerSemHandlers?: NotebookSemHandlerRegistrar;
   shellConfig?: Partial<NotebookShellConfig>;
   store: AppStore;
@@ -15,6 +18,7 @@ export interface NotebookAppProps {
 
 export function NotebookApp({
   confirmAction,
+  experienceConfig,
   registerSemHandlers,
   shellConfig,
   store,
@@ -22,12 +26,14 @@ export function NotebookApp({
 }: NotebookAppProps) {
   return (
     <Provider store={store}>
-      <NotebookPageContainer
-        confirmAction={confirmAction}
-        registerSemHandlers={registerSemHandlers}
-        shellConfig={shellConfig}
-        ws={ws}
-      />
+      <NotebookExperienceProvider value={experienceConfig}>
+        <NotebookPageContainer
+          confirmAction={confirmAction}
+          registerSemHandlers={registerSemHandlers}
+          shellConfig={shellConfig}
+          ws={ws}
+        />
+      </NotebookExperienceProvider>
     </Provider>
   );
 }

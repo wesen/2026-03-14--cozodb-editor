@@ -20,7 +20,10 @@ func openTestService(t *testing.T) (*Service, *cozo.Manager) {
 	runtime, err := openTestRuntime()
 	require.NoError(t, err)
 
-	store, err := OpenStore(filepath.Join(t.TempDir(), "app.sqlite"))
+	store, err := OpenStoreWithConfig(StoreConfig{
+		DBPath:  filepath.Join(t.TempDir(), "app.sqlite"),
+		Profile: currentCozoNotebookProfile(),
+	})
 	require.NoError(t, err)
 
 	timeline, err := OpenSQLiteTimelineStore(store.DBPath())

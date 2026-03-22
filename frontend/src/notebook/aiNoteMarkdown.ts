@@ -1,4 +1,5 @@
 interface DiagnosisNoteInput {
+  codeFenceLanguage?: string;
   error: string;
   fixCode?: string;
   fixText: string;
@@ -13,6 +14,7 @@ interface HintDoc {
 interface HintNoteInput {
   chips?: string[];
   code?: string;
+  codeFenceLanguage?: string;
   docs?: HintDoc[];
   heading: string;
   text: string;
@@ -20,6 +22,7 @@ interface HintNoteInput {
 
 interface QuerySuggestionNoteInput {
   code: string;
+  codeFenceLanguage?: string;
   label: string;
   reason?: string;
 }
@@ -28,7 +31,7 @@ function trimTrailingWhitespace(value: string): string {
   return value.trim().replace(/\n{3,}/g, "\n\n");
 }
 
-export function buildDiagnosisMarkdownNote({ error, fixCode, fixText }: DiagnosisNoteInput): string {
+export function buildDiagnosisMarkdownNote({ codeFenceLanguage = "text", error, fixCode, fixText }: DiagnosisNoteInput): string {
   const sections = [
     "## AI Suggested Fix",
     "",
@@ -40,13 +43,13 @@ export function buildDiagnosisMarkdownNote({ error, fixCode, fixText }: Diagnosi
   ];
 
   if (fixCode?.trim()) {
-    sections.push("", "```cozoscript", fixCode.trim(), "```");
+    sections.push("", `\`\`\`${codeFenceLanguage}`, fixCode.trim(), "```");
   }
 
   return trimTrailingWhitespace(sections.join("\n"));
 }
 
-export function buildHintMarkdownNote({ chips = [], code, docs = [], heading, text }: HintNoteInput): string {
+export function buildHintMarkdownNote({ chips = [], code, codeFenceLanguage = "text", docs = [], heading, text }: HintNoteInput): string {
   const sections = [
     `## ${heading}`,
     "",
@@ -54,7 +57,7 @@ export function buildHintMarkdownNote({ chips = [], code, docs = [], heading, te
   ];
 
   if (code?.trim()) {
-    sections.push("", "```cozoscript", code.trim(), "```");
+    sections.push("", `\`\`\`${codeFenceLanguage}`, code.trim(), "```");
   }
 
   if (chips.length > 0) {
@@ -75,7 +78,7 @@ export function buildHintMarkdownNote({ chips = [], code, docs = [], heading, te
   return trimTrailingWhitespace(sections.join("\n"));
 }
 
-export function buildQuerySuggestionMarkdownNote({ code, label, reason }: QuerySuggestionNoteInput): string {
+export function buildQuerySuggestionMarkdownNote({ code, codeFenceLanguage = "text", label, reason }: QuerySuggestionNoteInput): string {
   const sections = [
     "## Query Suggestion",
     "",
@@ -86,7 +89,7 @@ export function buildQuerySuggestionMarkdownNote({ code, label, reason }: QueryS
     sections.push("", reason.trim());
   }
 
-  sections.push("", "```cozoscript", code.trim(), "```");
+  sections.push("", `\`\`\`${codeFenceLanguage}`, code.trim(), "```");
 
   return trimTrailingWhitespace(sections.join("\n"));
 }

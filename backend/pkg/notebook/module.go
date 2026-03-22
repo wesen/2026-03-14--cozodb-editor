@@ -9,6 +9,7 @@ type Module struct {
 	Service           *Service
 	AI                AIEngine
 	BasePaths         BasePaths
+	WebSocketConfig   WebSocketConfig
 	additionalClosers []func() error
 }
 
@@ -24,9 +25,10 @@ func NewModule(config ModuleConfig) (*Module, error) {
 	}
 
 	return &Module{
-		Service:   service,
-		AI:        config.AI,
-		BasePaths: config.BasePaths,
+		Service:         service,
+		AI:              config.AI,
+		BasePaths:       config.BasePaths,
+		WebSocketConfig: config.WebSocket,
 	}, nil
 }
 
@@ -37,9 +39,10 @@ func OpenModule(appDBPath string, runtime Runtime, engine AIEngine) (*Module, er
 	}
 
 	return &Module{
-		Service:   service,
-		AI:        engine,
-		BasePaths: DefaultBasePaths(),
+		Service:         service,
+		AI:              engine,
+		BasePaths:       DefaultBasePaths(),
+		WebSocketConfig: DefaultWebSocketConfig(),
 	}, nil
 }
 
@@ -69,5 +72,5 @@ func (m *Module) MountWebSocket(mux *http.ServeMux) {
 	if m == nil || m.Service == nil {
 		return
 	}
-	MountWebSocketRoutesWithBasePaths(mux, m.Service.runtime, m.AI, m.BasePaths)
+	MountWebSocketRoutesWithConfig(mux, m.Service.runtime, m.AI, m.BasePaths, m.WebSocketConfig)
 }

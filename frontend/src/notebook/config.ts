@@ -5,7 +5,7 @@ export interface NotebookShellConfig {
 }
 
 export const defaultNotebookShellConfig: NotebookShellConfig = {
-  appName: "CozoDB Notebook",
+  appName: "Notebook",
   menuItems: ["File", "Edit", "Cell", "Runtime"],
   shortcutHint: "j/k nav | Enter edit | Shift+Enter run+advance | Alt/Ctrl+Enter run+new | a +code | m +md | x delete",
 };

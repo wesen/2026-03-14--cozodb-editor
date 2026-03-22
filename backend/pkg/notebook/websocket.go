@@ -57,18 +57,24 @@ type wsHandler struct {
 	engine    AIEngine
 	runtime   Runtime
 	basePaths BasePaths
+	config    WebSocketConfig
 }
 
 func MountWebSocketRoutes(mux *http.ServeMux, runtime Runtime, engine AIEngine) {
-	MountWebSocketRoutesWithBasePaths(mux, runtime, engine, DefaultBasePaths())
+	MountWebSocketRoutesWithConfig(mux, runtime, engine, DefaultBasePaths(), DefaultWebSocketConfig())
 }
 
 func MountWebSocketRoutesWithBasePaths(mux *http.ServeMux, runtime Runtime, engine AIEngine, basePaths BasePaths) {
+	MountWebSocketRoutesWithConfig(mux, runtime, engine, basePaths, DefaultWebSocketConfig())
+}
+
+func MountWebSocketRoutesWithConfig(mux *http.ServeMux, runtime Runtime, engine AIEngine, basePaths BasePaths, config WebSocketConfig) {
 	basePaths = basePaths.withDefaults()
 	handler := &wsHandler{
 		engine:    engine,
 		runtime:   runtime,
 		basePaths: basePaths,
+		config:    config,
 	}
 	mux.HandleFunc(basePaths.HintsWS, handler.handleWS)
 }
@@ -159,18 +165,15 @@ func (h *wsHandler) handleHintRequest(ctx context.Context, writeJSON func(wsMess
 	}
 
 	if h.engine == nil {
+		fallback := h.config.HintUnavailable
 		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "hint.result",
 			ID:       idStr,
 			StreamID: bundleID,
 			Data: map[string]any{
-				"text":  "AI hints are not available (ANTHROPIC_API_KEY not set). Try writing CozoScript directly!",
-				"chips": []string{"show CozoScript syntax", "create a relation"},
-				"docs": []hints.DocRef{{
-					Title:   "CozoScript basics",
-					Section: "§1.0",
-					Body:    "CozoScript uses Datalog syntax: ?[vars] := *relation{cols} for queries, :create/:put/:rm for mutations.",
-				}},
+				"text":        fallback.Text,
+				"chips":       fallback.Chips,
+				"docs":        fallback.Docs,
 				"notebookId":  req.NotebookID,
 				"ownerCellId": req.OwnerCellID,
 				"runId":       req.RunID,
@@ -190,7 +193,10 @@ func (h *wsHandler) handleHintRequest(ctx context.Context, writeJSON func(wsMess
 		},
 	}})
 
-	semSink := newWebSocketSEMSink(writeJSON)
+	sinks := []gepevents.EventSink{}
+	if h.config.SEMSinkFactory != nil {
+		sinks = append(sinks, h.config.SEMSinkFactory(writeJSON))
+	}
 
 	hint, err := h.engine.GenerateHintWithSinks(reqCtx, hintReq, func(delta string) {
 		writeJSON(wsMessage{SEM: true, Event: wsEvent{
@@ -204,7 +210,7 @@ func (h *wsHandler) handleHintRequest(ctx context.Context, writeJSON func(wsMess
 				"runId":       req.RunID,
 			},
 		}})
-	}, semSink)
+	}, sinks...)
 	if err != nil {
 		log.Printf("[WS] hint error: %v", err)
 		writeJSON(wsMessage{SEM: true, Event: wsEvent{
@@ -270,13 +276,15 @@ func (h *wsHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(w
 	}
 
 	if h.engine == nil {
+		fallback := h.config.DiagnosisUnavailable
 		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "hint.result",
 			ID:       idStr,
 			StreamID: bundleID,
 			Data: map[string]any{
-				"text":        "AI diagnosis is not available (ANTHROPIC_API_KEY not set). Check the error message and CozoScript docs.",
-				"chips":       []string{"CozoScript syntax help"},
+				"text":        fallback.Text,
+				"chips":       fallback.Chips,
+				"docs":        fallback.Docs,
 				"notebookId":  req.NotebookID,
 				"ownerCellId": req.OwnerCellID,
 				"runId":       req.RunID,
@@ -296,7 +304,10 @@ func (h *wsHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(w
 		},
 	}})
 
-	semSink := newWebSocketSEMSink(writeJSON)
+	sinks := []gepevents.EventSink{}
+	if h.config.SEMSinkFactory != nil {
+		sinks = append(sinks, h.config.SEMSinkFactory(writeJSON))
+	}
 
 	hint, err := h.engine.DiagnoseErrorWithSinks(reqCtx, diagReq, func(delta string) {
 		writeJSON(wsMessage{SEM: true, Event: wsEvent{
@@ -310,7 +321,7 @@ func (h *wsHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(w
 				"runId":       req.RunID,
 			},
 		}})
-	}, semSink)
+	}, sinks...)
 	if err != nil {
 		log.Printf("[WS] diagnosis error: %v", err)
 		writeJSON(wsMessage{SEM: true, Event: wsEvent{

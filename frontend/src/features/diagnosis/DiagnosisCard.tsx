@@ -1,5 +1,6 @@
 import { ActionRow, CodePanel, MacButton, SectionLabel } from "../../components/primitives";
 import { buildDiagnosisMarkdownNote } from "../../notebook/aiNoteMarkdown";
+import { useNotebookExperience } from "../../notebook/experienceConfig";
 
 interface DiagnosisFix {
   text: string;
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function DiagnosisCard({ diagnosing, error, fix, onAddToNotebook, onApplyFix, onDiagnose }: Props) {
+  const { codeFenceLanguage } = useNotebookExperience();
+
   return (
     <div className="cozo-diagnosis-card">
       <div style={{
@@ -64,6 +67,7 @@ export function DiagnosisCard({ diagnosing, error, fix, onAddToNotebook, onApply
               </MacButton>
               <MacButton
                 onClick={() => onAddToNotebook?.(buildDiagnosisMarkdownNote({
+                  codeFenceLanguage,
                   error,
                   fixCode: fix.code,
                   fixText: fix.text,

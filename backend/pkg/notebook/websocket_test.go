@@ -54,6 +54,47 @@ func TestMountWebSocketRoutesHintFallback(t *testing.T) {
 	require.Contains(t, data["text"], "AI hints are not available")
 }
 
+func TestMountWebSocketRoutesUsesCustomFallbackCopy(t *testing.T) {
+	svc, runtime := openTestService(t)
+	_, err := svc.EnsureDefaultNotebook(context.Background())
+	require.NoError(t, err)
+
+	mux := http.NewServeMux()
+	MountWebSocketRoutesWithConfig(mux, runtime, nil, DefaultBasePaths(), WebSocketConfig{
+		HintUnavailable: WebSocketFallbackResponse{
+			Text:  "Custom hint fallback",
+			Chips: []string{"try again"},
+		},
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	wsURL := websocketURL(t, server.URL, "/ws/hints")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	err = conn.WriteJSON(wsMessage{
+		SEM: true,
+		Event: wsEvent{
+			Type: "hint.request",
+			Data: map[string]any{
+				"question": "What should I try next?",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var response wsMessage
+	err = conn.ReadJSON(&response)
+	require.NoError(t, err)
+
+	data, ok := response.Event.Data.(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Custom hint fallback", data["text"])
+	require.Equal(t, []any{"try again"}, data["chips"])
+}
+
 func TestModuleMountWebSocketUsesCustomBasePaths(t *testing.T) {
 	module := newTestModule(t, BasePaths{
 		Notebooks:     "/x/notebooks",

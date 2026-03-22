@@ -1,4 +1,5 @@
 import { buildHintMarkdownNote } from "../../../notebook/aiNoteMarkdown";
+import { useNotebookExperience } from "../../../notebook/experienceConfig";
 import type { SemEntity } from "../../../sem/semProjection";
 import type { HintViewModel } from "../view-models/toHintViewModel";
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function HintCard({ entity, onAddToNotebook, onAskQuestion, onInsertCode, viewModel }: Props) {
+  const { codeFenceLanguage } = useNotebookExperience();
   const tone = entity?.status === "preview" ? "rgba(198, 176, 52, 0.2)" : "var(--accent-dim)";
   const isErrored = entity?.status === "error";
 
@@ -80,6 +82,7 @@ export function HintCard({ entity, onAddToNotebook, onAskQuestion, onInsertCode,
                 onClick={() => onAddToNotebook?.(buildHintMarkdownNote({
                   chips: viewModel.chips,
                   code: viewModel.code,
+                  codeFenceLanguage,
                   heading: "SEM Hint",
                   text: viewModel.text,
                 }))}
