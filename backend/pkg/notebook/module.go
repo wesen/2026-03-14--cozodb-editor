@@ -1,0 +1,61 @@
+package notebook
+
+import "net/http"
+
+type Module struct {
+	Service   *Service
+	AI        AIEngine
+	BasePaths BasePaths
+}
+
+func NewModule(config ModuleConfig) (*Module, error) {
+	config = config.withDefaults()
+	if err := config.validate(); err != nil {
+		return nil, err
+	}
+
+	service, err := NewService(config.ServiceConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Module{
+		Service:   service,
+		AI:        config.AI,
+		BasePaths: config.BasePaths,
+	}, nil
+}
+
+func OpenModule(appDBPath string, runtime Runtime, engine AIEngine) (*Module, error) {
+	service, err := OpenService(appDBPath, runtime)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Module{
+		Service:   service,
+		AI:        engine,
+		BasePaths: DefaultBasePaths(),
+	}, nil
+}
+
+func (m *Module) Close() error {
+	if m == nil || m.Service == nil {
+		return nil
+	}
+	return m.Service.Close()
+}
+
+func (m *Module) MountHTTP(mux *http.ServeMux) {
+	if m == nil {
+		return
+	}
+	MountHTTPRoutesWithBasePaths(mux, m.Service, m.BasePaths)
+}
+
+func (m *Module) MountWebSocket(mux *http.ServeMux) {
+	if m == nil || m.Service == nil {
+		return
+	}
+	MountWebSocketRoutesWithBasePaths(mux, m.Service.runtime, m.AI, m.BasePaths)
+}

@@ -51,13 +51,13 @@ func main() {
 	}
 
 	// Set up HTTP handlers
-	notebookSvc, err := notebook.OpenService(*appDBPath, runtime)
+	notebookModule, err := notebook.OpenModule(*appDBPath, runtime, hintEngine)
 	if err != nil {
-		log.Fatalf("Failed to open notebook service: %v", err)
+		log.Fatalf("Failed to open notebook module: %v", err)
 	}
 	defer func() {
-		if err := notebookSvc.Close(); err != nil {
-			log.Printf("[MAIN] notebook service close error: %v", err)
+		if err := notebookModule.Close(); err != nil {
+			log.Printf("[MAIN] notebook module close error: %v", err)
 		}
 	}()
 
@@ -75,10 +75,10 @@ func main() {
 		srv.HandleSchema(w, r)
 	})
 	mux.HandleFunc("/api/schema/", srv.HandleSchemaDetail)
-	notebook.MountHTTPRoutes(mux, notebookSvc)
+	notebookModule.MountHTTP(mux)
 
 	// WebSocket
-	notebook.MountWebSocketRoutes(mux, runtime, hintEngine)
+	notebookModule.MountWebSocket(mux)
 
 	// Proxy to Vite dev server for frontend
 	if *viteURL != "" {

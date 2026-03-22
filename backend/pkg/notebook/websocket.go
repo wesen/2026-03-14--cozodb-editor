@@ -54,16 +54,23 @@ type AIEngine interface {
 }
 
 type wsHandler struct {
-	engine  AIEngine
-	runtime Runtime
+	engine    AIEngine
+	runtime   Runtime
+	basePaths BasePaths
 }
 
 func MountWebSocketRoutes(mux *http.ServeMux, runtime Runtime, engine AIEngine) {
+	MountWebSocketRoutesWithBasePaths(mux, runtime, engine, DefaultBasePaths())
+}
+
+func MountWebSocketRoutesWithBasePaths(mux *http.ServeMux, runtime Runtime, engine AIEngine, basePaths BasePaths) {
+	basePaths = basePaths.withDefaults()
 	handler := &wsHandler{
-		engine:  engine,
-		runtime: runtime,
+		engine:    engine,
+		runtime:   runtime,
+		basePaths: basePaths,
 	}
-	mux.HandleFunc("/ws/hints", handler.handleWS)
+	mux.HandleFunc(basePaths.HintsWS, handler.handleWS)
 }
 
 func (h *wsHandler) handleWS(w http.ResponseWriter, r *http.Request) {

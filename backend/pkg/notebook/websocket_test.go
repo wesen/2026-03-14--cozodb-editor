@@ -54,6 +54,41 @@ func TestMountWebSocketRoutesHintFallback(t *testing.T) {
 	require.Contains(t, data["text"], "AI hints are not available")
 }
 
+func TestModuleMountWebSocketUsesCustomBasePaths(t *testing.T) {
+	module := newTestModule(t, BasePaths{
+		Notebooks:     "/x/notebooks",
+		NotebookCells: "/x/notebook-cells",
+		ResetKernel:   "/x/runtime/reset-kernel",
+		HintsWS:       "/x/ws/hints",
+	})
+
+	mux := http.NewServeMux()
+	module.MountWebSocket(mux)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	wsURL := websocketURL(t, server.URL, "/x/ws/hints")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	err = conn.WriteJSON(wsMessage{
+		SEM: true,
+		Event: wsEvent{
+			Type: "hint.request",
+			Data: map[string]any{
+				"question": "How do I query users?",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var response wsMessage
+	err = conn.ReadJSON(&response)
+	require.NoError(t, err)
+	require.Equal(t, "hint.result", response.Event.Type)
+}
+
 func websocketURL(t *testing.T, serverURL string, path string) string {
 	t.Helper()
 

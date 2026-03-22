@@ -36,16 +36,25 @@ type resetKernelResponse struct {
 }
 
 type httpHandler struct {
-	service *Service
+	service   *Service
+	basePaths BasePaths
 }
 
 func MountHTTPRoutes(mux *http.ServeMux, service *Service) {
-	handler := &httpHandler{service: service}
-	mux.HandleFunc("/api/notebooks", handler.handleCreateNotebook)
-	mux.HandleFunc("/api/notebooks/bootstrap", handler.handleBootstrapNotebook)
-	mux.HandleFunc("/api/notebooks/", handler.handleNotebook)
-	mux.HandleFunc("/api/notebook-cells/", handler.handleNotebookCell)
-	mux.HandleFunc("/api/runtime/reset-kernel", handler.handleResetKernel)
+	MountHTTPRoutesWithBasePaths(mux, service, DefaultBasePaths())
+}
+
+func MountHTTPRoutesWithBasePaths(mux *http.ServeMux, service *Service, basePaths BasePaths) {
+	basePaths = basePaths.withDefaults()
+	handler := &httpHandler{
+		service:   service,
+		basePaths: basePaths,
+	}
+	mux.HandleFunc(basePaths.Notebooks, handler.handleCreateNotebook)
+	mux.HandleFunc(basePaths.Notebooks+"/bootstrap", handler.handleBootstrapNotebook)
+	mux.HandleFunc(basePaths.Notebooks+"/", handler.handleNotebook)
+	mux.HandleFunc(basePaths.NotebookCells+"/", handler.handleNotebookCell)
+	mux.HandleFunc(basePaths.ResetKernel, handler.handleResetKernel)
 }
 
 func (h *httpHandler) handleBootstrapNotebook(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +98,7 @@ func (h *httpHandler) handleNotebook(w http.ResponseWriter, r *http.Request) {
 	if !h.ensureService(w) {
 		return
 	}
-	path := strings.TrimPrefix(r.URL.Path, "/api/notebooks/")
+	path := strings.TrimPrefix(r.URL.Path, h.basePaths.Notebooks+"/")
 	path = strings.Trim(path, "/")
 	if path == "" {
 		http.NotFound(w, r)
@@ -181,7 +190,7 @@ func (h *httpHandler) handleNotebookCell(w http.ResponseWriter, r *http.Request)
 	if !h.ensureService(w) {
 		return
 	}
-	path := strings.TrimPrefix(r.URL.Path, "/api/notebook-cells/")
+	path := strings.TrimPrefix(r.URL.Path, h.basePaths.NotebookCells+"/")
 	path = strings.Trim(path, "/")
 	if path == "" {
 		http.NotFound(w, r)

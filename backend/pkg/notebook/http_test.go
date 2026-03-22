@@ -23,6 +23,33 @@ func newNotebookHTTPTestMux(t *testing.T) (*http.ServeMux, *Service) {
 	return mux, svc
 }
 
+func newTestModule(t *testing.T, basePaths BasePaths) *Module {
+	t.Helper()
+
+	runtime, err := openTestRuntime()
+	require.NoError(t, err)
+	t.Cleanup(func() { runtime.Close() })
+
+	store, err := OpenStore(t.TempDir() + "/app.sqlite")
+	require.NoError(t, err)
+
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
+	require.NoError(t, err)
+
+	module, err := NewModule(ModuleConfig{
+		ServiceConfig: ServiceConfig{
+			Runtime:  runtime,
+			Store:    store,
+			Timeline: timeline,
+		},
+		BasePaths: basePaths,
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = module.Close() })
+	return module
+}
+
 func mustJSONRequest(t *testing.T, method string, path string, body any) *http.Request {
 	t.Helper()
 
@@ -99,4 +126,26 @@ func TestMountHTTPRoutesNotebookMutationFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, reset.OK)
 	require.Equal(t, int64(2), reset.KernelGeneration)
+}
+
+func TestModuleMountHTTPUsesCustomBasePaths(t *testing.T) {
+	module := newTestModule(t, BasePaths{
+		Notebooks:     "/x/notebooks",
+		NotebookCells: "/x/notebook-cells",
+		ResetKernel:   "/x/runtime/reset-kernel",
+		HintsWS:       "/x/ws/hints",
+	})
+
+	mux := http.NewServeMux()
+	module.MountHTTP(mux)
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/x/notebooks/bootstrap", nil))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var doc NotebookDocument
+	err := json.NewDecoder(recorder.Body).Decode(&doc)
+	require.NoError(t, err)
+	require.Equal(t, defaultNotebookID, doc.Notebook.ID)
 }

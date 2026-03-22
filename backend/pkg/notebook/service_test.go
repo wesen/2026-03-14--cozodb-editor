@@ -10,10 +10,14 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 )
 
+func openTestRuntime() (*cozo.Manager, error) {
+	return cozo.NewManager("mem", "")
+}
+
 func openTestService(t *testing.T) (*Service, *cozo.Manager) {
 	t.Helper()
 
-	runtime, err := cozo.NewManager("mem", "")
+	runtime, err := openTestRuntime()
 	require.NoError(t, err)
 
 	store, err := OpenStore(filepath.Join(t.TempDir(), "app.sqlite"))
