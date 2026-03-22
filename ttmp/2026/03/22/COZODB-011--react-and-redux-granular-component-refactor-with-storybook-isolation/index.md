@@ -12,7 +12,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Frontend refactor ticket for extracting reusable React primitives, separating Redux containers from presentational views, and validating the result in Storybook before broader notebook package modularization."
-LastUpdated: 2026-03-22T11:58:02-04:00
+LastUpdated: 2026-03-22T12:14:32-04:00
 WhatFor: "Track the pre-COZODB-010 frontend granularity work and its implementation artifacts."
 WhenToUse: "Use when orienting to COZODB-011 or continuing the React/Redux component refactor."
 ---
@@ -39,9 +39,9 @@ This ticket is the frontend refactor layer that should happen before the broader
 Current status: **active**
 
 - Analysis and task planning are complete.
-- Storybook and primitive extraction are complete.
-- `NotebookCellCard` has been split into container/view layers with both pure and mock-store stories.
-- `NotebookPage` refactoring is the main remaining implementation block.
+- Storybook, primitive extraction, `NotebookCellCard`, and `NotebookPage` refactors are complete.
+- The ticket now includes both pure page-shell stories and an MSW-backed full interactive notebook Storybook story.
+- The frontend is ready for the frontend-side package extraction work described in `COZODB-010`.
 
 ## Tasks
 

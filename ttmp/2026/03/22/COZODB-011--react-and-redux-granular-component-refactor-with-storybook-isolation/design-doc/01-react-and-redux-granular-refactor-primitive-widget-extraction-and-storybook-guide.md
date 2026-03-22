@@ -12,7 +12,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Detailed analysis and implementation guide for decomposing the current React and Redux notebook UI into reusable presentational widgets, connected containers, and Storybook-backed isolated stories before the broader package modularization in COZODB-010."
-LastUpdated: 2026-03-22T11:58:02-04:00
+LastUpdated: 2026-03-22T12:14:32-04:00
 WhatFor: "Provide a concrete pre-modularization frontend refactor plan that extracts granular reusable components and validates them in Storybook with isolated and mock-store-driven stories."
 WhenToUse: "Use before further notebook package extraction work, when splitting connected notebook components, or when deciding how to add Storybook coverage to the current frontend."
 ---
@@ -39,8 +39,10 @@ As of `2026-03-22`, the first two implementation slices in this guide are comple
 - `HintResponseCard`, `DiagnosisCard`, and `CozoSemRenderer` now consume the shared primitives.
 - `NotebookCellCard` has been split into a connected container and a presentational view.
 - Storybook now covers both pure component stories and connected notebook stories backed by a mock Redux store.
+- `NotebookPage` has been split into controller/container/view layers.
+- Storybook now includes an MSW-backed interactive notebook page story in addition to isolated shell/component stories.
 
-The main remaining implementation block in this guide is the `NotebookPage` split and its corresponding page-shell stories.
+The decomposition work described in this guide is now complete enough for the frontend-side extraction work proposed in `COZODB-010`.
 
 The current state supports this approach well:
 

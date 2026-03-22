@@ -19,7 +19,7 @@
 - [x] Add a broad set of stories for the primitives and presentational feature cards
 - [x] Split `NotebookCellCard` into a Redux-aware container and a presentational view
 - [x] Add mock-store stories for notebook cell states
-- [ ] Split `NotebookPage` into container/view/controller layers
-- [ ] Add page-shell and connected notebook stories
+- [x] Split `NotebookPage` into container/view/controller layers
+- [x] Add page-shell and connected notebook stories
 - [x] Run lint, tests, build, and Storybook build
-- [ ] Reassess frontend readiness for the package modularization work in `COZODB-010`
+- [x] Reassess frontend readiness for the package modularization work in `COZODB-010`

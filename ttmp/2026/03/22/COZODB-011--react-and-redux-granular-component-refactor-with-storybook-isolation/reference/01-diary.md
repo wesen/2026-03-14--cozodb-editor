@@ -12,7 +12,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Chronological diary for the React/Redux granularity and Storybook isolation refactor."
-LastUpdated: 2026-03-22T11:58:02-04:00
+LastUpdated: 2026-03-22T12:14:32-04:00
 WhatFor: "Record the analysis, implementation slices, validation commands, and commit checkpoints for COZODB-011."
 WhenToUse: "Use when continuing the frontend refactor, reviewing changes, or checking which tasks and commits completed each slice."
 ---
@@ -277,3 +277,126 @@ This slice took the next architectural step after the primitive extraction: the 
   - `frontend/src/notebook/NotebookCellCard.tsx`
   - `frontend/eslint.config.js`
   - `frontend/src/features/diagnosis/DiagnosisCard.stories.tsx`
+
+## Step 4: Split NotebookPage, tighten the page-level CSS surface, and add an MSW-backed full notebook Storybook story
+
+This slice completed the page-level decomposition and added a full interactive notebook story that exercises real fetch-driven flows against a mocked backend.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue, and also make sure the css stuff still fits, because it's been diverging, also make pstorybook stories with the full notebook to interact with or something. We can use msw for fake backend api mocking."
+
+**Assistant interpretation:** Continue the refactor by finishing the page split, tightening the themable CSS surface, and adding an interactive Storybook notebook backed by MSW instead of static props only.
+
+**Inferred user intent:** Move beyond component isolation into an app-like Storybook surface while preventing CSS drift between page chrome, primitives, and notebook-specific styles.
+
+**Commit (code):** `b5715bf` (`frontend: add interactive notebook page stories with msw`)
+
+### What I did
+- Split `NotebookPage` into:
+  - a hook/controller in `frontend/src/notebook/useNotebookPageController.ts`
+  - a pure shell view in `frontend/src/notebook/NotebookPageView.tsx`
+  - a connected container in `frontend/src/notebook/NotebookPage.tsx`
+- Added page stories:
+  - `frontend/src/notebook/NotebookPageView.stories.tsx`
+  - `frontend/src/notebook/NotebookPage.stories.tsx`
+- Added MSW support for Storybook:
+  - `msw` and `msw-storybook-addon`
+  - global initialization in `.storybook/preview.tsx`
+  - `staticDirs` in `.storybook/main.ts`
+  - `frontend/public/mockServiceWorker.js`
+- Added a full notebook API mock layer in `frontend/src/storybook/notebookApiHandlers.ts` covering:
+  - bootstrap
+  - title updates
+  - cell insert/update/move/delete
+  - run
+  - clear
+  - reset kernel
+- Added a fake hints socket for connected stories in `frontend/src/storybook/createStaticHintsSocket.ts`.
+- Tightened CSS cohesion by:
+  - reusing `MacButton` in page-level notebook actions
+  - adding explicit notebook shell layout classes like `mac-notebook-stack` and `mac-notebook-toolbar`
+  - moving page-shell structure toward `data-part` hooks
+  - using theme variables for menubar/window/button backgrounds instead of more hard-coded white blocks
+  - adding a small responsive pass for the notebook shell
+- Looked at the larger `os-openai-app-server` example and adopted the same general direction of stable `data-part` hooks plus story-specific shell framing rather than relying only on incidental class names.
+
+### Why
+- `NotebookPage` was the remaining coarse assembly surface blocking the transition from reusable components to a reusable notebook package.
+- A full MSW-backed story is the first notebook-level validation surface that behaves like the app instead of a static screenshot story.
+- The page shell needed a CSS pass because the button/window chrome and notebook-specific layout had started to drift apart as primitives were introduced.
+
+### What worked
+- The controller/view split reduced the page component cleanly without changing the notebook behavior model.
+- MSW fit well with the existing REST transport layer because the HTTP client already used a narrow set of endpoints.
+- Storybook now has both:
+  - presentational page-shell stories
+  - a connected interactive notebook story
+- The CSS cleanup was small but high-leverage: using shared button primitives and token-backed shell backgrounds made the page feel more internally consistent again.
+
+### What didn't work
+- `npx msw init public/` copied the worker script successfully but then dropped into an interactive metadata prompt; I had to add the `msw.workerDirectory` package metadata manually instead of relying on the wizard to finish.
+- ESLint initially tried to lint the generated `mockServiceWorker.js` file and needed an explicit ignore.
+- The first version of the MSW handlers passed Storybook build but still needed explicit TypeScript guards in a couple of mutation paths.
+
+### What I learned
+- The transport layer is already modular enough that app-level Storybook interaction can be driven with MSW and a real Redux store instead of inventing a fake frontend-only controller.
+- CSS drift in this repo is more about missing structure and theming hooks than about missing tokens.
+- The `data-part` pattern from the larger themable widget example is a useful next-step discipline even in this smaller notebook codebase.
+
+### What was tricky to build
+- The main design choice was avoiding a second invented page state model. I kept the controller returning the same notebook/store-driven behavior and only separated orchestration from rendering.
+- The MSW handlers had to preserve enough notebook semantics to make the interactive story useful without reimplementing the backend in detail.
+
+### What warrants a second pair of eyes
+- Review whether the notebook page shell should go further toward explicit `parts.ts` constants, similar to the larger themable widget example.
+- Review whether AI/WebSocket behavior in Storybook should stay as a fake no-op socket or grow into a richer story harness later.
+
+### What should be done in the future
+- The frontend is now ready for the frontend-side extraction work described in `COZODB-010`.
+- The next work item should focus on package boundary extraction rather than further decomposition inside this app.
+
+### Code review instructions
+- Review the page split and story wiring once the pending code commit lands.
+- Open:
+  - `Notebook/NotebookPageView`
+  - `Notebook/NotebookPage`
+  stories in Storybook.
+- In the interactive notebook story, verify:
+  - loading from the mocked bootstrap endpoint
+  - editing and blurring a cell
+  - inserting cells
+  - running a query
+  - clearing and resetting the notebook
+- Confirm the validation sequence:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - `npx tsc --noEmit`
+
+### Technical details
+- Commands run:
+  - `npm install -D msw msw-storybook-addon`
+  - `npx msw init public/`
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - `npx tsc --noEmit`
+- Files added:
+  - `frontend/src/notebook/NotebookPageView.tsx`
+  - `frontend/src/notebook/useNotebookPageController.ts`
+  - `frontend/src/notebook/NotebookPageView.stories.tsx`
+  - `frontend/src/notebook/NotebookPage.stories.tsx`
+  - `frontend/src/storybook/notebookApiHandlers.ts`
+  - `frontend/src/storybook/createStaticHintsSocket.ts`
+  - `frontend/public/mockServiceWorker.js`
+- Files refactored:
+  - `frontend/src/notebook/NotebookPage.tsx`
+  - `frontend/src/notebook/notebook.css`
+  - `frontend/src/theme/layout.css`
+  - `frontend/.storybook/main.ts`
+  - `frontend/.storybook/preview.tsx`
+  - `frontend/package.json`
+  - `frontend/eslint.config.js`

@@ -5,3 +5,4 @@
 - Initial workspace created
 - Implemented Storybook foundation, primitive widget extraction, and presentational-card stories in commit `cf623a2`
 - Split `NotebookCellCard` into container/view layers and added mock-store notebook stories in commit `ea9b9c6`
+- Split `NotebookPage`, aligned the page shell CSS, and added an MSW-backed interactive notebook Storybook harness
