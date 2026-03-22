@@ -14,6 +14,17 @@ vi.mock("../transport/httpClient", () => ({
   runNotebookCell: vi.fn(),
   updateNotebookCell: vi.fn(),
   updateNotebookTitle: vi.fn(),
+  createHTTPNotebookTransport: vi.fn(() => ({
+    bootstrapNotebook: vi.fn(),
+    clearNotebook: vi.fn(),
+    deleteNotebookCell: vi.fn(),
+    insertNotebookCell: vi.fn(),
+    moveNotebookCell: vi.fn(),
+    resetNotebookKernel: vi.fn(),
+    runNotebookCell: vi.fn(),
+    updateNotebookCell: vi.fn(),
+    updateNotebookTitle: vi.fn(),
+  })),
 }));
 
 const baseDocument: NotebookDocument = {
@@ -38,7 +49,21 @@ const baseDocument: NotebookDocument = {
 };
 
 function renderCellCard() {
-  const store = makeStore();
+  const store = makeStore({
+    services: {
+      notebookTransport: {
+        bootstrapNotebook: vi.fn(),
+        clearNotebook: vi.fn(),
+        deleteNotebookCell: vi.fn(),
+        insertNotebookCell: vi.mocked(insertNotebookCell),
+        moveNotebookCell: vi.fn(),
+        resetNotebookKernel: vi.fn(),
+        runNotebookCell: vi.mocked(runNotebookCell),
+        updateNotebookCell: vi.mocked(updateNotebookCell),
+        updateNotebookTitle: vi.fn(),
+      },
+    },
+  });
   const onRunAndInsertBelow = vi.fn();
 
   store.dispatch(notebookLoaded(structuredClone(baseDocument)));
