@@ -7,6 +7,7 @@ const meta = {
   args: {
     diagnosing: false,
     error: "Evaluation failed: variable age is not bound in this clause.",
+    fix: null,
   },
   parameters: {
     layout: "padded",
