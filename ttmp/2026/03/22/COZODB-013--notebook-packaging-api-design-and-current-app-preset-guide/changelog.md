@@ -42,3 +42,17 @@ Implemented the frontend notebook transport seam, the current Cozo frontend pres
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/currentCozo.tsx — Current frontend preset now owns theme imports, socket defaults, and preset assembly
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/NotebookApp.stories.tsx — Embedded host Storybook story exercises the reusable notebook package directly
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/transport/httpClient.test.ts — Transport test verifies API-base prefixing on notebook requests
+
+
+## 2026-03-22
+
+Moved Cozo-specific notebook experience into preset-owned config on both frontend and backend, and documented the JavaScript preset plus compatibility plan (commit 2d7fe22)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/profile.go — Backend notebook defaults now flow through profile objects instead of Cozo-specific globals
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/ws_config.go — Backend websocket fallback copy and SEM-sink ownership now flow through preset config
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/current_cozo_ws.go — Current Cozo preset now owns Cozo-specific websocket fallback copy and SEM translation
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/experienceConfig.ts — Frontend notebook experience config now owns renderer/code-fence defaults
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/currentCozoConfig.ts — Current Cozo frontend preset now owns Cozo-specific notebook experience settings
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/ttmp/2026/03/22/COZODB-013--notebook-packaging-api-design-and-current-app-preset-guide/design-doc/02-javascript-surface-and-preset-compatibility-plan.md — Finalized JavaScript preset and compatibility strategy

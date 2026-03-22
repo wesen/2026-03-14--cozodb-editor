@@ -1,7 +1,7 @@
 ---
 Title: Diary
 Ticket: COZODB-013
-Status: active
+Status: complete
 Topics:
     - architecture
     - backend
@@ -30,7 +30,7 @@ RelatedFiles:
       Note: Captured inventory output used as evidence for the guide
 ExternalSources: []
 Summary: Chronological diary for the packaging/API design ticket that follows the frontend and backend modularization work.
-LastUpdated: 2026-03-22T15:37:42-04:00
+LastUpdated: 2026-03-22T16:15:08-04:00
 WhatFor: Record how the packaging design guide, inventory evidence, and reMarkable bundle were produced for COZODB-013.
 WhenToUse: Use when continuing the packaging-design work, reviewing the evidence trail, or checking how the deliverable bundle was assembled.
 ---
@@ -624,3 +624,195 @@ This step matters because it exercises the “reusable package” claim directly
 - The new transport tests assert calls like:
   - `"/cozo/api/notebooks/bootstrap"`
   - `"/cozo/api/notebook-cells/cell_1/run"`
+
+## Step 7: Move Cozo-specific experience defaults into preset-owned config
+
+The last remaining code-level leak was that the reusable notebook package still knew too much about Cozo. On the frontend, code fences, code placeholders, and structured SEM rendering still assumed Cozo. On the backend, starter notebook content, websocket fallback copy, runtime/session naming, and SEM sink translation still assumed Cozo. I moved all of that behind explicit preset-owned config.
+
+This was the critical finishing step for the ticket. Before it, the current Cozo app was called a preset but still controlled too much of the reusable center implicitly. After it, the notebook package is generic enough that a JavaScript preset can be added beside Cozo rather than by reopening the same abstractions.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue all until you're done"
+
+**Assistant interpretation:** Finish the ticket fully, not only the obvious frontend slices, and close the remaining architectural work plus the design follow-through tasks.
+
+**Inferred user intent:** End this ticket with the package/preset boundary actually complete enough that the next JavaScript surface can be built directly on top of it.
+
+**Commit (code):** 2d7fe22 — "notebook: move cozo experience into preset config"
+
+### What I did
+- Backend:
+  - added `NotebookProfile` in `backend/pkg/notebook/profile.go`
+  - added `WebSocketConfig` in `backend/pkg/notebook/ws_config.go`
+  - changed `backend/pkg/notebook/store.go` to use profile-owned language/title/starter-cell defaults
+  - changed `backend/pkg/notebook/module.go` and `backend/pkg/notebook/websocket.go` to use preset-owned websocket config
+  - moved Cozo websocket fallback copy and SEM sink translation into `backend/pkg/notebook/current_cozo_ws.go`
+  - removed the old generic-location Cozo sink file `backend/pkg/notebook/ws_sem_sink.go`
+  - changed `backend/pkg/notebook/current_cozo.go` so the current Cozo preset explicitly owns notebook profile, websocket config, runtime key, and session ID
+- Frontend:
+  - added `frontend/src/notebook/experienceConfig.ts` and `frontend/src/notebook/experience.tsx`
+  - changed `frontend/src/notebook/NotebookApp.tsx` to install notebook experience config
+  - changed `frontend/src/notebook/NotebookCellCardView.tsx` to use injected code placeholders and thread renderers
+  - changed `frontend/src/notebook/aiNoteMarkdown.ts` plus hint/diagnosis/query-suggestion cards to use preset-owned code fence language
+  - changed `frontend/src/notebook/currentCozoConfig.ts` so the current Cozo preset owns the Cozo renderer and Cozo code-fence placeholder defaults
+  - changed Storybook preview and the embedded notebook story to install the current Cozo experience config
+- Added tests:
+  - `backend/pkg/notebook/store_test.go`
+  - custom websocket fallback assertion in `backend/pkg/notebook/websocket_test.go`
+- Ran:
+  - `cd backend && go test ./...`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Why
+- The remaining open task was specifically to separate notebook-domain contracts from Cozo-specific contracts.
+- Without this change, a future JavaScript preset would still have needed to override hard-coded Cozo assumptions deep in the notebook module rather than only supplying new preset config.
+
+### What worked
+- The previously-added preset seams were sufficient; I did not need another large-scale rewrite.
+- The new backend tests proved profile and websocket fallback ownership directly.
+- The frontend experience config fit naturally into the existing `NotebookApp` composition layer.
+
+### What didn't work
+- The first backend test run failed because generic notebook starter cells no longer contained the Cozo query that older tests expected.
+- Command:
+  - `cd backend && go test ./...`
+- Error:
+  - `expected: "complete"`
+  - `actual  : "error"`
+- Cause:
+  - `openTestService` and `newTestModule` were still using the now-generic default notebook profile instead of the Cozo profile expected by those tests.
+- Fix:
+  - updated those helpers to open stores with `currentCozoNotebookProfile()`
+- The first frontend lint pass failed because the new experience module mixed provider exports with non-component config/hook exports.
+- Command:
+  - `cd frontend && npm run lint`
+- Error:
+  - `Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components`
+- Fix:
+  - split the new experience layer into:
+    - `frontend/src/notebook/experience.tsx` for the provider component
+    - `frontend/src/notebook/experienceConfig.ts` for types/default config/context hook
+
+### What I learned
+- The right finishing move for preset extraction is not more interfaces everywhere. It is moving concrete defaults, copy, and renderer choices behind the already-existing host seam.
+- The ticket is now in the right state for a JavaScript preset because the generic notebook center no longer quietly depends on Cozo-named defaults.
+
+### What was tricky to build
+- The subtlety on the backend was preserving the convenience helpers while making the current Cozo preset truly own its notebook profile and websocket behavior.
+- The subtlety on the frontend was separating the experience profile cleanly enough that Storybook, the live app, and low-level card components could all consume it without prop-drilling or breaking fast-refresh rules.
+
+### What warrants a second pair of eyes
+- Review whether the generic `NotebookProfile` starter-cell contract should eventually support arbitrary starter-cell IDs instead of the current two-cell fixed default helper.
+- Review whether the future JavaScript preset should reuse the current SEM projection model or introduce a new structured-event vocabulary beside it.
+
+### What should be done in the future
+- The next ticket should be the JavaScript preset implementation itself.
+- It should start from the plan recorded in the new JavaScript-surface design doc rather than reopening the packaging boundary work.
+
+### Code review instructions
+- Start with:
+  - `backend/pkg/notebook/profile.go`
+  - `backend/pkg/notebook/ws_config.go`
+  - `frontend/src/notebook/experienceConfig.ts`
+  - `frontend/src/notebook/currentCozoConfig.ts`
+- Then inspect:
+  - `backend/pkg/notebook/current_cozo.go`
+  - `backend/pkg/notebook/current_cozo_ws.go`
+  - `frontend/src/notebook/NotebookApp.tsx`
+  - `frontend/src/notebook/NotebookCellCardView.tsx`
+- Validate with:
+  - `cd backend && go test ./...`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Technical details
+- Backend generic seam:
+  ```go
+  type NotebookProfile struct {
+      DefaultLanguage      string
+      DefaultNotebookTitle string
+      StarterCells         []StarterCellTemplate
+  }
+
+  type WebSocketConfig struct {
+      DiagnosisUnavailable WebSocketFallbackResponse
+      HintUnavailable      WebSocketFallbackResponse
+      SEMSinkFactory       func(writeJSON func(wsMessage)) gepevents.EventSink
+  }
+  ```
+- Frontend generic seam:
+  ```ts
+  export interface NotebookExperienceConfig {
+    codeCellPlaceholder: string;
+    codeFenceLanguage: string;
+    SemThreadRenderer: ComponentType<NotebookSemThreadRendererProps>;
+  }
+  ```
+
+## Step 8: Close the ticket with the JavaScript preset and compatibility plan
+
+With the code seams complete, the remaining tasks were design closure tasks rather than more refactoring. I wrote a focused follow-through document that translates the now-implemented seams into a concrete JavaScript preset plan and a preset compatibility matrix.
+
+That matters because the ticket would otherwise end with “the package is ready” but without a concrete contract for what the next preset should actually implement. The new design note closes that gap and lets the next ticket begin from explicit backend/frontend preset constructors, runtime expectations, and a validation matrix.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 7)
+
+**Assistant interpretation:** Finish the remaining design-oriented tasks, mark the ticket complete, and leave the next-stage JavaScript preset work with a concrete starting point.
+
+**Inferred user intent:** Ensure the ticket ends in a genuinely finished state rather than “mostly done except for some design TODOs.”
+
+**Commit (code):** Pending
+
+### What I did
+- Added:
+  - `ttmp/2026/03/22/COZODB-013--notebook-packaging-api-design-and-current-app-preset-guide/design-doc/02-javascript-surface-and-preset-compatibility-plan.md`
+- Updated:
+  - `index.md`
+  - `tasks.md`
+  - `changelog.md`
+  - this diary
+- Marked the remaining task list items complete in the ticket plan.
+
+### Why
+- The code seams are done, so the remaining value in this ticket is explicit next-stage design clarity.
+- The JavaScript preset work should begin from a concrete plan, not from re-analysis of the package boundary.
+
+### What worked
+- The previously written implementation guide already contained most of the conceptual pieces, so the new design note could focus on concrete next-step contracts and the test matrix.
+- The task list now reflects the actual finished state of the ticket rather than a partial implementation checkpoint.
+
+### What didn't work
+- N/A
+
+### What I learned
+- Finishing an architecture ticket cleanly requires a final design handoff, not just code plus a generic “future work” note.
+
+### What was tricky to build
+- The main challenge was keeping the final design note concrete enough to be implementable while not pretending the JavaScript preset already exists.
+- The right level of detail was: constructor shape, config ownership, output/runtime expectations, and explicit test levels.
+
+### What warrants a second pair of eyes
+- Review whether the JavaScript preset should adapt the existing `Runtime` interface first or whether a follow-on ticket should formalize a broader runtime result contract before implementation starts.
+
+### What should be done in the future
+- Create the JavaScript preset implementation ticket and implement the plan from the new design doc.
+
+### Code review instructions
+- Read the new design doc after reviewing Step 7 code.
+- Confirm that its backend/frontend plan lines up with the now-implemented package seams.
+
+### Technical details
+- The new design note defines:
+  - backend JavaScript preset constructor shape
+  - frontend JavaScript preset config shape
+  - preset compatibility test levels
