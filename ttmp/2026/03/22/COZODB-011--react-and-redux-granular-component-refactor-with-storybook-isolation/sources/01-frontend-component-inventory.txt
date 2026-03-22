@@ -1,0 +1,119 @@
+# Frontend React/Redux Component Inventory
+
+## Storybook presence
+No .storybook directory present.
+
+## Frontend package scripts and dependencies
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "jsdom": "^28.1.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}
+
+## Key file sizes
+  365 frontend/src/notebook/NotebookPage.tsx
+  354 frontend/src/notebook/NotebookCellCard.tsx
+  185 frontend/src/features/hints/HintResponseCard.tsx
+   94 frontend/src/features/diagnosis/DiagnosisCard.tsx
+   64 frontend/src/features/query-results/QueryResultsTable.tsx
+  179 frontend/src/features/cozo-sem/CozoSemRenderer.tsx
+  320 frontend/src/notebook/notebook.css
+ 1561 total
+
+## Redux hook usage
+frontend/src/notebook/NotebookCellCard.tsx:2:import { useAppDispatch, useAppSelector } from "../app/hooks";
+frontend/src/notebook/NotebookCellCard.tsx:83:  const dispatch = useAppDispatch();
+frontend/src/notebook/NotebookCellCard.tsx:84:  const cell = useAppSelector((state) => selectCellById(state, cellId));
+frontend/src/notebook/NotebookCellCard.tsx:85:  const activeCellId = useAppSelector(selectActiveCellId);
+frontend/src/notebook/NotebookCellCard.tsx:86:  const aiPrompt = useAppSelector((state) => selectAIPromptForCell(state, cellId));
+frontend/src/notebook/NotebookCellCard.tsx:87:  const runtime = useAppSelector((state) => selectRuntimeForCell(state, cellId));
+frontend/src/notebook/NotebookCellCard.tsx:88:  const executionState = useAppSelector((state) => selectExecutionStateForCell(state, cellId));
+frontend/src/notebook/NotebookCellCard.tsx:89:  const semProjection = useAppSelector(selectSemProjection);
+frontend/src/notebook/NotebookCellCard.tsx:90:  const collapsedThreads = useAppSelector(selectCollapsedThreads);
+frontend/src/notebook/NotebookCellCard.tsx:91:  const dismissedThreads = useAppSelector(selectDismissedThreads);
+frontend/src/notebook/NotebookCellCard.test.tsx:2:import { Provider } from "react-redux";
+frontend/src/notebook/NotebookCellCard.test.tsx:4:import { makeStore } from "../app/store";
+frontend/src/notebook/NotebookCellCard.test.tsx:41:  const store = makeStore();
+frontend/src/notebook/NotebookCellCard.test.tsx:48:    <Provider store={store}>
+frontend/src/notebook/NotebookCellCard.test.tsx:57:    </Provider>,
+frontend/src/notebook/NotebookPage.tsx:2:import { useAppDispatch, useAppSelector } from "../app/hooks";
+frontend/src/notebook/NotebookPage.tsx:37:  const dispatch = useAppDispatch();
+frontend/src/notebook/NotebookPage.tsx:39:  const document = useAppSelector(selectNotebookDocument);
+frontend/src/notebook/NotebookPage.tsx:40:  const error = useAppSelector(selectNotebookError);
+frontend/src/notebook/NotebookPage.tsx:41:  const status = useAppSelector(selectNotebookStatus);
+frontend/src/notebook/NotebookPage.tsx:42:  const activeCellId = useAppSelector(selectActiveCellId);
+frontend/src/notebook/NotebookPage.tsx:43:  const activeCellIndex = useAppSelector(selectActiveCellIndex);
+frontend/src/notebook/NotebookPage.tsx:44:  const runtimeByCell = useAppSelector(selectNotebookRuntimeByCell);
+frontend/src/notebook/NotebookPage.tsx:45:  const cellsById = useAppSelector(selectCellsById);
+frontend/src/notebook/state/notebookSlice.test.ts:2:import { makeStore } from "../../app/store";
+frontend/src/notebook/state/notebookSlice.test.ts:69:    const store = makeStore();
+frontend/src/notebook/state/notebookSlice.test.ts:77:    const store = makeStore();
+frontend/src/notebook/state/notebookSlice.test.ts:117:    const store = makeStore();
+frontend/src/notebook/state/notebookSlice.test.ts:150:    const store = makeStore();
+frontend/src/notebook/state/notebookSlice.test.ts:188:    const store = makeStore();
+frontend/src/main.tsx:3:import { Provider } from "react-redux";
+frontend/src/main.tsx:10:    <Provider store={store}>
+frontend/src/main.tsx:12:    </Provider>
+frontend/src/app/store.ts:4:export function makeStore() {
+frontend/src/app/store.ts:12:export const store = makeStore();
+frontend/src/app/store.ts:14:export type AppStore = ReturnType<typeof makeStore>;
+frontend/src/app/hooks.ts:4:export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
+frontend/src/app/hooks.ts:5:export const useAppSelector = useSelector.withTypes<RootState>();
+
+## Existing tests
+frontend/src/features/cozo-sem/CozoSemRenderer.test.tsx
+frontend/src/features/hints/HintResponseCard.test.tsx
+frontend/src/notebook/runtimeState.test.ts
+frontend/src/notebook/NotebookCellCard.test.tsx
+frontend/src/notebook/state/notebookSlice.test.ts
+frontend/src/sem/semProjection.test.ts
+
+## Existing feature/component directories
+frontend/src
+frontend/src/app
+frontend/src/assets
+frontend/src/editor
+frontend/src/features
+frontend/src/features/cozo-sem
+frontend/src/features/cozo-sem/view-models
+frontend/src/features/cozo-sem/widgets
+frontend/src/features/diagnosis
+frontend/src/features/hints
+frontend/src/features/query-results
+frontend/src/notebook
+frontend/src/notebook/state
+frontend/src/sem
+frontend/src/theme
+frontend/src/transport
