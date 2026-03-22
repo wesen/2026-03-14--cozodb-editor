@@ -29,6 +29,8 @@ topics:
       description: Architecture analysis and design work
     - slug: javascript
       description: JavaScript language/runtime and frontend/backend integration topics
+    - slug: notebook
+      description: Notebook packaging, runtime, and UI concerns
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
