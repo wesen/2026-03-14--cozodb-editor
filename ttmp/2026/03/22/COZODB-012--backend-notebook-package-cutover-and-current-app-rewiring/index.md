@@ -13,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Backend modularization ticket for moving notebook backend ownership into backend/pkg/notebook and rewiring the current app to use that package surface directly."
-LastUpdated: 2026-03-22T12:14:32-04:00
+LastUpdated: 2026-03-22T12:33:54-04:00
 WhatFor: "Track the backend cutover work that follows the completed frontend decomposition ticket."
 WhenToUse: "Use when continuing backend modularization, reviewing the backend cut sequence, or locating the implementation guide and diary for COZODB-012."
 ---
@@ -38,7 +38,9 @@ This ticket is the backend counterpart to `COZODB-011`. Its purpose is to move n
 Current status: **active**
 
 - Planning is complete.
-- Implementation is in progress.
+- Notebook service dependency inversion is complete.
+- Notebook REST route ownership is complete.
+- WebSocket and AI transport cutover is next.
 
 ## Topics
 

@@ -11,8 +11,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: backend/main.go
+      Note: Main now mounts notebook HTTP routes from backend/pkg/notebook instead of backend/pkg/api (commit d7360dd)
+    - Path: backend/pkg/api/handlers.go
+      Note: API server no longer carries notebook REST handler state (commit d7360dd)
+    - Path: backend/pkg/api/types.go
+      Note: Notebook-specific REST payload structs were removed from the generic API package after route cutover (commit d7360dd)
     - Path: backend/pkg/notebook/config.go
       Note: ServiceConfig defines the reusable notebook service construction surface (commit f5d575b)
+    - Path: backend/pkg/notebook/http.go
+      Note: Notebook package now owns the REST adapter and route registration surface (commit d7360dd)
+    - Path: backend/pkg/notebook/http_test.go
+      Note: HTTP transport contract tests cover the notebook-owned REST routes (commit d7360dd)
     - Path: backend/pkg/notebook/runtime.go
       Note: Runtime interface isolates notebook execution dependencies from concrete Cozo manager wiring (commit f5d575b)
     - Path: backend/pkg/notebook/service.go
@@ -23,10 +33,11 @@ RelatedFiles:
       Note: TimelineStore interface isolates timeline persistence and SQLite bootstrapping (commit f5d575b)
 ExternalSources: []
 Summary: Chronological diary for the backend notebook package cutover and current app rewiring work.
-LastUpdated: 2026-03-22T12:14:32-04:00
+LastUpdated: 2026-03-22T12:33:54-04:00
 WhatFor: Record implementation slices, validation commands, integration decisions, and commit checkpoints for COZODB-012.
 WhenToUse: Use when continuing backend modularization work, reviewing the cutover sequence, or checking which commits landed each backend slice.
 ---
+
 
 
 # Diary
@@ -194,3 +205,84 @@ This keeps behavior unchanged while moving construction ownership into the noteb
       UpsertConversation(ctx context.Context, record TimelineConversationRecord) error
   }
   ```
+
+## Step 3: Move notebook REST route ownership into the notebook package
+
+With constructor ownership in place, I moved the notebook HTTP transport itself into `backend/pkg/notebook`. The current app now mounts notebook REST routes from the notebook package directly, while `backend/pkg/api` is reduced back to the generic query/schema surface.
+
+This is the first real app cutover in the backend ticket. The frontend contract stays the same, but the ownership boundary now matches the architecture described in `COZODB-010`: notebook-specific transport code lives with the notebook domain instead of in a shared catch-all API package.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue the backend cutover in small committed slices, keeping the ticket docs and diary synchronized with each implementation step.
+
+**Inferred user intent:** Shift the real app onto notebook-owned backend surfaces incrementally, so later package extraction is mostly organizational rather than architectural.
+
+**Commit (code):** d7360dd — "backend: move notebook rest routes into notebook package"
+
+### What I did
+- Added `backend/pkg/notebook/http.go` with a notebook-owned REST adapter and `MountHTTPRoutes`.
+- Moved notebook-specific request decoding and JSON response writing into the notebook package.
+- Added `backend/pkg/notebook/http_test.go` with route-level tests for bootstrap, title mutation, cell insertion, cell run, and kernel reset.
+- Rewired `backend/main.go` to call `notebook.MountHTTPRoutes(mux, notebookSvc)`.
+- Removed notebook REST ownership from `backend/pkg/api`:
+  - deleted `backend/pkg/api/notebook_handlers.go`
+  - removed notebook state from `backend/pkg/api/handlers.go`
+  - removed notebook-specific REST payload structs from `backend/pkg/api/types.go`
+- Ran `gofmt -w main.go pkg/api/handlers.go pkg/api/types.go pkg/notebook/http.go pkg/notebook/http_test.go`.
+- Ran `go test ./...` from `backend/`.
+
+### Why
+- Route ownership is the clearest architectural signal for where a module boundary actually lives.
+- Keeping notebook HTTP handling in `backend/pkg/api` would force future reusable packaging to either import the old monolithic API package or duplicate transport logic.
+
+### What worked
+- The existing frontend contract did not need to change; the extraction preserved the same paths and JSON shapes.
+- The route parsing logic transferred cleanly into notebook-owned code.
+- The new transport tests give us a direct guardrail for future refactors in this package boundary.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The HTTP side is substantially easier to modularize than the WebSocket/AI side because it depends almost entirely on the notebook service and not on cross-package event streaming.
+- Adding transport tests at the time of extraction is more valuable than trying to prove equivalence by inspection alone.
+
+### What was tricky to build
+- The main risk was accidental contract drift while moving handlers. The routes are simple, but they rely on path-suffix dispatch such as `/cells`, `/clear`, `/move`, and `/run`; a small trimming mistake would break the frontend immediately.
+- I kept the public extraction surface small by exporting only `MountHTTPRoutes` and keeping the HTTP adapter/request structs internal to the notebook package. That preserves modular ownership without growing the package API unnecessarily.
+
+### What warrants a second pair of eyes
+- Review whether the notebook HTTP adapter should eventually support configurable base paths or continue to hardcode the current `/api/...` routes.
+- Review whether `writeJSON` should stay local to notebook and api packages independently or move into a small shared internal helper later.
+
+### What should be done in the future
+- Move the notebook hint/diagnosis WebSocket adapter and SEM sink into the notebook package next.
+- After the WebSocket cutover, run the frontend build/test suite against the backend changes and reassess readiness for the broader package extraction ticket.
+
+### Code review instructions
+- Start with `backend/pkg/notebook/http.go` and `backend/pkg/notebook/http_test.go`.
+- Then inspect `backend/main.go` to confirm route mounting moved to the notebook package.
+- Finally inspect `backend/pkg/api/handlers.go` and `backend/pkg/api/types.go` to confirm notebook REST ownership really left the generic API package.
+- Validate with:
+  - `cd backend && go test ./...`
+
+### Technical details
+- Notebook route registration now happens through:
+  ```go
+  func MountHTTPRoutes(mux *http.ServeMux, service *Service)
+  ```
+- Routes preserved by the cutover:
+  - `GET /api/notebooks/bootstrap`
+  - `POST /api/notebooks`
+  - `GET /api/notebooks/:notebookId`
+  - `PATCH /api/notebooks/:notebookId`
+  - `POST /api/notebooks/:notebookId/cells`
+  - `POST /api/notebooks/:notebookId/clear`
+  - `PATCH /api/notebook-cells/:cellId`
+  - `DELETE /api/notebook-cells/:cellId`
+  - `POST /api/notebook-cells/:cellId/move`
+  - `POST /api/notebook-cells/:cellId/run`
+  - `POST /api/runtime/reset-kernel`

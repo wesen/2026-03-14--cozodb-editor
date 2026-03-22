@@ -11,9 +11,9 @@
 
 - [x] Introduce notebook-local runtime and timeline interfaces plus config-based service construction
 - [x] Adapt notebook service tests to the new constructor path
-- [ ] Add notebook-owned REST route mounting
-- [ ] Rewire `backend/main.go` to notebook-owned REST route mounting
-- [ ] Remove old notebook REST handler usage from `backend/pkg/api`
+- [x] Add notebook-owned REST route mounting
+- [x] Rewire `backend/main.go` to notebook-owned REST route mounting
+- [x] Remove old notebook REST handler usage from `backend/pkg/api`
 - [ ] Add notebook-local AI/WebSocket interfaces and notebook-owned SEM sink
 - [ ] Add notebook-owned WebSocket route mounting
 - [ ] Rewire `backend/main.go` to notebook-owned WebSocket route mounting
