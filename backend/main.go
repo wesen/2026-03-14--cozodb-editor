@@ -14,23 +14,43 @@ import (
 
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
+	preset := flag.String("preset", "cozo", "Notebook preset to run (cozo, javascript)")
 	engine := flag.String("engine", "mem", "CozoDB engine (mem, sqlite)")
 	dbPath := flag.String("db-path", "", "CozoDB database path (for sqlite engine)")
 	appDBPath := flag.String("app-db-path", "./data/cozodb-editor-app.sqlite", "Application SQLite database path for notebooks and timeline state")
 	viteURL := flag.String("vite", "http://localhost:5173", "Vite dev server URL (empty to disable proxy)")
 	flag.Parse()
 
-	// Set up current app preset
-	log.Printf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", *engine, *dbPath)
-	notebookModule, err := notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
-		Engine:    *engine,
-		DBPath:    *dbPath,
-		AppDBPath: *appDBPath,
-		EnableAI:  os.Getenv("ANTHROPIC_API_KEY") != "",
-		Logf:      log.Printf,
-	})
+	enableAI := os.Getenv("ANTHROPIC_API_KEY") != ""
+
+	var (
+		notebookModule *notebook.Module
+		err            error
+	)
+
+	switch *preset {
+	case "cozo":
+		log.Printf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", *engine, *dbPath)
+		notebookModule, err = notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
+			Engine:    *engine,
+			DBPath:    *dbPath,
+			AppDBPath: *appDBPath,
+			EnableAI:  enableAI,
+			Logf:      log.Printf,
+		})
+	case "javascript":
+		log.Printf("[MAIN] Opening current JavaScript notebook preset")
+		notebookModule, err = notebook.OpenCurrentJavaScriptModule(notebook.CurrentJavaScriptModuleConfig{
+			AppDBPath: *appDBPath,
+			EnableAI:  enableAI,
+			Logf:      log.Printf,
+		})
+	default:
+		log.Fatalf("Unknown preset %q", *preset)
+	}
+
 	if err != nil {
-		log.Fatalf("Failed to open current Cozo notebook preset: %v", err)
+		log.Fatalf("Failed to open notebook preset %q: %v", *preset, err)
 	}
 	defer func() {
 		if err := notebookModule.Close(); err != nil {

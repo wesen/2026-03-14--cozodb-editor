@@ -16,7 +16,7 @@ type Server struct {
 	Runtime Runtime
 }
 
-// HandleQuery handles POST /api/query — execute CozoScript.
+// HandleQuery handles POST /api/query — execute notebook source.
 func (s *Server) HandleQuery(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -67,7 +67,7 @@ func (s *Server) HandleQuery(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleSchema handles GET /api/schema — list all relations.
+// HandleSchema handles GET /api/schema — list runtime objects.
 func (s *Server) HandleSchema(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -88,7 +88,7 @@ func (s *Server) HandleSchema(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, SchemaResponse{Relations: names})
 }
 
-// HandleSchemaDetail handles GET /api/schema/{name} — describe a relation.
+// HandleSchemaDetail handles GET /api/schema/{name} — describe a runtime object.
 func (s *Server) HandleSchemaDetail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
