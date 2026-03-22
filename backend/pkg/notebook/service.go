@@ -8,44 +8,49 @@ import (
 	"strings"
 	"time"
 
-	chatstore "github.com/go-go-golems/pinocchio/pkg/persistence/chatstore"
 	timelinepb "github.com/go-go-golems/pinocchio/pkg/sem/pb/proto/sem/timeline"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
-
-	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 )
 
 type Service struct {
 	store      *Store
-	timeline   chatstore.TimelineStore
-	runtime    *cozo.Manager
+	timeline   TimelineStore
+	runtime    Runtime
 	sessionID  string
 	runtimeKey string
 }
 
-func OpenService(appDBPath string, runtime *cozo.Manager) (*Service, error) {
+func NewService(config ServiceConfig) (*Service, error) {
+	config = config.withDefaults()
+	if err := config.validate(); err != nil {
+		return nil, err
+	}
+
+	return &Service{
+		store:      config.Store,
+		timeline:   config.Timeline,
+		runtime:    config.Runtime,
+		sessionID:  config.SessionID,
+		runtimeKey: config.RuntimeKey,
+	}, nil
+}
+
+func OpenService(appDBPath string, runtime Runtime) (*Service, error) {
 	store, err := OpenStore(appDBPath)
 	if err != nil {
 		return nil, err
 	}
-	dsn, err := chatstore.SQLiteTimelineDSNForFile(store.DBPath())
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
 	if err != nil {
 		_ = store.Close()
 		return nil, err
 	}
-	timeline, err := chatstore.NewSQLiteTimelineStore(dsn)
-	if err != nil {
-		_ = store.Close()
-		return nil, err
-	}
-	return &Service{
-		store:      store,
-		timeline:   timeline,
-		runtime:    runtime,
-		sessionID:  "cozodb-editor-notebook",
-		runtimeKey: "cozodb-notebook",
-	}, nil
+	return NewService(ServiceConfig{
+		Runtime:  runtime,
+		Store:    store,
+		Timeline: timeline,
+	})
 }
 
 func (s *Service) Close() error {
@@ -229,7 +234,7 @@ func (s *Service) finishRunWithOutput(ctx context.Context, run CellRun, status s
 	if err := s.timeline.Upsert(ctx, run.ConvID, version, entity); err != nil {
 		return nil, err
 	}
-	if err := s.timeline.UpsertConversation(ctx, chatstore.ConversationRecord{
+	if err := s.timeline.UpsertConversation(ctx, TimelineConversationRecord{
 		ConvID:          run.ConvID,
 		SessionID:       s.sessionID,
 		RuntimeKey:      s.runtimeKey,

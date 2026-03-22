@@ -10,6 +10,30 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 )
 
+func openTestService(t *testing.T) (*Service, *cozo.Manager) {
+	t.Helper()
+
+	runtime, err := cozo.NewManager("mem", "")
+	require.NoError(t, err)
+
+	store, err := OpenStore(filepath.Join(t.TempDir(), "app.sqlite"))
+	require.NoError(t, err)
+
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
+	require.NoError(t, err)
+
+	svc, err := NewService(ServiceConfig{
+		Runtime:  runtime,
+		Store:    store,
+		Timeline: timeline,
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = svc.Close() })
+	t.Cleanup(func() { runtime.Close() })
+	return svc, runtime
+}
+
 func TestEnsureDefaultNotebookCreatesExpectedCells(t *testing.T) {
 	store, err := OpenStore(filepath.Join(t.TempDir(), "notebook.sqlite"))
 	require.NoError(t, err)
@@ -24,13 +48,7 @@ func TestEnsureDefaultNotebookCreatesExpectedCells(t *testing.T) {
 }
 
 func TestServiceRunCellHydratesLatestRuntime(t *testing.T) {
-	runtime, err := cozo.NewManager("mem", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
-
-	svc, err := OpenService(filepath.Join(t.TempDir(), "app.sqlite"), runtime)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
+	svc, _ := openTestService(t)
 
 	doc, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
@@ -53,13 +71,7 @@ func TestServiceRunCellHydratesLatestRuntime(t *testing.T) {
 }
 
 func TestServiceClearNotebookRestoresStarterCellsAndClearsRuntime(t *testing.T) {
-	runtime, err := cozo.NewManager("mem", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
-
-	svc, err := OpenService(filepath.Join(t.TempDir(), "app.sqlite"), runtime)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
+	svc, _ := openTestService(t)
 
 	doc, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
@@ -91,15 +103,9 @@ func TestServiceClearNotebookRestoresStarterCellsAndClearsRuntime(t *testing.T) 
 }
 
 func TestServiceResetKernelSwapsRuntimeAndClearsPersistedOutputs(t *testing.T) {
-	runtime, err := cozo.NewManager("mem", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
+	svc, runtime := openTestService(t)
 
-	svc, err := OpenService(filepath.Join(t.TempDir(), "app.sqlite"), runtime)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
-
-	_, err = svc.EnsureDefaultNotebook(context.Background())
+	_, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
 
 	_, err = runtime.Query(":create users {name: String => age: Int}", nil)
