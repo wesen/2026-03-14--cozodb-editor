@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Packaging and API design ticket for extracting reusable notebook frontend/backend modules, defining the current app as preset #1, and preparing for a JavaScript-oriented second surface."
-LastUpdated: 2026-03-22T14:52:53-04:00
+LastUpdated: 2026-03-22T15:37:42-04:00
 WhatFor: "Define the next-stage package and API design for turning the current notebook system into reusable frontend and backend modules with a current-app preset and a future JavaScript-language surface."
 WhenToUse: "Use when planning or implementing package extraction after the frontend and backend cutovers, onboarding an intern to the packaging work, or designing the follow-on JavaScript-targeting preset."
 ---
@@ -44,6 +44,9 @@ Current status: **active**
 - The detailed intern-facing guide is written.
 - The backend module API and configurable base-path support are implemented.
 - The backend current-app preset is implemented.
+- The frontend notebook transport seam is implemented.
+- The frontend current-app preset and package-level notebook app entrypoint are implemented.
+- Storybook and test smoke coverage now exercise the reusable frontend package surface directly.
 - The package inventory script and captured source output are available.
 - The future JavaScript-language surface is framed as the next reusable preset family.
 - The ticket bundle has been uploaded to reMarkable.

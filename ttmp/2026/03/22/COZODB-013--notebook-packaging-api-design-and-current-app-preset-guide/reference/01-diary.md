@@ -30,7 +30,7 @@ RelatedFiles:
       Note: Captured inventory output used as evidence for the guide
 ExternalSources: []
 Summary: Chronological diary for the packaging/API design ticket that follows the frontend and backend modularization work.
-LastUpdated: 2026-03-22T14:52:53-04:00
+LastUpdated: 2026-03-22T15:37:42-04:00
 WhatFor: Record how the packaging design guide, inventory evidence, and reMarkable bundle were produced for COZODB-013.
 WhenToUse: Use when continuing the packaging-design work, reviewing the evidence trail, or checking how the deliverable bundle was assembled.
 ---
@@ -327,3 +327,300 @@ That means `backend/main.go` is no longer responsible for constructing the noteb
       Logf:      log.Printf,
   })
   ```
+
+## Step 4: Inject the frontend notebook transport through store services
+
+The first frontend packaging slice removed direct HTTP knowledge from the notebook thunks. I changed the Redux store to own service injection, added a typed notebook transport interface around the HTTP client, and rewired the notebook thunks to read that transport through thunk extra arguments rather than importing REST functions directly.
+
+This is the point where the frontend package API stops being “React files that happen to work together” and starts becoming a hostable module. Once the store owns transport injection, preset code can choose route prefixes and transport implementations without rewriting notebook state logic.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue implementing the packaging backlog in small validated frontend slices and capture the exact failures and fixes in the diary.
+
+**Inferred user intent:** Make the frontend notebook package genuinely reusable by moving environment-specific route and HTTP assumptions out of the Redux domain layer.
+
+**Commit (code):** 3b69ec1 — "frontend: inject notebook transport through store services"
+
+### What I did
+- Added `NotebookTransport` and `createHTTPNotebookTransport` in `frontend/src/transport/httpClient.ts`.
+- Kept the existing exported REST helpers as wrappers over a default transport so the refactor could stay incremental while the package surface settled.
+- Changed `frontend/src/app/store.ts` to accept `AppServices` and install them as thunk `extraArgument`.
+- Rewired the notebook thunks in `frontend/src/notebook/state/notebookSlice.ts` to use `notebookTransport` from thunk services.
+- Updated the affected tests in:
+  - `frontend/src/notebook/state/notebookSlice.test.ts`
+  - `frontend/src/notebook/NotebookCellCard.test.tsx`
+- Ran:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+
+### Why
+- The design guide called for explicit transport injection points on the frontend package surface.
+- Without this change, the current app and any future JavaScript-oriented preset would still be forced to share one hard-coded `/api/...` assumption buried inside domain thunks.
+
+### What worked
+- The transport refactor fit naturally into Redux thunk `extraArgument`, so the notebook slice did not need any structural redesign.
+- The HTTP client already had a clean enough grouping of notebook methods that turning it into a transport object was straightforward.
+- Lint, typecheck, tests, and build all passed after the mocks were adjusted.
+
+### What didn't work
+- The first test run failed because `frontend/src/app/store.ts` now imports `createHTTPNotebookTransport`, but the existing Vitest mocks for `../transport/httpClient` did not provide that export.
+- Command:
+  - `cd frontend && npm test`
+- Error:
+  - `No "createHTTPNotebookTransport" export is defined on the ".../transport/httpClient" mock`
+- Fix:
+  - added `createHTTPNotebookTransport: vi.fn(() => ({ ... }))` to the transport mocks in both `notebookSlice.test.ts` and `NotebookCellCard.test.tsx`
+  - switched those tests to create stores with explicit injected `notebookTransport` services
+
+### What I learned
+- The Redux store is the right ownership point for notebook transport configuration. It is close enough to the domain to be ergonomic and high enough to be host-controlled.
+- Small mock changes were enough to preserve test isolation, which is a good sign that the new package boundary is coherent.
+
+### What was tricky to build
+- The subtle part was avoiding a half-finished boundary where the store accepted services but the notebook slice still imported HTTP functions directly. That would have created two transport paths and confused later preset work.
+- The solution was to do the whole dependency inversion in one slice: transport type, store service injection, thunk rewiring, and test updates together.
+
+### What warrants a second pair of eyes
+- Review whether the package should eventually stop exporting the legacy top-level REST helper functions from `httpClient.ts` now that `NotebookTransport` exists.
+- Review whether the store service object should later gain a hints-channel or docs-profile dependency, or whether those should stay outside Redux.
+
+### What should be done in the future
+- Add the frontend current-app preset on top of this transport seam.
+- Move theme/shell and SEM-registration defaults behind explicit preset wiring.
+
+### Code review instructions
+- Start with `frontend/src/transport/httpClient.ts` and `frontend/src/app/store.ts`.
+- Then inspect `frontend/src/notebook/state/notebookSlice.ts`.
+- Finally read the test updates in `frontend/src/notebook/state/notebookSlice.test.ts` and `frontend/src/notebook/NotebookCellCard.test.tsx`.
+- Validate with:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+
+### Technical details
+- The new frontend seam is:
+  ```ts
+  export interface AppServices {
+    notebookTransport: NotebookTransport;
+  }
+  ```
+- The store now installs services through thunk middleware:
+  ```ts
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware({
+    thunk: {
+      extraArgument: resolvedServices,
+    },
+  })
+  ```
+
+## Step 5: Add the frontend package entrypoint and current Cozo preset
+
+With the transport seam in place, I extracted the frontend’s real package surface. The notebook module now exports a package-level `NotebookApp`, the current app is represented explicitly as `CurrentCozoNotebookApp`, shell labels are configurable, and Cozo-specific SEM registration is no longer hard-coded inside the page controller.
+
+This is the first point where the current app is visibly “just a preset.” The live app bootstrap now renders the current preset, while lower-level package consumers can render `NotebookApp` directly with their own store, socket, shell labels, and SEM-handler registration strategy.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Continue the packaging implementation by turning the current frontend app into an explicit preset and package API.
+
+**Inferred user intent:** Make the current frontend a concrete example host on top of a reusable notebook package rather than the hidden center of the system.
+
+**Commit (code):** 073ba4e — "frontend: add notebook app and current cozo preset"
+
+### What I did
+- Added `frontend/src/notebook/NotebookApp.tsx` as the package-level React entrypoint that owns the Redux `Provider` boundary.
+- Added shell configuration in `frontend/src/notebook/config.ts`.
+- Added `frontend/src/notebook/registerCurrentCozoSemHandlers.ts` so Cozo-specific SEM wiring lives outside the generic controller.
+- Added `frontend/src/notebook/currentCozo.tsx` and `frontend/src/notebook/currentCozoConfig.ts`:
+  - current Cozo store factory
+  - current Cozo preset wrapper
+  - theme CSS ownership for the current app preset
+- Added `frontend/src/notebook/index.ts` exports for the package surface.
+- Updated:
+  - `frontend/src/notebook/NotebookPageView.tsx` to accept shell configuration
+  - `frontend/src/notebook/useNotebookPageController.ts` to accept injected SEM registration
+  - `frontend/src/notebook/NotebookPage.tsx` to accept shell and SEM config from callers
+  - `frontend/src/App.tsx` and `frontend/src/main.tsx` so the live app now boots through `CurrentCozoNotebookApp`
+- Added `frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx` to exercise the preset wrapper directly.
+- Ran:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Why
+- The design doc called for a real frontend package API and a real current-app preset, not only a nicer internal folder structure.
+- Preset work needed three explicit host seams:
+  - transport/store ownership
+  - shell/theme ownership
+  - language-specific SEM registration ownership
+
+### What worked
+- The existing page/view/controller split made the preset extraction clean.
+- The current app could adopt the new preset wrapper with a very small `App.tsx` and `main.tsx`.
+- Storybook built successfully with the new preset story, so the current-app wrapper is now directly testable outside the live app bootstrap.
+
+### What didn't work
+- ESLint rejected the first version of `frontend/src/notebook/currentCozo.tsx` because the file exported both React components and non-component helpers.
+- Command:
+  - `cd frontend && npm run lint`
+- Error:
+  - `Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components`
+- Fix:
+  - moved the current Cozo shell config and store factory into `frontend/src/notebook/currentCozoConfig.ts`
+  - left `currentCozo.tsx` as the component-oriented preset entrypoint
+
+### What I learned
+- The preset model works well on the frontend when “theme” is treated as ownership of both CSS imports and shell defaults, not only colors.
+- Pulling Cozo-specific SEM registration out of the controller was the important move for future JavaScript preset work, even more than the visual preset wrapper itself.
+
+### What was tricky to build
+- The trickiest part was introducing a preset wrapper without making the low-level package surface dependent on browser-only hooks. `CurrentCozoNotebookApp` needs a live WebSocket in the real app but stories need an injected static socket.
+- I solved that by giving the current preset a `ws` override path: if a caller provides a socket, the preset uses it directly; otherwise it creates the live socket through `useHintsSocket`.
+
+### What warrants a second pair of eyes
+- Review whether `NotebookApp` should eventually accept a richer preset object instead of separate `store`, `ws`, `shellConfig`, and `registerSemHandlers` props.
+- Review whether the current shell config should eventually also own iconography or theme class names, not only labels and shortcut hints.
+
+### What should be done in the future
+- Add direct package-level smoke coverage around the new package surface.
+- Continue separating notebook-domain concepts from Cozo-specific concepts on both backend and frontend.
+
+### Code review instructions
+- Start with `frontend/src/notebook/NotebookApp.tsx`, `frontend/src/notebook/currentCozo.tsx`, and `frontend/src/notebook/currentCozoConfig.ts`.
+- Then inspect `frontend/src/notebook/useNotebookPageController.ts`, `frontend/src/notebook/NotebookPage.tsx`, and `frontend/src/notebook/NotebookPageView.tsx`.
+- Finally inspect the live app bootstrap in `frontend/src/App.tsx` and `frontend/src/main.tsx`, plus the preset story in `frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx`.
+- Validate with:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Technical details
+- The preset-owned theme path now lives in:
+  - `frontend/src/index.css`
+  - `frontend/src/components/primitives/primitives.css`
+  - `frontend/src/theme/cards.css`
+  - `frontend/src/theme/layout.css`
+  - `frontend/src/theme/tokens.css`
+  - `frontend/src/notebook/notebook.css`
+- The package-level app entrypoint is:
+  ```tsx
+  export function NotebookApp({
+    confirmAction,
+    registerSemHandlers,
+    shellConfig,
+    store,
+    ws,
+  }: NotebookAppProps) {
+    return (
+      <Provider store={store}>
+        <NotebookPageContainer
+          confirmAction={confirmAction}
+          registerSemHandlers={registerSemHandlers}
+          shellConfig={shellConfig}
+          ws={ws}
+        />
+      </Provider>
+    );
+  }
+  ```
+
+## Step 6: Add notebook package smoke coverage and API-base tests
+
+After the main frontend refactor was in place, I added direct coverage around the public package surface instead of only around the internal implementation details. The new Storybook story mounts `NotebookApp` inside an outer host shell, and the new transport tests verify that API-base configuration really prefixes notebook requests as intended.
+
+This step matters because it exercises the “reusable package” claim directly. The current app preset is no longer the only proof that the code works. There is now a generic embedding story and a direct test for route-prefix configuration, both of which will matter again when the JavaScript preset is introduced.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Keep moving through the packaging backlog and add validation that proves the new notebook package surface is actually reusable.
+
+**Inferred user intent:** Avoid stopping at architectural cleanup alone; make the new package seams observable and trustworthy through concrete examples and tests.
+
+**Commit (code):** 9f657e1 — "frontend: add notebook package smoke coverage"
+
+### What I did
+- Added `frontend/src/notebook/NotebookApp.stories.tsx`:
+  - mounts `NotebookApp` directly
+  - wraps it in a surrounding host shell
+  - uses MSW notebook handlers and a static hints socket
+- Added `frontend/src/transport/httpClient.test.ts` to verify `createHTTPNotebookTransport({ apiBase })` prefixes notebook requests correctly.
+- Ran:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Why
+- The ticket backlog explicitly called for package-level smoke examples for embedding the notebook in another host.
+- API-base configuration is only useful if it is tested directly instead of being left implicit inside the preset factory.
+
+### What worked
+- The embedded Storybook story fit naturally on top of the new `NotebookApp` package boundary.
+- The new transport test increased Vitest coverage from 30 to 32 tests without introducing brittle setup.
+- All frontend validation remained green after the additional story and tests.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The right smoke example for this package is not a second app fork. It is a host shell that mounts `NotebookApp` with explicit injected dependencies.
+- The API-base route test is small but strategically important because it protects the exact seam preset work depends on.
+
+### What was tricky to build
+- The main subtlety was making the embedded host example prove something meaningful instead of just wrapping the current preset in another component. That would not have tested the generic package surface.
+- The solution was to mount `NotebookApp` directly with:
+  - an injected store
+  - an injected static socket
+  - injected Cozo SEM registration
+  - custom shell labels
+
+### What warrants a second pair of eyes
+- Review whether the package-level smoke story should later gain one variant with a non-empty `apiBase` once the Storybook MSW handlers are generalized for prefixed routes.
+- Review whether additional transport tests should cover notebook mutation endpoints beyond bootstrap and run.
+
+### What should be done in the future
+- Finish the remaining domain-separation task between notebook-generic and Cozo-specific contracts.
+- Then move into the JavaScript preset design tasks on both backend and frontend.
+
+### Code review instructions
+- Start with `frontend/src/notebook/NotebookApp.stories.tsx`.
+- Then inspect `frontend/src/transport/httpClient.test.ts`.
+- Validate with:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Technical details
+- The embedded host story renders a two-column outer shell and mounts:
+  ```tsx
+  <NotebookApp
+    confirmAction={() => true}
+    registerSemHandlers={registerCurrentCozoSemHandlers}
+    shellConfig={{
+      appName: "Embedded Notebook",
+      menuItems: ["Host", "Notebook", "Help"],
+    }}
+    store={store}
+    ws={createStaticHintsSocket(true)}
+  />
+  ```
+- The new transport tests assert calls like:
+  - `"/cozo/api/notebooks/bootstrap"`
+  - `"/cozo/api/notebook-cells/cell_1/run"`

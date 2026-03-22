@@ -29,3 +29,16 @@ Implemented backend module API, configurable notebook base paths, and the curren
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/module.go — Introduced backend module wrapper and resource ownership hooks
 - /home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/websocket_test.go — Custom base-path WebSocket mount test covers module path configuration
 
+
+## 2026-03-22
+
+Implemented the frontend notebook transport seam, the current Cozo frontend preset, and package-level Storybook/test smoke coverage (commits 3b69ec1, 073ba4e, 9f657e1)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/app/store.ts — Redux store now accepts injected notebook services through thunk extra arguments
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/transport/httpClient.ts — HTTP notebook transport now supports explicit API base configuration
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/NotebookApp.tsx — Package-level app entrypoint now composes Provider plus notebook page container
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/currentCozo.tsx — Current frontend preset now owns theme imports, socket defaults, and preset assembly
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/notebook/NotebookApp.stories.tsx — Embedded host Storybook story exercises the reusable notebook package directly
+- /home/manuel/code/wesen/2026-03-14--cozodb-editor/frontend/src/transport/httpClient.test.ts — Transport test verifies API-base prefixing on notebook requests
