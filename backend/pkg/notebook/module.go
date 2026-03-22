@@ -1,11 +1,15 @@
 package notebook
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+)
 
 type Module struct {
-	Service   *Service
-	AI        AIEngine
-	BasePaths BasePaths
+	Service           *Service
+	AI                AIEngine
+	BasePaths         BasePaths
+	additionalClosers []func() error
 }
 
 func NewModule(config ModuleConfig) (*Module, error) {
@@ -40,10 +44,18 @@ func OpenModule(appDBPath string, runtime Runtime, engine AIEngine) (*Module, er
 }
 
 func (m *Module) Close() error {
-	if m == nil || m.Service == nil {
+	if m == nil {
 		return nil
 	}
-	return m.Service.Close()
+
+	var closeErr error
+	if m.Service != nil {
+		closeErr = errors.Join(closeErr, m.Service.Close())
+	}
+	for i := len(m.additionalClosers) - 1; i >= 0; i-- {
+		closeErr = errors.Join(closeErr, m.additionalClosers[i]())
+	}
+	return closeErr
 }
 
 func (m *Module) MountHTTP(mux *http.ServeMux) {

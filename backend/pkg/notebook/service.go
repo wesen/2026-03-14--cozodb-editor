@@ -66,6 +66,13 @@ func (s *Service) Close() error {
 	return nil
 }
 
+func (s *Service) Runtime() Runtime {
+	if s == nil {
+		return nil
+	}
+	return s.runtime
+}
+
 func (s *Service) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, error) {
 	doc, err := s.store.EnsureDefaultNotebook(ctx)
 	if err != nil {

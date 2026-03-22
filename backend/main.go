@@ -9,8 +9,6 @@ import (
 	"os"
 
 	"github.com/wesen/cozodb-editor/backend/pkg/api"
-	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
-	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
@@ -22,38 +20,17 @@ func main() {
 	viteURL := flag.String("vite", "http://localhost:5173", "Vite dev server URL (empty to disable proxy)")
 	flag.Parse()
 
-	// Open CozoDB
-	log.Printf("[MAIN] Opening CozoDB (engine=%s, path=%s)", *engine, *dbPath)
-	runtime, err := cozo.NewManager(*engine, *dbPath)
+	// Set up current app preset
+	log.Printf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", *engine, *dbPath)
+	notebookModule, err := notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
+		Engine:    *engine,
+		DBPath:    *dbPath,
+		AppDBPath: *appDBPath,
+		EnableAI:  os.Getenv("ANTHROPIC_API_KEY") != "",
+		Logf:      log.Printf,
+	})
 	if err != nil {
-		log.Fatalf("Failed to open CozoDB: %v", err)
-	}
-	defer runtime.Close()
-
-	// Test the database
-	result, err := runtime.Query("?[] <- [[1, 'hello']]", nil)
-	if err != nil {
-		log.Fatalf("CozoDB test query failed: %v", err)
-	}
-	log.Printf("[MAIN] CozoDB ready: %v", result.OK)
-
-	// Initialize AI hint engine (optional)
-	var hintEngine *hints.Engine
-	if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		hintEngine, err = hints.NewEngine()
-		if err != nil {
-			log.Printf("[MAIN] AI hints disabled: %v", err)
-		} else {
-			log.Printf("[MAIN] AI hints enabled (Anthropic)")
-		}
-	} else {
-		log.Printf("[MAIN] AI hints disabled (no ANTHROPIC_API_KEY)")
-	}
-
-	// Set up HTTP handlers
-	notebookModule, err := notebook.OpenModule(*appDBPath, runtime, hintEngine)
-	if err != nil {
-		log.Fatalf("Failed to open notebook module: %v", err)
+		log.Fatalf("Failed to open current Cozo notebook preset: %v", err)
 	}
 	defer func() {
 		if err := notebookModule.Close(); err != nil {
@@ -61,7 +38,7 @@ func main() {
 		}
 	}()
 
-	srv := &api.Server{Runtime: runtime}
+	srv := &api.Server{Runtime: notebookModule.Service.Runtime()}
 	mux := http.NewServeMux()
 
 	// API routes

@@ -9,9 +9,15 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 )
 
+type Runtime interface {
+	Query(script string, params map[string]any) (*cozo.QueryResult, error)
+	ListRelations() ([]string, error)
+	DescribeRelation(name string) (*cozo.RelationInfo, error)
+}
+
 // Server holds the HTTP API handlers.
 type Server struct {
-	Runtime *cozo.Manager
+	Runtime Runtime
 }
 
 // HandleQuery handles POST /api/query — execute CozoScript.
