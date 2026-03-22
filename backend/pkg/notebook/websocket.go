@@ -1,4 +1,4 @@
-package api
+package notebook
 
 import (
 	"context"
@@ -9,25 +9,65 @@ import (
 	"sync"
 	"sync/atomic"
 
+	gepevents "github.com/go-go-golems/geppetto/pkg/events"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 )
 
-var upgrader = websocket.Upgrader{
+var websocketUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// WSHandler handles WebSocket connections for streaming hints.
-type WSHandler struct {
-	Engine  *hints.Engine
-	Runtime *cozo.Manager
+type wsMessage struct {
+	SEM   bool    `json:"sem"`
+	Event wsEvent `json:"event"`
 }
 
-// HandleWS handles the /ws/hints WebSocket endpoint.
-func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+type wsEvent struct {
+	Type     string `json:"type"`
+	ID       string `json:"id,omitempty"`
+	StreamID string `json:"stream_id,omitempty"`
+	Data     any    `json:"data,omitempty"`
+}
+
+type wsHintRequest struct {
+	Question    string   `json:"question"`
+	History     []string `json:"history,omitempty"`
+	AnchorLine  *int     `json:"anchorLine,omitempty"`
+	NotebookID  string   `json:"notebookId,omitempty"`
+	OwnerCellID string   `json:"ownerCellId,omitempty"`
+	RunID       string   `json:"runId,omitempty"`
+}
+
+type wsDiagnosisRequest struct {
+	Error       string `json:"error"`
+	Script      string `json:"script"`
+	NotebookID  string `json:"notebookId,omitempty"`
+	OwnerCellID string `json:"ownerCellId,omitempty"`
+	RunID       string `json:"runId,omitempty"`
+}
+
+type AIEngine interface {
+	GenerateHintWithSinks(context.Context, hints.HintRequest, hints.DeltaCallback, ...gepevents.EventSink) (*hints.HintResponse, error)
+	DiagnoseErrorWithSinks(context.Context, hints.DiagnosisRequest, hints.DeltaCallback, ...gepevents.EventSink) (*hints.HintResponse, error)
+}
+
+type wsHandler struct {
+	engine  AIEngine
+	runtime Runtime
+}
+
+func MountWebSocketRoutes(mux *http.ServeMux, runtime Runtime, engine AIEngine) {
+	handler := &wsHandler{
+		engine:  engine,
+		runtime: runtime,
+	}
+	mux.HandleFunc("/ws/hints", handler.handleWS)
+}
+
+func (h *wsHandler) handleWS(w http.ResponseWriter, r *http.Request) {
+	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("[WS] upgrade error: %v", err)
 		return
@@ -40,7 +80,7 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[WS] client connected: %s", r.RemoteAddr)
 
 	var writeMu sync.Mutex
-	writeJSON := func(msg WSMessage) {
+	writeJSON := func(msg wsMessage) {
 		writeMu.Lock()
 		defer writeMu.Unlock()
 		if err := conn.WriteJSON(msg); err != nil {
@@ -61,7 +101,7 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var msg WSMessage
+		var msg wsMessage
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			log.Printf("[WS] invalid message: %v", err)
 			continue
@@ -78,7 +118,7 @@ func (h *WSHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+func (h *wsHandler) handleHintRequest(ctx context.Context, writeJSON func(wsMessage), event wsEvent, requestID *atomic.Int64) {
 	reqCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -86,15 +126,13 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 	idStr := fmt.Sprintf("hint-%d", id)
 
 	data, _ := json.Marshal(event.Data)
-	var req HintRequest
+	var req wsHintRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		log.Printf("[WS] invalid hint request: %v", err)
 		return
 	}
 
-	// Get current schema
-	schema, _ := h.Runtime.GetSchema()
-
+	schema, _ := h.currentSchema()
 	bundleID := uuid.NewString()
 	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
 		BundleID:    bundleID,
@@ -113,9 +151,8 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 		AnchorLine: req.AnchorLine,
 	}
 
-	if h.Engine == nil {
-		// No AI engine — send a fallback response
-		writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	if h.engine == nil {
+		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "hint.result",
 			ID:       idStr,
 			StreamID: bundleID,
@@ -135,8 +172,7 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 		return
 	}
 
-	// Send start event
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	writeJSON(wsMessage{SEM: true, Event: wsEvent{
 		Type:     "llm.start",
 		ID:       idStr,
 		StreamID: bundleID,
@@ -147,11 +183,10 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 		},
 	}})
 
-	semSink := NewWebSocketSEMSink(writeJSON)
+	semSink := newWebSocketSEMSink(writeJSON)
 
-	// Stream deltas
-	hint, err := h.Engine.GenerateHintWithSinks(reqCtx, hintReq, func(delta string) {
-		writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	hint, err := h.engine.GenerateHintWithSinks(reqCtx, hintReq, func(delta string) {
+		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "llm.delta",
 			ID:       idStr,
 			StreamID: bundleID,
@@ -163,10 +198,9 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 			},
 		}})
 	}, semSink)
-
 	if err != nil {
 		log.Printf("[WS] hint error: %v", err)
-		writeJSON(WSMessage{SEM: true, Event: WSEvent{
+		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "llm.error",
 			ID:       idStr,
 			StreamID: bundleID,
@@ -180,8 +214,7 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 		return
 	}
 
-	// Send final result
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	writeJSON(wsMessage{SEM: true, Event: wsEvent{
 		Type:     "hint.result",
 		ID:       idStr,
 		StreamID: bundleID,
@@ -198,7 +231,7 @@ func (h *WSHandler) handleHintRequest(ctx context.Context, writeJSON func(WSMess
 	}})
 }
 
-func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(WSMessage), event WSEvent, requestID *atomic.Int64) {
+func (h *wsHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(wsMessage), event wsEvent, requestID *atomic.Int64) {
 	reqCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -206,14 +239,13 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 	idStr := fmt.Sprintf("diag-%d", id)
 
 	data, _ := json.Marshal(event.Data)
-	var req DiagnosisRequest
+	var req wsDiagnosisRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		log.Printf("[WS] invalid diagnosis request: %v", err)
 		return
 	}
 
-	schema, _ := h.Runtime.GetSchema()
-
+	schema, _ := h.currentSchema()
 	bundleID := uuid.NewString()
 	reqCtx = hints.WithProjectionDefaults(reqCtx, hints.ProjectionDefaults{
 		BundleID:    bundleID,
@@ -230,8 +262,8 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		Schema: schema,
 	}
 
-	if h.Engine == nil {
-		writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	if h.engine == nil {
+		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "hint.result",
 			ID:       idStr,
 			StreamID: bundleID,
@@ -246,7 +278,7 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		return
 	}
 
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	writeJSON(wsMessage{SEM: true, Event: wsEvent{
 		Type:     "llm.start",
 		ID:       idStr,
 		StreamID: bundleID,
@@ -257,10 +289,10 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		},
 	}})
 
-	semSink := NewWebSocketSEMSink(writeJSON)
+	semSink := newWebSocketSEMSink(writeJSON)
 
-	hint, err := h.Engine.DiagnoseErrorWithSinks(reqCtx, diagReq, func(delta string) {
-		writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	hint, err := h.engine.DiagnoseErrorWithSinks(reqCtx, diagReq, func(delta string) {
+		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "llm.delta",
 			ID:       idStr,
 			StreamID: bundleID,
@@ -272,10 +304,9 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 			},
 		}})
 	}, semSink)
-
 	if err != nil {
 		log.Printf("[WS] diagnosis error: %v", err)
-		writeJSON(WSMessage{SEM: true, Event: WSEvent{
+		writeJSON(wsMessage{SEM: true, Event: wsEvent{
 			Type:     "llm.error",
 			ID:       idStr,
 			StreamID: bundleID,
@@ -289,7 +320,7 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 		return
 	}
 
-	writeJSON(WSMessage{SEM: true, Event: WSEvent{
+	writeJSON(wsMessage{SEM: true, Event: wsEvent{
 		Type:     "hint.result",
 		ID:       idStr,
 		StreamID: bundleID,
@@ -304,4 +335,11 @@ func (h *WSHandler) handleDiagnosisRequest(ctx context.Context, writeJSON func(W
 			"runId":       req.RunID,
 		},
 	}})
+}
+
+func (h *wsHandler) currentSchema() (string, error) {
+	if h == nil || h.runtime == nil {
+		return "", nil
+	}
+	return h.runtime.GetSchema()
 }

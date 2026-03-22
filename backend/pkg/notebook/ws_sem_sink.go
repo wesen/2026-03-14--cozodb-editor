@@ -1,4 +1,4 @@
-package api
+package notebook
 
 import (
 	"encoding/json"
@@ -8,20 +8,20 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 )
 
-type WebSocketSEMSink struct {
+type webSocketSEMSink struct {
 	translator *webchat.EventTranslator
-	writeJSON  func(WSMessage)
+	writeJSON  func(wsMessage)
 }
 
-func NewWebSocketSEMSink(writeJSON func(WSMessage)) *WebSocketSEMSink {
+func newWebSocketSEMSink(writeJSON func(wsMessage)) *webSocketSEMSink {
 	hints.RegisterCozoSemHandlers()
-	return &WebSocketSEMSink{
+	return &webSocketSEMSink{
 		translator: webchat.NewEventTranslator(),
 		writeJSON:  writeJSON,
 	}
 }
 
-func (s *WebSocketSEMSink) PublishEvent(event gepevents.Event) error {
+func (s *webSocketSEMSink) PublishEvent(event gepevents.Event) error {
 	if s == nil || event == nil {
 		return nil
 	}
@@ -34,7 +34,7 @@ func (s *WebSocketSEMSink) PublishEvent(event gepevents.Event) error {
 
 	frames := s.translator.Translate(event)
 	for _, frame := range frames {
-		var message WSMessage
+		var message wsMessage
 		if err := json.Unmarshal(frame, &message); err != nil {
 			return err
 		}

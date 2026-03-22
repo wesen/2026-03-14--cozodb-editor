@@ -62,8 +62,6 @@ func main() {
 	}()
 
 	srv := &api.Server{Runtime: runtime}
-	wsHandler := &api.WSHandler{Runtime: runtime, Engine: hintEngine}
-
 	mux := http.NewServeMux()
 
 	// API routes
@@ -80,7 +78,7 @@ func main() {
 	notebook.MountHTTPRoutes(mux, notebookSvc)
 
 	// WebSocket
-	mux.HandleFunc("/ws/hints", wsHandler.HandleWS)
+	notebook.MountWebSocketRoutes(mux, runtime, hintEngine)
 
 	// Proxy to Vite dev server for frontend
 	if *viteURL != "" {

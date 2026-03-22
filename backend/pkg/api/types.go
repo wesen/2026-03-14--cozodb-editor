@@ -35,36 +35,3 @@ type ColumnDef struct {
 	Type       string `json:"type"`
 	HasDefault bool   `json:"has_default"`
 }
-
-// WSMessage is the envelope for WebSocket messages.
-type WSMessage struct {
-	SEM   bool    `json:"sem"`
-	Event WSEvent `json:"event"`
-}
-
-// WSEvent is a WebSocket event.
-type WSEvent struct {
-	Type     string `json:"type"`
-	ID       string `json:"id,omitempty"`
-	StreamID string `json:"stream_id,omitempty"`
-	Data     any    `json:"data,omitempty"`
-}
-
-// HintRequest is a request for AI hints over WebSocket.
-type HintRequest struct {
-	Question    string   `json:"question"`
-	History     []string `json:"history,omitempty"`
-	AnchorLine  *int     `json:"anchorLine,omitempty"`
-	NotebookID  string   `json:"notebookId,omitempty"`
-	OwnerCellID string   `json:"ownerCellId,omitempty"`
-	RunID       string   `json:"runId,omitempty"`
-}
-
-// DiagnosisRequest is a request for AI error diagnosis over WebSocket.
-type DiagnosisRequest struct {
-	Error       string `json:"error"`
-	Script      string `json:"script"`
-	NotebookID  string `json:"notebookId,omitempty"`
-	OwnerCellID string `json:"ownerCellId,omitempty"`
-	RunID       string `json:"runId,omitempty"`
-}
