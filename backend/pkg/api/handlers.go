@@ -6,14 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
+	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
-type Runtime interface {
-	Query(script string, params map[string]any) (*cozo.QueryResult, error)
-	ListRelations() ([]string, error)
-	DescribeRelation(name string) (*cozo.RelationInfo, error)
-}
+type Runtime = notebook.Runtime
 
 // Server holds the HTTP API handlers.
 type Server struct {

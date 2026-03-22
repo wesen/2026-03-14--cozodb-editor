@@ -26,9 +26,9 @@ func newNotebookHTTPTestMux(t *testing.T) (*http.ServeMux, *Service) {
 func newTestModule(t *testing.T, basePaths BasePaths) *Module {
 	t.Helper()
 
-	runtime, err := openTestRuntime()
+	manager, err := openMemCozoRuntimeManager()
 	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
+	t.Cleanup(func() { manager.Close() })
 
 	store, err := OpenStoreWithConfig(StoreConfig{
 		DBPath:  t.TempDir() + "/app.sqlite",
@@ -41,7 +41,7 @@ func newTestModule(t *testing.T, basePaths BasePaths) *Module {
 
 	module, err := NewModule(ModuleConfig{
 		ServiceConfig: ServiceConfig{
-			Runtime:  runtime,
+			Runtime:  newCozoRuntime(manager),
 			Store:    store,
 			Timeline: timeline,
 		},

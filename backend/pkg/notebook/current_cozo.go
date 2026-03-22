@@ -61,7 +61,7 @@ func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
 
 	module, err := NewModule(ModuleConfig{
 		ServiceConfig: ServiceConfig{
-			Runtime:    runtime,
+			Runtime:    newCozoRuntime(runtime),
 			SessionID:  "cozo-notebook-session",
 			RuntimeKey: "cozo-runtime",
 			Store:      store,

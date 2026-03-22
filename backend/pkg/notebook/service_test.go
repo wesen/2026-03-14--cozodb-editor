@@ -10,14 +10,14 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 )
 
-func openTestRuntime() (*cozo.Manager, error) {
+func openMemCozoRuntimeManager() (*cozo.Manager, error) {
 	return cozo.NewManager("mem", "")
 }
 
-func openTestService(t *testing.T) (*Service, *cozo.Manager) {
+func openTestService(t *testing.T) (*Service, Runtime) {
 	t.Helper()
 
-	runtime, err := openTestRuntime()
+	manager, err := openMemCozoRuntimeManager()
 	require.NoError(t, err)
 
 	store, err := OpenStoreWithConfig(StoreConfig{
@@ -30,15 +30,15 @@ func openTestService(t *testing.T) (*Service, *cozo.Manager) {
 	require.NoError(t, err)
 
 	svc, err := NewService(ServiceConfig{
-		Runtime:  runtime,
+		Runtime:  newCozoRuntime(manager),
 		Store:    store,
 		Timeline: timeline,
 	})
 	require.NoError(t, err)
 
 	t.Cleanup(func() { _ = svc.Close() })
-	t.Cleanup(func() { runtime.Close() })
-	return svc, runtime
+	t.Cleanup(func() { manager.Close() })
+	return svc, svc.Runtime()
 }
 
 func TestEnsureDefaultNotebookCreatesExpectedCells(t *testing.T) {
