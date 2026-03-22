@@ -4,7 +4,7 @@ import { NotebookCellCard } from "./NotebookCellCard";
 import { NotebookPageView } from "./NotebookPageView";
 import { useNotebookPageController } from "./useNotebookPageController";
 import type { NotebookShellConfig } from "./config";
-import type { NotebookSemHandlerRegistrar } from "./registerCurrentCozoSemHandlers";
+import type { NotebookSemHandlerRegistrar } from "./semHandlers";
 
 interface NotebookPageContainerProps {
   confirmAction?: (message: string) => boolean;

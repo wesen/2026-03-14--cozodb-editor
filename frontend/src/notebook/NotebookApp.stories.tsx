@@ -2,8 +2,17 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { NotebookApp } from "./NotebookApp";
 import { createCurrentCozoNotebookStore, currentCozoNotebookExperienceConfig } from "./currentCozoConfig";
+import {
+  createCurrentJavaScriptNotebookStore,
+  currentJavaScriptNotebookExperienceConfig,
+} from "./currentJavaScriptConfig";
 import { registerCurrentCozoSemHandlers } from "./registerCurrentCozoSemHandlers";
-import { createNotebookFixture, createNotebookApiHandlers } from "../storybook/notebookApiHandlers";
+import { registerDefaultNotebookSemHandlers } from "./semHandlers";
+import {
+  createJavaScriptNotebookApiHandlers,
+  createNotebookFixture,
+  createNotebookApiHandlers,
+} from "../storybook/notebookApiHandlers";
 import { createStaticHintsSocket } from "../storybook/createStaticHintsSocket";
 
 function EmbeddedNotebookHost() {
@@ -32,6 +41,32 @@ function EmbeddedNotebookHost() {
   );
 }
 
+function EmbeddedJavaScriptNotebookHost() {
+  const [store] = useState(() => createCurrentJavaScriptNotebookStore());
+
+  return (
+    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px minmax(0, 1fr)", background: "#c7c7c7" }}>
+      <aside style={{ borderRight: "2px solid #000", padding: 16, background: "#efefef" }}>
+        <h2 style={{ marginBottom: 12, fontSize: 18 }}>JS Host Shell</h2>
+        <p style={{ fontSize: 13, lineHeight: 1.5 }}>
+          This story mounts the reusable notebook package with the JavaScript preset, without the current Cozo app wrapper.
+        </p>
+      </aside>
+      <NotebookApp
+        confirmAction={() => true}
+        experienceConfig={currentJavaScriptNotebookExperienceConfig}
+        registerSemHandlers={registerDefaultNotebookSemHandlers}
+        shellConfig={{
+          appName: "Embedded JavaScript Notebook",
+          menuItems: ["Host", "Notebook", "Runtime"],
+        }}
+        store={store}
+        ws={createStaticHintsSocket(true)}
+      />
+    </div>
+  );
+}
+
 const meta = {
   title: "Notebook/NotebookApp",
   component: EmbeddedNotebookHost,
@@ -52,3 +87,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Embedded: Story = {};
+
+export const EmbeddedJavaScript: Story = {
+  render: () => <EmbeddedJavaScriptNotebookHost />,
+  parameters: {
+    msw: {
+      handlers: {
+        notebook: createJavaScriptNotebookApiHandlers(),
+      },
+    },
+  },
+};

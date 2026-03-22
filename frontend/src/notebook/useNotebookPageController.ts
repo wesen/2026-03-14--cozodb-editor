@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import type { HintsSocket, SemEvent } from "../transport/hintsSocket";
 import type { NotebookCell } from "../transport/httpClient";
-import { registerCurrentCozoSemHandlers, type NotebookSemHandlerRegistrar } from "./registerCurrentCozoSemHandlers";
+import { registerDefaultNotebookSemHandlers, type NotebookSemHandlerRegistrar } from "./semHandlers";
 import {
   clearCurrentNotebook,
   insertNotebookCellBelow,
@@ -33,7 +33,7 @@ export interface NotebookPageControllerOptions {
   ws: HintsSocket;
 }
 
-export function useNotebookPageController({ confirmAction, registerSemHandlers = registerCurrentCozoSemHandlers, ws }: NotebookPageControllerOptions) {
+export function useNotebookPageController({ confirmAction, registerSemHandlers = registerDefaultNotebookSemHandlers, ws }: NotebookPageControllerOptions) {
   const dispatch = useAppDispatch();
   const document = useAppSelector(selectNotebookDocument);
   const error = useAppSelector(selectNotebookError);

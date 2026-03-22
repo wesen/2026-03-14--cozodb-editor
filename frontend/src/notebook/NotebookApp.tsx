@@ -5,7 +5,7 @@ import { NotebookPageContainer } from "./NotebookPage";
 import type { NotebookShellConfig } from "./config";
 import { NotebookExperienceProvider } from "./experience";
 import type { NotebookExperienceConfig } from "./experienceConfig";
-import type { NotebookSemHandlerRegistrar } from "./registerCurrentCozoSemHandlers";
+import type { NotebookSemHandlerRegistrar } from "./semHandlers";
 
 export interface NotebookAppProps {
   confirmAction?: (message: string) => boolean;

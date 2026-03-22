@@ -9,6 +9,7 @@ import type {
 
 interface NotebookApiFixture {
   document: NotebookDocument;
+  runtimeForSource?: (cell: NotebookCell) => CellRuntime;
 }
 
 interface MutableNotebookState {
@@ -136,6 +137,90 @@ function getRuntimeForSource(cell: NotebookCell): CellRuntime {
   };
 }
 
+function getJavaScriptRuntimeForSource(cell: NotebookCell): CellRuntime {
+  const source = cell.source.trim();
+  const timestamp = nextTimestamp();
+
+  if (source === "") {
+    return {
+      run: {
+        id: `run_${cell.id}`,
+        cell_id: cell.id,
+        notebook_id: cell.notebook_id,
+        status: "complete",
+        execution_count: 1,
+        finished_at_ms: timestamp,
+      },
+      output: {
+        kind: "query_result",
+        headers: ["value"],
+        rows: [],
+        took: 1,
+      },
+    };
+  }
+
+  if (source.includes("throw") || source.includes("notDefined")) {
+    return {
+      run: {
+        id: `run_${cell.id}`,
+        cell_id: cell.id,
+        notebook_id: cell.notebook_id,
+        status: "error",
+        execution_count: 1,
+        finished_at_ms: timestamp,
+      },
+      output: {
+        kind: "error_result",
+        display: "ReferenceError: notDefined is not defined",
+        message: "ReferenceError: notDefined is not defined",
+      },
+    };
+  }
+
+  if (source.includes("settings")) {
+    return {
+      run: {
+        id: `run_${cell.id}`,
+        cell_id: cell.id,
+        notebook_id: cell.notebook_id,
+        status: "complete",
+        execution_count: 1,
+        finished_at_ms: timestamp,
+      },
+      output: {
+        kind: "query_result",
+        headers: ["key", "value"],
+        rows: [
+          ["mode", "demo"],
+          ["retries", 3],
+        ],
+        took: 2,
+      },
+    };
+  }
+
+  return {
+    run: {
+      id: `run_${cell.id}`,
+      cell_id: cell.id,
+      notebook_id: cell.notebook_id,
+      status: "complete",
+      execution_count: 1,
+      finished_at_ms: timestamp,
+    },
+    output: {
+      kind: "query_result",
+      headers: ["age", "name"],
+      rows: [
+        [31, "Ada"],
+        [42, "Grace"],
+      ],
+      took: 3,
+    },
+  };
+}
+
 export function createNotebookFixture(): NotebookDocument {
   const notebookId = "nb_storybook";
   const now = Date.now();
@@ -174,6 +259,59 @@ export function createNotebookFixture(): NotebookDocument {
         position: 2,
         created_at_ms: now - 86_400_000,
         updated_at_ms: now - 1_800_000,
+      },
+    ],
+    runtime: {},
+  };
+}
+
+export function createJavaScriptNotebookFixture(): NotebookDocument {
+  const notebookId = "nb_storybook_js";
+  const now = Date.now();
+
+  return {
+    notebook: {
+      id: notebookId,
+      title: "JavaScript Notebook",
+      created_at_ms: now - 86_400_000,
+      updated_at_ms: now - 3_600_000,
+    },
+    cells: [
+      {
+        id: "cell_intro",
+        notebook_id: notebookId,
+        kind: "markdown",
+        source: "## JavaScript Notebook\n\nRun cells, inspect values, and reset the runtime when globals drift.",
+        position: 0,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 86_400_000,
+      },
+      {
+        id: "cell_users",
+        notebook_id: notebookId,
+        kind: "code",
+        source: "globalThis.users = [{ name: 'Ada', age: 31 }, { name: 'Grace', age: 42 }]\nglobalThis.users",
+        position: 1,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 3_600_000,
+      },
+      {
+        id: "cell_settings",
+        notebook_id: notebookId,
+        kind: "code",
+        source: "globalThis.settings = { mode: 'demo', retries: 3 }\nglobalThis.settings",
+        position: 2,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 1_800_000,
+      },
+      {
+        id: "cell_broken",
+        notebook_id: notebookId,
+        kind: "code",
+        source: "notDefined + 1",
+        position: 3,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 900_000,
       },
     ],
     runtime: {},
@@ -290,7 +428,7 @@ export function createNotebookApiHandlers(fixture: NotebookApiFixture) {
         return HttpResponse.json({ ok: false, message: "Cell not found" }, { status: 404 });
       }
 
-      const runtime = getRuntimeForSource(cell);
+      const runtime = fixture.runtimeForSource ? fixture.runtimeForSource(cell) : getRuntimeForSource(cell);
       state.document = {
         ...state.document,
         runtime: {
@@ -313,4 +451,11 @@ export function createNotebookApiHandlers(fixture: NotebookApiFixture) {
       });
     }),
   ];
+}
+
+export function createJavaScriptNotebookApiHandlers() {
+  return createNotebookApiHandlers({
+    document: createJavaScriptNotebookFixture(),
+    runtimeForSource: getJavaScriptRuntimeForSource,
+  });
 }
