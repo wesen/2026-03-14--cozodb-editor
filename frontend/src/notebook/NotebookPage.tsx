@@ -22,6 +22,7 @@ import {
   setActiveCellId,
   semEventProjected,
 } from "./state/notebookSlice";
+import "../components/primitives/primitives.css";
 import "./notebook.css";
 import "../theme/cards.css";
 import "../theme/layout.css";

@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import { ActionRow, CodePanel, MacButton, PillButton, SectionLabel } from "../../components/primitives";
 import { buildHintMarkdownNote } from "../../notebook/aiNoteMarkdown";
 import { DocPreviewChip } from "./DocPreviewChip";
 import { toHintCardViewModel } from "./hintViewModel";
@@ -48,9 +49,9 @@ export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onIn
 
   if (collapsed) {
     return (
-      <div
-        className="cozo-ai-card--collapsed"
-        onClick={onToggleCollapse}
+        <div
+          className="cozo-ai-card--collapsed"
+          onClick={onToggleCollapse}
         style={{
           cursor: "pointer",
           transition: "all 0.15s ease",
@@ -66,60 +67,33 @@ export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onIn
   return (
     <div className="cozo-ai-card" style={{ position: "relative" }}>
       <div style={{ position: "absolute", top: 8, right: 10 }}>
-        <button
+        <PillButton
           onClick={onToggleCollapse}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontSize: 11,
-            padding: "2px 6px",
-            borderRadius: 3,
-            fontFamily: "inherit",
-          }}
-          onMouseEnter={(event) => { (event.target as HTMLElement).style.color = "var(--text-primary)"; }}
-          onMouseLeave={(event) => { (event.target as HTMLElement).style.color = "var(--text-muted)"; }}
+          style={{ padding: "2px 8px" }}
         >
           collapse
-        </button>
+        </PillButton>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 11, color: "var(--accent)", fontWeight: 600, letterSpacing: "0.04em" }}>
+      <SectionLabel style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, color: "var(--accent)" }}>
         AI ASSISTANT
-      </div>
+      </SectionLabel>
 
       <div style={{ marginBottom: 12 }}>
         {formatHintText(viewModel.text)}
       </div>
 
       {viewModel.code && (
-        <div className="cozo-code-panel" style={{
-          padding: "10px 14px",
-          marginBottom: 12,
-          position: "relative",
-        }}>
-          <button
-            onClick={handleCopy}
-            style={{
-              position: "absolute", top: 8, right: 8,
-              background: "none", border: "1px solid var(--border-subtle)", borderRadius: 4,
-              color: copied ? "var(--accent)" : "var(--text-muted)", fontSize: 11, padding: "2px 8px",
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            {copied ? "copied" : "copy"}
-          </button>
-          <div style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 12.5,
-            lineHeight: 1.6,
-            color: "var(--text-code)",
-            whiteSpace: "pre-wrap",
-          }}>
-            {viewModel.code}
-          </div>
-        </div>
+        <CodePanel
+          action={(
+            <PillButton onClick={handleCopy} tone={copied ? "accent" : "neutral"} style={{ padding: "2px 8px" }}>
+              {copied ? "copied" : "copy"}
+            </PillButton>
+          )}
+          style={{ marginBottom: 12 }}
+        >
+          {viewModel.code}
+        </CodePanel>
       )}
 
       {viewModel.docs.length > 0 && (
@@ -138,36 +112,22 @@ export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onIn
       {viewModel.chips.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
           {viewModel.chips.map((chip, idx) => (
-            <button
+            <PillButton
               key={idx}
               onClick={() => onChipClick(chip)}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 999,
-                border: "1px solid var(--border-chip)",
-                background: "var(--bg-chip)",
-                color: "var(--text-chip)",
-                fontSize: 11,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(event) => { event.currentTarget.style.transform = "translateY(-1px)"; }}
-              onMouseLeave={(event) => { event.currentTarget.style.transform = "translateY(0)"; }}
             >
               {chip}
-            </button>
+            </PillButton>
           ))}
         </div>
       )}
 
       {viewModel.code && (
-        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="mac-btn" onClick={() => onInsert(viewModel.code)}>
+        <ActionRow style={{ marginTop: 12 }}>
+          <MacButton onClick={() => onInsert(viewModel.code)}>
             Insert code
-          </button>
-          <button
-            className="mac-btn"
+          </MacButton>
+          <MacButton
             onClick={() => onAddToNotebook(buildHintMarkdownNote({
               chips: viewModel.chips,
               code: viewModel.code,
@@ -177,8 +137,8 @@ export function HintResponseCard({ collapsed, onAddToNotebook, onChipClick, onIn
             }))}
           >
             Add to notebook
-          </button>
-        </div>
+          </MacButton>
+        </ActionRow>
       )}
     </div>
   );
