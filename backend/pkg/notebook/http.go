@@ -1,24 +1,62 @@
-package api
+package notebook
 
 import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strings"
-
-	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
-func (s *Server) HandleBootstrapNotebook(w http.ResponseWriter, r *http.Request) {
-	if s.Notebook == nil {
-		http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+type createNotebookRequest struct {
+	Title string `json:"title"`
+}
+
+type updateNotebookRequest struct {
+	Title string `json:"title"`
+}
+
+type insertCellRequest struct {
+	AfterCellID string `json:"after_cell_id,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Source      string `json:"source,omitempty"`
+}
+
+type updateCellRequest struct {
+	Kind   string `json:"kind,omitempty"`
+	Source string `json:"source,omitempty"`
+}
+
+type moveCellRequest struct {
+	TargetIndex int `json:"target_index"`
+}
+
+type resetKernelResponse struct {
+	KernelGeneration int64 `json:"kernel_generation"`
+	OK               bool  `json:"ok"`
+}
+
+type httpHandler struct {
+	service *Service
+}
+
+func MountHTTPRoutes(mux *http.ServeMux, service *Service) {
+	handler := &httpHandler{service: service}
+	mux.HandleFunc("/api/notebooks", handler.handleCreateNotebook)
+	mux.HandleFunc("/api/notebooks/bootstrap", handler.handleBootstrapNotebook)
+	mux.HandleFunc("/api/notebooks/", handler.handleNotebook)
+	mux.HandleFunc("/api/notebook-cells/", handler.handleNotebookCell)
+	mux.HandleFunc("/api/runtime/reset-kernel", handler.handleResetKernel)
+}
+
+func (h *httpHandler) handleBootstrapNotebook(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureService(w) {
 		return
 	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	doc, err := s.Notebook.EnsureDefaultNotebook(r.Context())
+	doc, err := h.service.EnsureDefaultNotebook(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -26,21 +64,20 @@ func (s *Server) HandleBootstrapNotebook(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, doc)
 }
 
-func (s *Server) HandleCreateNotebook(w http.ResponseWriter, r *http.Request) {
-	if s.Notebook == nil {
-		http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+func (h *httpHandler) handleCreateNotebook(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureService(w) {
 		return
 	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var req CreateNotebookRequest
+	var req createNotebookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	nb, err := s.Notebook.CreateNotebook(r.Context(), req.Title)
+	nb, err := h.service.CreateNotebook(r.Context(), req.Title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -48,9 +85,8 @@ func (s *Server) HandleCreateNotebook(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, nb)
 }
 
-func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
-	if s.Notebook == nil {
-		http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+func (h *httpHandler) handleNotebook(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureService(w) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/notebooks/")
@@ -62,19 +98,19 @@ func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasSuffix(path, "/cells") {
 		notebookID := strings.TrimSuffix(path, "/cells")
-		s.handleInsertCell(w, r, strings.Trim(notebookID, "/"))
+		h.handleInsertCell(w, r, strings.Trim(notebookID, "/"))
 		return
 	}
 	if strings.HasSuffix(path, "/clear") {
 		notebookID := strings.TrimSuffix(path, "/clear")
-		s.handleClearNotebook(w, r, strings.Trim(notebookID, "/"))
+		h.handleClearNotebook(w, r, strings.Trim(notebookID, "/"))
 		return
 	}
 
 	notebookID := path
 	switch r.Method {
 	case http.MethodGet:
-		doc, err := s.Notebook.GetNotebook(r.Context(), notebookID)
+		doc, err := h.service.GetNotebook(r.Context(), notebookID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.NotFound(w, r)
@@ -85,16 +121,16 @@ func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, doc)
 	case http.MethodPatch:
-		var req UpdateNotebookRequest
+		var req updateNotebookRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-		if err := s.Notebook.UpdateNotebookTitle(r.Context(), notebookID, req.Title); err != nil {
+		if err := h.service.UpdateNotebookTitle(r.Context(), notebookID, req.Title); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		doc, err := s.Notebook.GetNotebook(r.Context(), notebookID)
+		doc, err := h.service.GetNotebook(r.Context(), notebookID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -105,13 +141,13 @@ func (s *Server) HandleNotebook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleClearNotebook(w http.ResponseWriter, r *http.Request, notebookID string) {
+func (h *httpHandler) handleClearNotebook(w http.ResponseWriter, r *http.Request, notebookID string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	doc, err := s.Notebook.ClearNotebook(r.Context(), notebookID)
+	doc, err := h.service.ClearNotebook(r.Context(), notebookID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.NotFound(w, r)
@@ -123,17 +159,17 @@ func (s *Server) handleClearNotebook(w http.ResponseWriter, r *http.Request, not
 	writeJSON(w, http.StatusOK, doc)
 }
 
-func (s *Server) handleInsertCell(w http.ResponseWriter, r *http.Request, notebookID string) {
+func (h *httpHandler) handleInsertCell(w http.ResponseWriter, r *http.Request, notebookID string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var req InsertCellRequest
+	var req insertCellRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	result, err := s.Notebook.InsertCell(r.Context(), notebookID, req.AfterCellID, req.Kind, req.Source)
+	result, err := h.service.InsertCell(r.Context(), notebookID, req.AfterCellID, req.Kind, req.Source)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -141,9 +177,8 @@ func (s *Server) handleInsertCell(w http.ResponseWriter, r *http.Request, notebo
 	writeJSON(w, http.StatusCreated, result)
 }
 
-func (s *Server) HandleNotebookCell(w http.ResponseWriter, r *http.Request) {
-	if s.Notebook == nil {
-		http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+func (h *httpHandler) handleNotebookCell(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureService(w) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/notebook-cells/")
@@ -156,31 +191,31 @@ func (s *Server) HandleNotebookCell(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasSuffix(path, "/move"):
 		cellID := strings.TrimSuffix(path, "/move")
-		s.handleMoveCell(w, r, strings.Trim(cellID, "/"))
+		h.handleMoveCell(w, r, strings.Trim(cellID, "/"))
 	case strings.HasSuffix(path, "/run"):
 		cellID := strings.TrimSuffix(path, "/run")
-		s.handleRunCell(w, r, strings.Trim(cellID, "/"))
+		h.handleRunCell(w, r, strings.Trim(cellID, "/"))
 	default:
-		s.handleCellResource(w, r, path)
+		h.handleCellResource(w, r, path)
 	}
 }
 
-func (s *Server) handleCellResource(w http.ResponseWriter, r *http.Request, cellID string) {
+func (h *httpHandler) handleCellResource(w http.ResponseWriter, r *http.Request, cellID string) {
 	switch r.Method {
 	case http.MethodPatch:
-		var req UpdateCellRequest
+		var req updateCellRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-		cell, err := s.Notebook.UpdateCell(r.Context(), cellID, req.Kind, req.Source)
+		cell, err := h.service.UpdateCell(r.Context(), cellID, req.Kind, req.Source)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, http.StatusOK, cell)
 	case http.MethodDelete:
-		result, err := s.Notebook.DeleteCell(r.Context(), cellID)
+		result, err := h.service.DeleteCell(r.Context(), cellID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -191,17 +226,17 @@ func (s *Server) handleCellResource(w http.ResponseWriter, r *http.Request, cell
 	}
 }
 
-func (s *Server) handleMoveCell(w http.ResponseWriter, r *http.Request, cellID string) {
+func (h *httpHandler) handleMoveCell(w http.ResponseWriter, r *http.Request, cellID string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var req MoveCellRequest
+	var req moveCellRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	result, err := s.Notebook.MoveCell(r.Context(), cellID, req.TargetIndex)
+	result, err := h.service.MoveCell(r.Context(), cellID, req.TargetIndex)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -209,12 +244,12 @@ func (s *Server) handleMoveCell(w http.ResponseWriter, r *http.Request, cellID s
 	writeJSON(w, http.StatusOK, result)
 }
 
-func (s *Server) handleRunCell(w http.ResponseWriter, r *http.Request, cellID string) {
+func (h *httpHandler) handleRunCell(w http.ResponseWriter, r *http.Request, cellID string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	runtime, err := s.Notebook.RunCell(r.Context(), cellID)
+	runtime, err := h.service.RunCell(r.Context(), cellID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -222,9 +257,8 @@ func (s *Server) handleRunCell(w http.ResponseWriter, r *http.Request, cellID st
 	writeJSON(w, http.StatusOK, runtime)
 }
 
-func (s *Server) HandleResetKernel(w http.ResponseWriter, r *http.Request) {
-	if s.Notebook == nil {
-		http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+func (h *httpHandler) handleResetKernel(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureService(w) {
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -232,26 +266,27 @@ func (s *Server) HandleResetKernel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.Notebook.ResetKernel(r.Context())
+	result, err := h.service.ResetKernel(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, ResetKernelResponse{
+	writeJSON(w, http.StatusOK, resetKernelResponse{
 		KernelGeneration: result.KernelGeneration,
 		OK:               result.OK,
 	})
 }
 
-func notebookDocOr404(svc *notebook.Service, w http.ResponseWriter, r *http.Request, notebookID string) *notebook.NotebookDocument {
-	doc, err := svc.GetNotebook(r.Context(), notebookID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.NotFound(w, r)
-			return nil
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return nil
+func (h *httpHandler) ensureService(w http.ResponseWriter) bool {
+	if h.service != nil {
+		return true
 	}
-	return doc
+	http.Error(w, "notebook service unavailable", http.StatusServiceUnavailable)
+	return false
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
 }

@@ -68,31 +68,3 @@ type DiagnosisRequest struct {
 	OwnerCellID string `json:"ownerCellId,omitempty"`
 	RunID       string `json:"runId,omitempty"`
 }
-
-type CreateNotebookRequest struct {
-	Title string `json:"title"`
-}
-
-type UpdateNotebookRequest struct {
-	Title string `json:"title"`
-}
-
-type InsertCellRequest struct {
-	AfterCellID string `json:"after_cell_id,omitempty"`
-	Kind        string `json:"kind,omitempty"`
-	Source      string `json:"source,omitempty"`
-}
-
-type UpdateCellRequest struct {
-	Kind   string `json:"kind,omitempty"`
-	Source string `json:"source,omitempty"`
-}
-
-type MoveCellRequest struct {
-	TargetIndex int `json:"target_index"`
-}
-
-type ResetKernelResponse struct {
-	KernelGeneration int64 `json:"kernel_generation"`
-	OK               bool  `json:"ok"`
-}

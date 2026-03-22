@@ -61,7 +61,7 @@ func main() {
 		}
 	}()
 
-	srv := &api.Server{Runtime: runtime, Notebook: notebookSvc}
+	srv := &api.Server{Runtime: runtime}
 	wsHandler := &api.WSHandler{Runtime: runtime, Engine: hintEngine}
 
 	mux := http.NewServeMux()
@@ -77,11 +77,7 @@ func main() {
 		srv.HandleSchema(w, r)
 	})
 	mux.HandleFunc("/api/schema/", srv.HandleSchemaDetail)
-	mux.HandleFunc("/api/notebooks", srv.HandleCreateNotebook)
-	mux.HandleFunc("/api/notebooks/bootstrap", srv.HandleBootstrapNotebook)
-	mux.HandleFunc("/api/notebooks/", srv.HandleNotebook)
-	mux.HandleFunc("/api/notebook-cells/", srv.HandleNotebookCell)
-	mux.HandleFunc("/api/runtime/reset-kernel", srv.HandleResetKernel)
+	notebook.MountHTTPRoutes(mux, notebookSvc)
 
 	// WebSocket
 	mux.HandleFunc("/ws/hints", wsHandler.HandleWS)
