@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] Record baseline backend validation and inventory before moving code
+- [x] Record baseline backend validation and inventory before moving code
 - [ ] Split `backend/pkg/notebook/store.go` into responsibility-oriented files while preserving the `Store` API
 - [ ] Re-run backend tests after the store split and fix any movement-only regressions
 - [ ] Introduce backend preset registry types and default registrations for Cozo, JavaScript, and SQLite
