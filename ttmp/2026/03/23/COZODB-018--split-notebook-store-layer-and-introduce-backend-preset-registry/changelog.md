@@ -9,3 +9,5 @@
 - Recorded the initial ordered cleanup tasks for the store split and preset registry work
 - Recorded baseline backend validation before refactoring: `store.go` is 810 lines and `cd backend && go test ./...` passed (`6066e39`)
 - Split the backend store into responsibility-oriented files while keeping the `Store` API and backend tests green (`8a9f2c2`)
+- Added a backend preset registry, rewired `backend/main.go` to use it, and covered the new selection path with backend tests (`c12fb55`)
+- Re-ran backend tests and live-smoked `cozo`, `javascript`, and `sqlite` startup via `go run . --preset ... --vite ""` plus `curl /api/notebooks/bootstrap`

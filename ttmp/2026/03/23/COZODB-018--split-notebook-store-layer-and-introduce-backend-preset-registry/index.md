@@ -10,10 +10,16 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: backend/pkg/notebook/store.go
-      Note: Large backend store file whose responsibilities should be split before more behavior is added
+    - Path: backend/pkg/notebook/store_open.go
+      Note: Top-level store definition after the responsibility split
+    - Path: backend/pkg/notebook/store_bootstrap.go
+      Note: Default notebook/bootstrap persistence after the store split
+    - Path: backend/pkg/notebook/store_cells.go
+      Note: Cell ordering and mutation persistence after the store split
     - Path: backend/main.go
-      Note: Current hardcoded preset switch that should move behind a registry
+      Note: Backend host startup now resolved through the preset registry
+    - Path: backend/pkg/notebook/preset_registry.go
+      Note: Registry for default notebook presets and normalized startup options
     - Path: backend/pkg/notebook/module.go
       Note: Module surface that the registry should construct and return uniformly
     - Path: backend/pkg/notebook/current_cozo.go
@@ -23,10 +29,10 @@ RelatedFiles:
     - Path: backend/pkg/notebook/current_sqlite.go
       Note: Current SQLite preset constructor
 ExternalSources: []
-Summary: Cleanup/design ticket for splitting the backend notebook store by responsibility and replacing the hardcoded backend preset switch with a preset registry.
-LastUpdated: 2026-03-23T11:40:00-04:00
-WhatFor: Track and explain the next backend cleanup phase after the SQLite preset and editor work, with a focus on maintainability and future preset extensibility.
-WhenToUse: Use when implementing or reviewing the backend cleanup, onboarding a new engineer to the backend preset system, or planning future language presets.
+Summary: Cleanup/design ticket for splitting the backend notebook store by responsibility and replacing the hardcoded backend preset switch with a registry-backed startup path.
+LastUpdated: 2026-03-23T11:58:00-04:00
+WhatFor: Track and explain the backend cleanup phase that split store responsibilities and moved backend preset selection behind a registry for future extensibility.
+WhenToUse: Use when reviewing the cleanup, onboarding a new engineer to the backend preset system, or planning future language presets and startup registration.
 ---
 
 # Split notebook store layer and introduce backend preset registry
@@ -51,7 +57,7 @@ The goal is to clean up those surfaces before the next backend feature or preset
 
 ## Status
 
-Current status: **active**
+Current status: **completed**
 
 ## Topics
 

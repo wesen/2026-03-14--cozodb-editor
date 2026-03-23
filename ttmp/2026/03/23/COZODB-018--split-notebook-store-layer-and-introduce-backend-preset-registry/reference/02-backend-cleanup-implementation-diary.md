@@ -10,10 +10,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: backend/pkg/notebook/store.go
-      Note: Primary backend cleanup target
+    - Path: backend/pkg/notebook/store_open.go
+      Note: Primary store entry point after the responsibility split
+    - Path: backend/pkg/notebook/store_bootstrap.go
+      Note: Default notebook/bootstrap persistence after the split
+    - Path: backend/pkg/notebook/store_cells.go
+      Note: Cell ordering and mutation persistence after the split
     - Path: backend/main.go
-      Note: Host preset selection target
+      Note: Host preset selection target now wired through the registry
+    - Path: backend/pkg/notebook/preset_registry.go
+      Note: New registry used to resolve notebook presets
     - Path: backend/pkg/notebook/current_cozo.go
       Note: Cozo preset construction reference
     - Path: backend/pkg/notebook/current_javascript.go
@@ -22,8 +28,8 @@ RelatedFiles:
       Note: SQLite preset construction reference
 ExternalSources: []
 Summary: Chronological diary for the backend cleanup work covering the store split and backend preset registry refactor.
-LastUpdated: 2026-03-23T11:46:00-04:00
-WhatFor: Record the actual implementation sequence, validation commands, mistakes, and review guidance while the backend cleanup is in progress.
+LastUpdated: 2026-03-23T11:58:00-04:00
+WhatFor: Record the actual implementation sequence, validation commands, mistakes, and review guidance while the backend cleanup is in progress and at closeout.
 WhenToUse: Use when continuing the ticket, reviewing commits, or onboarding an engineer to the rationale behind the cleanup.
 ---
 
@@ -217,6 +223,115 @@ New shape:
   store_notebooks.go
   store_cells.go
   store_runs.go
+```
+
+## Step 3: Introduce a backend preset registry and rewire startup through it
+
+The second code slice tackled the other backend cleanup target: `backend/main.go` still knew too much about every preset. That was acceptable when there was only one environment, but by the time Cozo, JavaScript, and SQLite all existed, the host binary was duplicating preset-specific knowledge that belonged in the notebook package.
+
+The fix was to move preset selection into a registry inside `backend/pkg/notebook`, then let `main.go` pass normalized startup options into that registry. This keeps the host binary simpler and establishes a cleaner path for future preset additions.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue the cleanup after the store split, commit the next slice separately, and record the real validation path in the diary.
+
+**Inferred user intent:** Finish the backend cleanup completely, not just the low-risk store refactor.
+
+**Commit (code):** `c12fb55` — `backend: add notebook preset registry`
+
+### What I did
+
+- Added [backend/pkg/notebook/preset_registry.go](../../../../../../backend/pkg/notebook/preset_registry.go) with:
+  - `PresetOptions`
+  - `PresetDescriptor`
+  - `PresetRegistry`
+  - `DefaultPresetRegistry()`
+  - sorted `Names()` and `Descriptors()`
+  - duplicate/unknown preset validation
+- Rewired [backend/main.go](../../../../../../backend/main.go) to:
+  - instantiate the default registry
+  - derive the `--preset` help text from registered names
+  - pass normalized startup options through `registry.Open(...)`
+  - remove the hardcoded preset switch
+- Added [backend/pkg/notebook/preset_registry_test.go](../../../../../../backend/pkg/notebook/preset_registry_test.go) to verify:
+  - registered preset names are stable and sorted
+  - unknown preset errors expose the available preset list
+  - the default registry can open `cozo`, `javascript`, and `sqlite` and serve bootstrap on custom base paths
+- Ran:
+  - `gofmt -w backend/main.go backend/pkg/notebook/preset_registry.go backend/pkg/notebook/preset_registry_test.go`
+  - `cd backend && go test ./...`
+  - live startup smokes for all three presets with `go run . --preset ... --vite ""` and `curl /api/notebooks/bootstrap`
+
+### Why
+
+- `main.go` should not grow another branch every time a new notebook preset lands.
+- A registry creates one backend extension point instead of a repeating switch-case maintenance pattern.
+- Sorting and exposing names makes CLI help and error messages deterministic.
+
+### What worked
+
+- The registry fit cleanly on top of the current preset constructors without forcing more refactors.
+- Backend tests passed immediately after wiring `main.go` to the registry.
+- Live startup smokes confirmed that `cozo`, `javascript`, and `sqlite` still boot and expose `/api/notebooks/bootstrap` through the registry path.
+
+### What didn't work
+
+- The first manual smoke pass failed because I chose a port that was already in use (`127.0.0.1:18080`), which looked like a startup failure until I checked the log.
+- That was an environment issue, not a preset-registry bug. I reran the smokes with random high ports and Vite disabled.
+
+### What I learned
+
+- The current preset constructors were already uniform enough that a registry could wrap them without redesign.
+- The right scope for this cleanup was exactly what the ticket said: normalized startup options and registration, not a deeper preset abstraction hierarchy.
+
+### What was tricky to build
+
+- The code itself was straightforward; the subtle part was keeping the host CLI behavior stable while moving selection logic out of `main.go`.
+- The live validation also needed to avoid false negatives from dev-server proxying and stale ports, so I used `--vite ""` and unique temp databases per run.
+
+### What warrants a second pair of eyes
+
+- Reviewers should check whether `PresetOptions` has the right boundary or whether any field still leaks host concerns into the notebook package.
+- It is also worth checking whether future frontend preset registration should mirror this backend shape for consistency.
+
+### What should be done in the future
+
+- The next backend preset should register through the same registry rather than adding new startup branching in `main.go`.
+- If the preset family grows further, the registry entries may deserve their own small files or a data-driven registration table.
+
+### Code review instructions
+
+- Start with [backend/pkg/notebook/preset_registry.go](../../../../../../backend/pkg/notebook/preset_registry.go)
+- Then review [backend/main.go](../../../../../../backend/main.go)
+- Then review [backend/pkg/notebook/preset_registry_test.go](../../../../../../backend/pkg/notebook/preset_registry_test.go)
+- Re-run:
+  - `cd backend && go test ./...`
+- Optional live smoke:
+  - `cd backend && go run . --preset javascript --vite "" --addr 127.0.0.1:19081 --app-db-path /tmp/cozodb-editor-js-registry.sqlite`
+  - `curl http://127.0.0.1:19081/api/notebooks/bootstrap`
+
+### Technical details
+
+```text
+Before:
+  main.go
+    switch preset {
+      case "cozo": ...
+      case "javascript": ...
+      case "sqlite": ...
+    }
+
+After:
+  main.go
+    registry := notebook.DefaultPresetRegistry()
+    module := registry.Open(preset, options)
+
+  notebook/preset_registry.go
+    register("cozo", ...)
+    register("javascript", ...)
+    register("sqlite", ...)
 ```
 
 ## Usage Examples
