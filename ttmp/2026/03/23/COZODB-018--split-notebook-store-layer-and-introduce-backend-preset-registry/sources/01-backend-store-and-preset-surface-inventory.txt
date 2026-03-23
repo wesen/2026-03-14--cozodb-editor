@@ -1,0 +1,257 @@
+# Backend store and preset surface inventory
+
+## store.go public methods
+56:func (s *Store) Close() error {
+63:func (s *Store) DBPath() string {
+70:func (s *Store) DefaultNotebookID() string {
+77:func (s *Store) migrate() error {
+135:func (s *Store) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, error) {
+178:func (s *Store) CreateNotebook(ctx context.Context, title string) (*Notebook, error) {
+204:func (s *Store) GetNotebook(ctx context.Context, notebookID string) (*NotebookDocument, error) {
+252:func (s *Store) GetCell(ctx context.Context, cellID string) (*NotebookCell, error) {
+269:func (s *Store) UpdateNotebookTitle(ctx context.Context, notebookID string, title string) error {
+285:func (s *Store) InsertCell(ctx context.Context, notebookID string, afterCellID string, kind string, source string) (*NotebookCell, error) {
+343:func (s *Store) UpdateCell(ctx context.Context, cellID string, kind string, source string) (*NotebookCell, error) {
+370:func (s *Store) MoveCell(ctx context.Context, cellID string, targetIndex int) error {
+420:func (s *Store) DeleteCell(ctx context.Context, cellID string) error {
+460:func (s *Store) ClearNotebook(ctx context.Context, notebookID string) error {
+507:func (s *Store) ClearRuntimeState(ctx context.Context) error {
+528:func (s *Store) NextExecutionCount(ctx context.Context, notebookID string, cellID string) (int, error) {
+546:func (s *Store) CreateRun(ctx context.Context, run CellRun) error {
+557:func (s *Store) FinishRun(ctx context.Context, runID string, status string) error {
+570:func (s *Store) ListLatestRunsByCell(ctx context.Context, notebookID string) (map[string]*CellRun, error) {
+607:func (s *Store) RecordTimelineSnapshot(ctx context.Context, link TimelineSnapshotLink) error {
+713:func (s *Store) listCellsTx(ctx context.Context, tx *sql.Tx, notebookID string) ([]NotebookCell, error) {
+736:func (s *Store) rewriteNotebookOrderTx(ctx context.Context, tx *sql.Tx, notebookID string, orderedCellIDs []string, now int64) error {
+
+## store.go helper functions
+29:func OpenStore(dbPath string) (*Store, error) {
+33:func OpenStoreWithConfig(config StoreConfig) (*Store, error) {
+618:func normalizeCellKind(kind string) string {
+626:func initialDefaultNotebookCells(notebookID string, now int64, profile NotebookProfile) []NotebookCell {
+650:func defaultNotebookIntroCellID(notebookID string) string {
+657:func defaultNotebookQueryCellID(notebookID string) string {
+664:func starterCellsForNotebook(notebookID string, now int64, profile NotebookProfile) []NotebookCell {
+681:func nextInsertPosition(ctx context.Context, tx *sql.Tx, notebookID string, afterCellID string) (int, error) {
+702:func maxCellPosition(ctx context.Context, tx *sql.Tx, notebookID string) (int, error) {
+760:func insertCellIDAtPosition(cells []NotebookCell, cellID string, position int) []string {
+776:func moveCellIDToIndex(cells []NotebookCell, cellID string, targetIndex int) ([]string, error) {
+801:func removeCellID(cells []NotebookCell, cellID string) []string {
+
+## current preset openers
+backend/pkg/notebook/current_sqlite.go:10:type CurrentSQLiteModuleConfig struct {
+backend/pkg/notebook/current_sqlite.go:18:func OpenCurrentSQLiteModule(config CurrentSQLiteModuleConfig) (*Module, error) {
+backend/pkg/notebook/current_sqlite.go:77:func currentSQLiteNotebookProfile() NotebookProfile {
+backend/pkg/notebook/current_sqlite.go:108:func currentSQLiteWebSocketConfig() WebSocketConfig {
+backend/pkg/notebook/current_javascript.go:10:type CurrentJavaScriptModuleConfig struct {
+backend/pkg/notebook/current_javascript.go:17:func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module, error) {
+backend/pkg/notebook/current_javascript.go:78:func currentJavaScriptNotebookProfile() NotebookProfile {
+backend/pkg/notebook/current_javascript.go:103:func currentJavaScriptWebSocketConfig() WebSocketConfig {
+backend/pkg/notebook/current_cozo.go:12:type CurrentCozoModuleConfig struct {
+backend/pkg/notebook/current_cozo.go:21:func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
+backend/pkg/notebook/current_cozo.go:88:func currentCozoNotebookProfile() NotebookProfile {
+backend/pkg/notebook/current_cozo_ws.go:11:func currentCozoWebSocketConfig() WebSocketConfig {
+
+## backend main preset switch
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+
+	"github.com/wesen/cozodb-editor/backend/pkg/api"
+	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
+)
+
+func main() {
+	addr := flag.String("addr", ":8080", "HTTP listen address")
+	preset := flag.String("preset", "cozo", "Notebook preset to run (cozo, javascript, sqlite)")
+	engine := flag.String("engine", "mem", "CozoDB engine (mem, sqlite)")
+	dbPath := flag.String("db-path", "", "CozoDB database path (for sqlite engine)")
+	sqliteRuntimePath := flag.String("sqlite-db-path", "", "SQLite runtime database path for the sqlite preset (empty uses in-memory runtime)")
+	appDBPath := flag.String("app-db-path", "./data/cozodb-editor-app.sqlite", "Application SQLite database path for notebooks and timeline state")
+	viteURL := flag.String("vite", "http://localhost:5173", "Vite dev server URL (empty to disable proxy)")
+	flag.Parse()
+
+	enableAI := os.Getenv("ANTHROPIC_API_KEY") != ""
+
+	var (
+		notebookModule *notebook.Module
+		err            error
+	)
+
+	switch *preset {
+	case "cozo":
+		log.Printf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", *engine, *dbPath)
+		notebookModule, err = notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
+			Engine:    *engine,
+			DBPath:    *dbPath,
+			AppDBPath: *appDBPath,
+			EnableAI:  enableAI,
+			Logf:      log.Printf,
+		})
+	case "javascript":
+		log.Printf("[MAIN] Opening current JavaScript notebook preset")
+		notebookModule, err = notebook.OpenCurrentJavaScriptModule(notebook.CurrentJavaScriptModuleConfig{
+			AppDBPath: *appDBPath,
+			EnableAI:  enableAI,
+			Logf:      log.Printf,
+		})
+	case "sqlite":
+		log.Printf("[MAIN] Opening current SQLite notebook preset (runtime path=%s)", *sqliteRuntimePath)
+		notebookModule, err = notebook.OpenCurrentSQLiteModule(notebook.CurrentSQLiteModuleConfig{
+			RuntimeDBPath: *sqliteRuntimePath,
+			AppDBPath:     *appDBPath,
+			EnableAI:      enableAI,
+			Logf:          log.Printf,
+		})
+	default:
+		log.Fatalf("Unknown preset %q", *preset)
+	}
+
+	if err != nil {
+		log.Fatalf("Failed to open notebook preset %q: %v", *preset, err)
+	}
+	defer func() {
+		if err := notebookModule.Close(); err != nil {
+			log.Printf("[MAIN] notebook module close error: %v", err)
+		}
+	}()
+
+	srv := &api.Server{Runtime: notebookModule.Service.Runtime()}
+	mux := http.NewServeMux()
+
+	// API routes
+	mux.HandleFunc("/api/query", srv.HandleQuery)
+	mux.HandleFunc("/api/schema", func(w http.ResponseWriter, r *http.Request) {
+		// Route to detail handler if path has a name after /api/schema/
+		if r.URL.Path != "/api/schema" && r.URL.Path != "/api/schema/" {
+			srv.HandleSchemaDetail(w, r)
+			return
+		}
+		srv.HandleSchema(w, r)
+	})
+	mux.HandleFunc("/api/schema/", srv.HandleSchemaDetail)
+	notebookModule.MountHTTP(mux)
+
+	// WebSocket
+	notebookModule.MountWebSocket(mux)
+
+	// Proxy to Vite dev server for frontend
+	if *viteURL != "" {
+		viteTarget, err := url.Parse(*viteURL)
+		if err != nil {
+			log.Fatalf("Invalid vite URL: %v", err)
+		}
+		proxy := httputil.NewSingleHostReverseProxy(viteTarget)
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			proxy.ServeHTTP(w, r)
+		})
+		log.Printf("[MAIN] Proxying / to %s", *viteURL)
+	}
+
+	// CORS middleware
+	handler := corsMiddleware(mux)
+
+	log.Printf("[MAIN] Listening on %s", *addr)
+	if err := http.ListenAndServe(*addr, handler); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+## notebook module entrypoints
+package notebook
+
+import (
+	"errors"
+	"net/http"
+)
+
+type Module struct {
+	Service           *Service
+	AI                AIEngine
+	BasePaths         BasePaths
+	WebSocketConfig   WebSocketConfig
+	additionalClosers []func() error
+}
+
+func NewModule(config ModuleConfig) (*Module, error) {
+	config = config.withDefaults()
+	if err := config.validate(); err != nil {
+		return nil, err
+	}
+
+	service, err := NewService(config.ServiceConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Module{
+		Service:         service,
+		AI:              config.AI,
+		BasePaths:       config.BasePaths,
+		WebSocketConfig: config.WebSocket,
+	}, nil
+}
+
+func OpenModule(appDBPath string, runtime Runtime, engine AIEngine) (*Module, error) {
+	service, err := OpenService(appDBPath, runtime)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Module{
+		Service:         service,
+		AI:              engine,
+		BasePaths:       DefaultBasePaths(),
+		WebSocketConfig: DefaultWebSocketConfig(),
+	}, nil
+}
+
+func (m *Module) Close() error {
+	if m == nil {
+		return nil
+	}
+
+	var closeErr error
+	if m.Service != nil {
+		closeErr = errors.Join(closeErr, m.Service.Close())
+	}
+	for i := len(m.additionalClosers) - 1; i >= 0; i-- {
+		closeErr = errors.Join(closeErr, m.additionalClosers[i]())
+	}
+	return closeErr
+}
+
+func (m *Module) MountHTTP(mux *http.ServeMux) {
+	if m == nil {
+		return
+	}
+	MountHTTPRoutesWithBasePaths(mux, m.Service, m.BasePaths)
+}
+
+func (m *Module) MountWebSocket(mux *http.ServeMux) {
+	if m == nil || m.Service == nil {
+		return
+	}
+	MountWebSocketRoutesWithConfig(mux, m.Service.runtime, m.AI, m.BasePaths, m.WebSocketConfig)
+}
