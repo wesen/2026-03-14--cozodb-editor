@@ -9,3 +9,5 @@
 - Extracted a reusable notebook CodeMirror editor shell and converted the Cozo editor into a thin language adapter (`df2a9ec`)
 - Added isolated Storybook stories for the reusable notebook CodeMirror editor surface (`2220c0e`)
 - Added a JavaScript notebook editor adapter, preset wiring, and JavaScript editor stories (`e74535a`)
+- Added a SQLite notebook editor adapter, preset wiring, and SQLite editor stories (`2771f53`)
+- Validated the final result with frontend test/lint/typecheck/build/Storybook build and live JavaScript/SQLite app smokes that confirmed `.cm-editor` rendering

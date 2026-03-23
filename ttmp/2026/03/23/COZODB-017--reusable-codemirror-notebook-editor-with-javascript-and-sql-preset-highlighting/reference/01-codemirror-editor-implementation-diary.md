@@ -4,11 +4,10 @@ Ticket: COZODB-017
 Status: active
 Topics:
     - frontend
-    - storybook
-    - editor
+    - codemirror
     - notebook
     - javascript
-    - sql
+    - sqlite
 DocType: reference
 Intent: long-term
 Owners: []
@@ -310,6 +309,168 @@ JavaScript preset flow:
     -> CodeCellEditor = JavaScriptNotebookEditor
     -> NotebookCodeMirrorEditor
     -> javascript() language extension
+```
+
+## Step 4: Wire the SQLite preset to the reusable CodeMirror editor
+
+The SQLite slice followed the same pattern as JavaScript, which was a useful confirmation that the architecture is stable rather than accidental. Once the shared editor shell existed, adding SQL support was mostly a matter of providing the correct language extension and updating the preset config.
+
+This symmetry is important. It means the project now has a repeatable language-adapter pattern rather than a special Cozo path and two fallback paths.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Quick Reference)
+
+**Assistant interpretation:** Continue the task list by giving SQLite the same highlighted editor path as JavaScript and Cozo.
+
+**Inferred user intent:** Make the preset system coherent across all currently supported notebook languages.
+
+**Commit (code):** `2771f53` — `editor: add sqlite notebook highlighting`
+
+### What I did
+
+- Installed `@codemirror/lang-sql` in [frontend/package.json](../../../../../../frontend/package.json).
+- Added [frontend/src/editor/SQLiteNotebookEditor.tsx](../../../../../../frontend/src/editor/SQLiteNotebookEditor.tsx).
+- Added [frontend/src/editor/SQLiteNotebookEditor.stories.tsx](../../../../../../frontend/src/editor/SQLiteNotebookEditor.stories.tsx).
+- Updated [frontend/src/notebook/currentSQLiteConfig.ts](../../../../../../frontend/src/notebook/currentSQLiteConfig.ts) to set `CodeCellEditor: SQLiteNotebookEditor`.
+- Validated with:
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Why
+
+- SQLite was the last preset still using the textarea fallback.
+- Bringing it onto the shared editor path completes the current preset set and proves the extraction was not just useful for JavaScript.
+
+### What worked
+
+- The SQLite adapter stayed thin, just like the JavaScript adapter.
+- Existing SQLite preset app stories automatically benefited from the preset config change.
+- All automated validation commands passed after the change.
+
+### What didn't work
+
+- The `npm install` step produced the same known Storybook/Vite peer warning as the JavaScript slice.
+- It did not block the work.
+
+### What I learned
+
+- The adapter pattern now looks consistent enough to serve as the default playbook for future language additions.
+- The real complexity is in the shared editor shell, not in per-language preset wiring.
+
+### What was tricky to build
+
+- There was very little code complexity in this slice itself. The main concern was keeping the SQL adapter just as small as the JS adapter and resisting the urge to add preset-specific behavior to the shell.
+
+### What warrants a second pair of eyes
+
+- Bundle growth should be watched now that multiple CodeMirror language packages are included.
+- SQL highlighting quality should be reviewed on more complex statements if SQLite becomes a heavier workflow surface.
+
+### What should be done in the future
+
+- If more languages are added, consider whether editor language packages should be loaded lazily.
+- If SQL-specific tooling grows, keep it in the SQLite adapter rather than pushing it into the generic shell.
+
+### Code review instructions
+
+- Read [frontend/src/editor/SQLiteNotebookEditor.tsx](../../../../../../frontend/src/editor/SQLiteNotebookEditor.tsx).
+- Then read [frontend/src/notebook/currentSQLiteConfig.ts](../../../../../../frontend/src/notebook/currentSQLiteConfig.ts).
+- Review [frontend/src/editor/SQLiteNotebookEditor.stories.tsx](../../../../../../frontend/src/editor/SQLiteNotebookEditor.stories.tsx).
+
+### Technical details
+
+```text
+SQLite preset flow:
+  currentSQLiteConfig
+    -> CodeCellEditor = SQLiteNotebookEditor
+    -> NotebookCodeMirrorEditor
+    -> sql({ dialect: SQLite })
+```
+
+## Step 5: Final validation and live smoke checks
+
+After the JavaScript and SQLite adapters were in place, the final step was to verify that the result worked both in automated checks and in the live preset apps. The most important thing to confirm was that the app was genuinely rendering CodeMirror for those presets, not just bundling the new adapter files.
+
+This final validation also closed the loop on the Storybook work. Storybook proved the isolated editor surface; the live smoke proved the full preset wiring inside the notebook app.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Quick Reference)
+
+**Assistant interpretation:** Finish the ticket completely, including validation and diary closeout.
+
+**Inferred user intent:** End with a trustworthy result and a clear record of how it was verified.
+
+### What I did
+
+- Re-ran the full frontend validation set:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+- Ran a live JavaScript preset smoke:
+  - backend on `127.0.0.1:38081`
+  - Vite frontend with `VITE_NOTEBOOK_PRESET=javascript`
+  - verified via Playwright that `.cm-editor` rendered in the notebook app
+- Ran a live SQLite preset smoke:
+  - backend on `127.0.0.1:38082`
+  - Vite frontend with `VITE_NOTEBOOK_PRESET=sqlite`
+  - verified via Playwright that `.cm-editor` rendered in the notebook app
+
+### Why
+
+- Automated checks proved the code was internally consistent.
+- Live app checks proved the preset wiring worked end to end.
+
+### What worked
+
+- Both JS and SQLite live smokes rendered through CodeMirror in the app.
+- Playwright snapshots showed the expected preset notebook titles and code cells.
+- The final automated validation set passed cleanly.
+
+### What didn't work
+
+- The first JavaScript smoke attempt pointed the backend proxy at `5174`, but Vite auto-shifted to `5175` because the port was already in use.
+- The fix was simply to restart the backend with the correct Vite URL.
+
+### What I learned
+
+- The live app check is still worthwhile even when Storybook is strong, because environment details like proxy ports and preset wiring are outside isolated stories.
+
+### What was tricky to build
+
+- The only real friction in this final step was keeping the backend proxy and Vite dev server ports aligned during manual smoke work.
+
+### What warrants a second pair of eyes
+
+- The generated frontend and Storybook bundles are continuing to grow. That is not a blocker for this ticket, but it is worth watching in future cleanup work.
+
+### What should be done in the future
+
+- Consider a small preset registry cleanup so future language additions do not keep lengthening preset switch points.
+- Consider editor language lazy loading if bundle size becomes material.
+
+### Code review instructions
+
+- Start with [frontend/src/editor/NotebookCodeMirrorEditor.tsx](../../../../../../frontend/src/editor/NotebookCodeMirrorEditor.tsx).
+- Then review:
+  - [frontend/src/editor/JavaScriptNotebookEditor.tsx](../../../../../../frontend/src/editor/JavaScriptNotebookEditor.tsx)
+  - [frontend/src/editor/SQLiteNotebookEditor.tsx](../../../../../../frontend/src/editor/SQLiteNotebookEditor.tsx)
+  - [frontend/src/notebook/currentJavaScriptConfig.ts](../../../../../../frontend/src/notebook/currentJavaScriptConfig.ts)
+  - [frontend/src/notebook/currentSQLiteConfig.ts](../../../../../../frontend/src/notebook/currentSQLiteConfig.ts)
+- Re-run the validation commands above.
+
+### Technical details
+
+```text
+Manual smoke result:
+  JavaScript app -> .cm-editor count = 1
+  SQLite app     -> .cm-editor count = 1
 ```
 
 ## Usage Examples

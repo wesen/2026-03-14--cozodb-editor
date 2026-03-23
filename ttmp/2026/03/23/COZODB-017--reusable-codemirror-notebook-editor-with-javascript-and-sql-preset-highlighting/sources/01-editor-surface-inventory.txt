@@ -1,0 +1,95 @@
+# Editor surface inventory
+
+## Preset configs
+frontend/src/notebook/currentSQLiteConfig.ts:8:  appName: "SQLite Notebook",
+frontend/src/notebook/currentSQLiteConfig.ts:22:  codeFenceLanguage: "sql",
+frontend/src/notebook/currentCozoConfig.ts:10:  appName: "CozoDB Notebook",
+frontend/src/notebook/currentCozoConfig.ts:23:  codeFenceLanguage: "cozoscript",
+frontend/src/notebook/currentCozoConfig.ts:24:  CodeCellEditor: CozoScriptEditor,
+frontend/src/notebook/currentJavaScriptConfig.ts:8:  appName: "JavaScript Notebook",
+frontend/src/notebook/currentJavaScriptConfig.ts:22:  codeFenceLanguage: "javascript",
+
+## Notebook editor usage
+frontend/src/notebook/experienceConfig.ts:18:export interface NotebookCodeCellEditorProps {
+frontend/src/notebook/experienceConfig.ts:32:  CodeCellEditor?: ComponentType<NotebookCodeCellEditorProps>;
+frontend/src/notebook/experienceConfig.ts:39:  CodeCellEditor: undefined,
+frontend/src/notebook/experienceConfig.ts:45:export function useNotebookExperience() {
+frontend/src/notebook/NotebookCellCardView.tsx:9:import { useNotebookExperience } from "./experienceConfig";
+frontend/src/notebook/NotebookCellCardView.tsx:158:  const { CodeCellEditor, SemThreadRenderer, codeCellPlaceholder } = useNotebookExperience();
+frontend/src/notebook/NotebookCellCardView.tsx:198:        {isCode && CodeCellEditor ? (
+frontend/src/notebook/NotebookCellCardView.tsx:199:          <CodeCellEditor
+frontend/src/notebook/NotebookCellCardView.tsx:216:          <textarea
+
+## Existing editor files
+frontend/src/editor/documentCommands.js
+frontend/src/editor/cozoscriptSystem7Theme.ts
+frontend/src/editor/PadEditor.jsx
+frontend/src/editor/codemirror/index.js
+frontend/src/editor/codemirror/parser.terms.js
+frontend/src/editor/codemirror/index.d.ts
+frontend/src/editor/codemirror/highlight.js
+frontend/src/editor/codemirror/cozoscript.grammar
+frontend/src/editor/codemirror/parser.js
+frontend/src/editor/codemirror/complete.js
+frontend/src/editor/CozoScriptEditor.tsx
+frontend/src/editor/README.md
+frontend/src/editor/usePadDocument.js
+
+## Frontend package dependencies
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/search": "^6.6.0",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.40.0",
+    "@lezer/highlight": "^1.2.3",
+    "@lezer/lr": "^1.4.8",
+    "@reduxjs/toolkit": "^2.11.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@storybook/addon-a11y": "^10.3.1",
+    "@storybook/addon-docs": "^10.3.1",
+    "@storybook/react-vite": "^10.3.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-storybook": "^10.3.1",
+    "globals": "^17.4.0",
+    "jsdom": "^28.1.0",
+    "msw": "^2.12.14",
+    "msw-storybook-addon": "^2.0.6",
+    "storybook": "^10.3.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  },
+  "msw": {
+    "workerDirectory": "public"
+  }
+}
