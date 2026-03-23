@@ -14,9 +14,10 @@ import (
 
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP listen address")
-	preset := flag.String("preset", "cozo", "Notebook preset to run (cozo, javascript)")
+	preset := flag.String("preset", "cozo", "Notebook preset to run (cozo, javascript, sqlite)")
 	engine := flag.String("engine", "mem", "CozoDB engine (mem, sqlite)")
 	dbPath := flag.String("db-path", "", "CozoDB database path (for sqlite engine)")
+	sqliteRuntimePath := flag.String("sqlite-db-path", "", "SQLite runtime database path for the sqlite preset (empty uses in-memory runtime)")
 	appDBPath := flag.String("app-db-path", "./data/cozodb-editor-app.sqlite", "Application SQLite database path for notebooks and timeline state")
 	viteURL := flag.String("vite", "http://localhost:5173", "Vite dev server URL (empty to disable proxy)")
 	flag.Parse()
@@ -44,6 +45,14 @@ func main() {
 			AppDBPath: *appDBPath,
 			EnableAI:  enableAI,
 			Logf:      log.Printf,
+		})
+	case "sqlite":
+		log.Printf("[MAIN] Opening current SQLite notebook preset (runtime path=%s)", *sqliteRuntimePath)
+		notebookModule, err = notebook.OpenCurrentSQLiteModule(notebook.CurrentSQLiteModuleConfig{
+			RuntimeDBPath: *sqliteRuntimePath,
+			AppDBPath:     *appDBPath,
+			EnableAI:      enableAI,
+			Logf:          log.Printf,
 		})
 	default:
 		log.Fatalf("Unknown preset %q", *preset)

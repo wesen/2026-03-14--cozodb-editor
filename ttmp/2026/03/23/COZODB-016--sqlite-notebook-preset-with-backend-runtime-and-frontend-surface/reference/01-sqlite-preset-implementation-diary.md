@@ -57,6 +57,31 @@ Next implementation slice:
 4. frontend preset wrapper/config
 5. frontend Storybook/MSW support
 
+### 2026-03-23 00:45 to 01:05 America/New_York
+
+- Implemented the backend runtime in [backend/pkg/notebook/sqlite_runtime.go](../../../../../../backend/pkg/notebook/sqlite_runtime.go).
+- The runtime now:
+  - opens either an in-memory or file-backed SQLite database,
+  - executes multi-statement SQL cells,
+  - returns table-shaped results for row-returning statements,
+  - returns a small summary table for non-row statements,
+  - inspects schema from `sqlite_master` and `PRAGMA table_info`,
+  - resets by reopening a fresh database and incrementing generation.
+- Added the backend preset constructor in [backend/pkg/notebook/current_sqlite.go](../../../../../../backend/pkg/notebook/current_sqlite.go).
+- Wired backend preset selection in [backend/main.go](../../../../../../backend/main.go) with `--preset sqlite` and `--sqlite-db-path`.
+- Added runtime and preset tests:
+  - [backend/pkg/notebook/sqlite_runtime_test.go](../../../../../../backend/pkg/notebook/sqlite_runtime_test.go)
+  - [backend/pkg/notebook/current_sqlite_test.go](../../../../../../backend/pkg/notebook/current_sqlite_test.go)
+- Validation:
+  - `cd backend && go test ./...` passed.
+
+Remaining work after this slice:
+
+1. frontend SQLite preset config and wrapper
+2. frontend preset selection in `App.tsx` and notebook exports
+3. Storybook/MSW support for SQLite
+4. full frontend validation
+
 ## Usage Examples
 
 ### Review the current ticket state
