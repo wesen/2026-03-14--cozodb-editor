@@ -73,6 +73,13 @@ func (s *Service) Runtime() Runtime {
 	return s.runtime
 }
 
+func (s *Service) DefaultNotebookID() string {
+	if s == nil || s.store == nil {
+		return defaultNotebookID
+	}
+	return s.store.DefaultNotebookID()
+}
+
 func (s *Service) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, error) {
 	doc, err := s.store.EnsureDefaultNotebook(ctx)
 	if err != nil {

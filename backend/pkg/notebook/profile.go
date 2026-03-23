@@ -6,6 +6,7 @@ type StarterCellTemplate struct {
 }
 
 type NotebookProfile struct {
+	DefaultNotebookID    string
 	DefaultLanguage      string
 	DefaultNotebookTitle string
 	StarterCells         []StarterCellTemplate
@@ -13,6 +14,7 @@ type NotebookProfile struct {
 
 func DefaultNotebookProfile() NotebookProfile {
 	return NotebookProfile{
+		DefaultNotebookID:    defaultNotebookID,
 		DefaultLanguage:      "notebook",
 		DefaultNotebookTitle: "Notebook",
 		StarterCells: []StarterCellTemplate{
@@ -30,6 +32,9 @@ func DefaultNotebookProfile() NotebookProfile {
 
 func (p NotebookProfile) withDefaults() NotebookProfile {
 	defaults := DefaultNotebookProfile()
+	if p.DefaultNotebookID == "" {
+		p.DefaultNotebookID = defaults.DefaultNotebookID
+	}
 	if p.DefaultLanguage == "" {
 		p.DefaultLanguage = defaults.DefaultLanguage
 	}

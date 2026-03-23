@@ -67,7 +67,8 @@ func mustJSONRequest(t *testing.T, method string, path string, body any) *http.R
 }
 
 func TestMountHTTPRoutesBootstrapNotebook(t *testing.T) {
-	mux, _ := newNotebookHTTPTestMux(t)
+	mux, svc := newNotebookHTTPTestMux(t)
+	notebookID := svc.DefaultNotebookID()
 
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/notebooks/bootstrap", nil))
@@ -77,15 +78,16 @@ func TestMountHTTPRoutesBootstrapNotebook(t *testing.T) {
 	var doc NotebookDocument
 	err := json.NewDecoder(recorder.Body).Decode(&doc)
 	require.NoError(t, err)
-	require.Equal(t, defaultNotebookID, doc.Notebook.ID)
+	require.Equal(t, notebookID, doc.Notebook.ID)
 	require.Len(t, doc.Cells, 2)
 }
 
 func TestMountHTTPRoutesNotebookMutationFlow(t *testing.T) {
-	mux, _ := newNotebookHTTPTestMux(t)
+	mux, svc := newNotebookHTTPTestMux(t)
+	notebookID := svc.DefaultNotebookID()
 
 	renameRecorder := httptest.NewRecorder()
-	mux.ServeHTTP(renameRecorder, mustJSONRequest(t, http.MethodPatch, "/api/notebooks/"+defaultNotebookID, map[string]any{
+	mux.ServeHTTP(renameRecorder, mustJSONRequest(t, http.MethodPatch, "/api/notebooks/"+notebookID, map[string]any{
 		"title": "Renamed notebook",
 	}))
 	require.Equal(t, http.StatusOK, renameRecorder.Code)
@@ -94,10 +96,11 @@ func TestMountHTTPRoutesNotebookMutationFlow(t *testing.T) {
 	err := json.NewDecoder(renameRecorder.Body).Decode(&renamed)
 	require.NoError(t, err)
 	require.Equal(t, "Renamed notebook", renamed.Notebook.Title)
+	queryCellID := renamed.Cells[1].ID
 
 	insertRecorder := httptest.NewRecorder()
-	mux.ServeHTTP(insertRecorder, mustJSONRequest(t, http.MethodPost, "/api/notebooks/"+defaultNotebookID+"/cells", map[string]any{
-		"after_cell_id": "cell_query",
+	mux.ServeHTTP(insertRecorder, mustJSONRequest(t, http.MethodPost, "/api/notebooks/"+notebookID+"/cells", map[string]any{
+		"after_cell_id": queryCellID,
 		"kind":          "code",
 		"source":        "?[x] <- [[42]]",
 	}))
@@ -109,7 +112,7 @@ func TestMountHTTPRoutesNotebookMutationFlow(t *testing.T) {
 	require.Len(t, mutation.Document.Cells, 3)
 
 	runRecorder := httptest.NewRecorder()
-	mux.ServeHTTP(runRecorder, httptest.NewRequest(http.MethodPost, "/api/notebook-cells/cell_query/run", nil))
+	mux.ServeHTTP(runRecorder, httptest.NewRequest(http.MethodPost, "/api/notebook-cells/"+queryCellID+"/run", nil))
 	require.Equal(t, http.StatusOK, runRecorder.Code)
 
 	var runtime CellRuntimeState
@@ -150,5 +153,5 @@ func TestModuleMountHTTPUsesCustomBasePaths(t *testing.T) {
 	var doc NotebookDocument
 	err := json.NewDecoder(recorder.Body).Decode(&doc)
 	require.NoError(t, err)
-	require.Equal(t, defaultNotebookID, doc.Notebook.ID)
+	require.Equal(t, currentCozoNotebookProfile().DefaultNotebookID, doc.Notebook.ID)
 }

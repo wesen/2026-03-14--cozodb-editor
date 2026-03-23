@@ -67,6 +67,13 @@ func (s *Store) DBPath() string {
 	return s.dbPath
 }
 
+func (s *Store) DefaultNotebookID() string {
+	if s == nil {
+		return defaultNotebookID
+	}
+	return s.profile.withDefaults().DefaultNotebookID
+}
+
 func (s *Store) migrate() error {
 	stmts := []string{
 		`PRAGMA foreign_keys = ON;`,
@@ -129,8 +136,9 @@ func (s *Store) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, e
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	defaultID := s.DefaultNotebookID()
 
-	doc, err := s.GetNotebook(ctx, defaultNotebookID)
+	doc, err := s.GetNotebook(ctx, defaultID)
 	if err == nil {
 		return doc, nil
 	}
@@ -148,15 +156,15 @@ func (s *Store) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, e
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO nb_notebooks(notebook_id, title, language, created_at_ms, updated_at_ms)
 		VALUES(?, ?, ?, ?, ?)
-	`, defaultNotebookID, s.profile.DefaultNotebookTitle, s.profile.DefaultLanguage, now, now); err != nil {
+	`, defaultID, s.profile.DefaultNotebookTitle, s.profile.DefaultLanguage, now, now); err != nil {
 		return nil, err
 	}
 
-	for _, cell := range initialDefaultNotebookCells(now, s.profile) {
+	for _, cell := range initialDefaultNotebookCells(defaultID, now, s.profile) {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO nb_cells(cell_id, notebook_id, position, kind, source, created_at_ms, updated_at_ms)
 			VALUES(?, ?, ?, ?, ?, ?, ?)
-		`, cell.ID, defaultNotebookID, cell.Position, cell.Kind, cell.Source, now, now); err != nil {
+		`, cell.ID, defaultID, cell.Position, cell.Kind, cell.Source, now, now); err != nil {
 			return nil, err
 		}
 	}
@@ -164,7 +172,7 @@ func (s *Store) EnsureDefaultNotebook(ctx context.Context) (*NotebookDocument, e
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return s.GetNotebook(ctx, defaultNotebookID)
+	return s.GetNotebook(ctx, defaultID)
 }
 
 func (s *Store) CreateNotebook(ctx context.Context, title string) (*Notebook, error) {
@@ -615,12 +623,12 @@ func normalizeCellKind(kind string) string {
 	return kind
 }
 
-func initialDefaultNotebookCells(now int64, profile NotebookProfile) []NotebookCell {
+func initialDefaultNotebookCells(notebookID string, now int64, profile NotebookProfile) []NotebookCell {
 	starterCells := profile.withDefaults().StarterCells
 	return []NotebookCell{
 		{
-			ID:          "cell_intro",
-			NotebookID:  defaultNotebookID,
+			ID:          defaultNotebookIntroCellID(notebookID),
+			NotebookID:  notebookID,
 			Position:    0,
 			Kind:        starterCells[0].Kind,
 			Source:      starterCells[0].Source,
@@ -628,8 +636,8 @@ func initialDefaultNotebookCells(now int64, profile NotebookProfile) []NotebookC
 			UpdatedAtMs: now,
 		},
 		{
-			ID:          "cell_query",
-			NotebookID:  defaultNotebookID,
+			ID:          defaultNotebookQueryCellID(notebookID),
+			NotebookID:  notebookID,
 			Position:    1,
 			Kind:        starterCells[1].Kind,
 			Source:      starterCells[1].Source,
@@ -637,6 +645,20 @@ func initialDefaultNotebookCells(now int64, profile NotebookProfile) []NotebookC
 			UpdatedAtMs: now,
 		},
 	}
+}
+
+func defaultNotebookIntroCellID(notebookID string) string {
+	if notebookID == defaultNotebookID {
+		return "cell_intro"
+	}
+	return notebookID + "__intro"
+}
+
+func defaultNotebookQueryCellID(notebookID string) string {
+	if notebookID == defaultNotebookID {
+		return "cell_query"
+	}
+	return notebookID + "__query"
 }
 
 func starterCellsForNotebook(notebookID string, now int64, profile NotebookProfile) []NotebookCell {

@@ -1,7 +1,7 @@
 ---
 Title: SQLite notebook preset with backend runtime and frontend surface
 Ticket: COZODB-016
-Status: active
+Status: complete
 Topics:
     - architecture
     - backend
@@ -22,7 +22,7 @@ RelatedFiles:
       Note: Reference preset config to mirror for SQLite
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-23T00:43:14.61755494-04:00
+LastUpdated: 2026-03-23T01:02:00-04:00
 WhatFor: Track the design and implementation of a third notebook preset that exposes SQLite on both backend and frontend using the shared notebook package seams.
 WhenToUse: Use when implementing or reviewing the SQLite preset, locating the ticket docs, or onboarding an engineer to this preset-specific work.
 ---
@@ -45,7 +45,7 @@ This ticket adds SQLite as a sibling preset to Cozo and JavaScript. The backend 
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

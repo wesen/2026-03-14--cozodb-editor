@@ -76,6 +76,7 @@ func OpenCurrentSQLiteModule(config CurrentSQLiteModuleConfig) (*Module, error) 
 
 func currentSQLiteNotebookProfile() NotebookProfile {
 	return NotebookProfile{
+		DefaultNotebookID:    "nbk_default_sqlite",
 		DefaultLanguage:      "sql",
 		DefaultNotebookTitle: "SQLite Notebook",
 		StarterCells: []StarterCellTemplate{

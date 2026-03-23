@@ -87,6 +87,7 @@ func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
 
 func currentCozoNotebookProfile() NotebookProfile {
 	return NotebookProfile{
+		DefaultNotebookID:    "nbk_default_cozo",
 		DefaultLanguage:      "cozoscript",
 		DefaultNotebookTitle: "Notebook Playground",
 		StarterCells: []StarterCellTemplate{

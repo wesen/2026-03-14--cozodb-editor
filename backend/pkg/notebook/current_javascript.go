@@ -77,6 +77,7 @@ func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module,
 
 func currentJavaScriptNotebookProfile() NotebookProfile {
 	return NotebookProfile{
+		DefaultNotebookID:    "nbk_default_javascript",
 		DefaultLanguage:      "javascript",
 		DefaultNotebookTitle: "JavaScript Notebook",
 		StarterCells: []StarterCellTemplate{

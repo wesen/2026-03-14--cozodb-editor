@@ -13,8 +13,10 @@ import (
 
 func TestMountWebSocketRoutesHintFallback(t *testing.T) {
 	svc, runtime := openTestService(t)
-	_, err := svc.EnsureDefaultNotebook(context.Background())
+	notebookID := svc.DefaultNotebookID()
+	doc, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
+	queryCellID := doc.Cells[1].ID
 
 	mux := http.NewServeMux()
 	MountWebSocketRoutes(mux, runtime, nil)
@@ -32,8 +34,8 @@ func TestMountWebSocketRoutesHintFallback(t *testing.T) {
 			Type: "hint.request",
 			Data: map[string]any{
 				"question":    "How do I query users?",
-				"notebookId":  defaultNotebookID,
-				"ownerCellId": "cell_query",
+				"notebookId":  notebookID,
+				"ownerCellId": queryCellID,
 				"runId":       "run_test",
 			},
 		},
@@ -48,8 +50,8 @@ func TestMountWebSocketRoutesHintFallback(t *testing.T) {
 
 	data, ok := response.Event.Data.(map[string]any)
 	require.True(t, ok)
-	require.Equal(t, defaultNotebookID, data["notebookId"])
-	require.Equal(t, "cell_query", data["ownerCellId"])
+	require.Equal(t, notebookID, data["notebookId"])
+	require.Equal(t, queryCellID, data["ownerCellId"])
 	require.Equal(t, "run_test", data["runId"])
 	require.Contains(t, data["text"], "AI hints are not available")
 }
