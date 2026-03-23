@@ -127,6 +127,98 @@ Baseline:
   backend tests = passing
 ```
 
+## Step 2: Split the store by responsibility while preserving the `Store` API
+
+The first real code slice was intentionally conservative. I did not change store semantics, persistence queries, or service behavior. I only changed the physical organization of the store implementation so that notebook bootstrap, notebook CRUD, cell ordering, and run persistence no longer live in one 800-line file.
+
+This matters because it is the kind of refactor that is safest when done before another feature lands. Once more behavior gets added, the same split becomes harder to isolate.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Begin the cleanup implementation in small slices, starting with the store split because it is the least behaviorally risky part.
+
+**Inferred user intent:** Improve backend maintainability without destabilizing the current presets.
+
+**Commit (code):** `8a9f2c2` — `backend: split notebook store by responsibility`
+
+### What I did
+
+- Deleted the old monolithic [backend/pkg/notebook/store.go](../../../../../../backend/pkg/notebook/store.go).
+- Added the new responsibility-oriented files:
+  - [backend/pkg/notebook/store_open.go](../../../../../../backend/pkg/notebook/store_open.go)
+  - [backend/pkg/notebook/store_migrate.go](../../../../../../backend/pkg/notebook/store_migrate.go)
+  - [backend/pkg/notebook/store_bootstrap.go](../../../../../../backend/pkg/notebook/store_bootstrap.go)
+  - [backend/pkg/notebook/store_notebooks.go](../../../../../../backend/pkg/notebook/store_notebooks.go)
+  - [backend/pkg/notebook/store_cells.go](../../../../../../backend/pkg/notebook/store_cells.go)
+  - [backend/pkg/notebook/store_runs.go](../../../../../../backend/pkg/notebook/store_runs.go)
+- Kept the `Store` type and its public method signatures stable.
+- Ran:
+  - `gofmt -w backend/pkg/notebook/store_open.go backend/pkg/notebook/store_migrate.go backend/pkg/notebook/store_bootstrap.go backend/pkg/notebook/store_notebooks.go backend/pkg/notebook/store_cells.go backend/pkg/notebook/store_runs.go`
+  - `cd backend && go test ./...`
+
+### Why
+
+- The store implementation had become hard to navigate because unrelated concerns were physically adjacent.
+- A file split improves reviewability and future edits without forcing an API change.
+
+### What worked
+
+- The split compiled cleanly once the helper imports were adjusted.
+- Backend tests passed after the movement-only refactor.
+- The `Store` type remained intact, so no service or module code had to be rewritten.
+
+### What didn't work
+
+- During the move, one small helper behavior almost drifted: `nextInsertPosition` initially lost its `strings.TrimSpace` normalization when it moved into the cell file.
+- I caught that before finishing the slice and restored it before running the final tests.
+
+### What I learned
+
+- The existing store organization was already separable along clear responsibility lines; the code did not need conceptual redesign first.
+- The biggest risk in this kind of refactor is not SQL logic. It is forgetting a small normalization or helper dependency while moving methods between files.
+
+### What was tricky to build
+
+- The subtle part was preserving helper behavior while rehoming methods.
+- The helpers for starter cell IDs, dense ordering, and default bootstrap semantics are easy to classify conceptually, but small string/time/UUID dependencies are easy to lose when the imports change.
+
+### What warrants a second pair of eyes
+
+- Reviewers should confirm that the moved helper functions still sit in sensible files and that no public API method disappeared accidentally.
+- It is also worth checking whether the deleted `store.go` path should later be replaced by a small overview file or whether the new file layout is clear enough as-is.
+
+### What should be done in the future
+
+- Now that the store split is done, the next cleanup should focus on preset registration rather than more persistence reshaping.
+
+### Code review instructions
+
+- Start with [backend/pkg/notebook/store_open.go](../../../../../../backend/pkg/notebook/store_open.go) to see the new top-level `Store` definition.
+- Then review:
+  - [backend/pkg/notebook/store_bootstrap.go](../../../../../../backend/pkg/notebook/store_bootstrap.go)
+  - [backend/pkg/notebook/store_notebooks.go](../../../../../../backend/pkg/notebook/store_notebooks.go)
+  - [backend/pkg/notebook/store_cells.go](../../../../../../backend/pkg/notebook/store_cells.go)
+  - [backend/pkg/notebook/store_runs.go](../../../../../../backend/pkg/notebook/store_runs.go)
+- Re-run:
+  - `cd backend && go test ./...`
+
+### Technical details
+
+```text
+Old shape:
+  store.go = 810 lines, all concerns mixed
+
+New shape:
+  store_open.go
+  store_migrate.go
+  store_bootstrap.go
+  store_notebooks.go
+  store_cells.go
+  store_runs.go
+```
+
 ## Usage Examples
 
 ### Read the design guide
