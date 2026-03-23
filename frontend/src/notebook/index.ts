@@ -8,6 +8,10 @@ export {
   type CurrentJavaScriptNotebookAppProps,
 } from "./currentJavaScript";
 export {
+  CurrentSQLiteNotebookApp,
+  type CurrentSQLiteNotebookAppProps,
+} from "./currentSQLite";
+export {
   createCurrentCozoNotebookStore,
   currentCozoNotebookExperienceConfig,
   currentCozoNotebookShellConfig,
@@ -17,6 +21,11 @@ export {
   currentJavaScriptNotebookExperienceConfig,
   currentJavaScriptNotebookShellConfig,
 } from "./currentJavaScriptConfig";
+export {
+  createCurrentSQLiteNotebookStore,
+  currentSQLiteNotebookExperienceConfig,
+  currentSQLiteNotebookShellConfig,
+} from "./currentSQLiteConfig";
 export {
   defaultNotebookShellConfig,
   mergeNotebookShellConfig,

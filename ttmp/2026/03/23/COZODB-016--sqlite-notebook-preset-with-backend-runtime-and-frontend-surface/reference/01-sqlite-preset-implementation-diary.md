@@ -82,6 +82,31 @@ Remaining work after this slice:
 3. Storybook/MSW support for SQLite
 4. full frontend validation
 
+### 2026-03-23 01:05 to 01:20 America/New_York
+
+- Implemented the frontend SQLite preset files:
+  - [frontend/src/notebook/currentSQLiteConfig.ts](../../../../../../frontend/src/notebook/currentSQLiteConfig.ts)
+  - [frontend/src/notebook/currentSQLite.tsx](../../../../../../frontend/src/notebook/currentSQLite.tsx)
+  - [frontend/src/notebook/CurrentSQLiteNotebookApp.stories.tsx](../../../../../../frontend/src/notebook/CurrentSQLiteNotebookApp.stories.tsx)
+- Updated exports and app selection:
+  - [frontend/src/notebook/index.ts](../../../../../../frontend/src/notebook/index.ts)
+  - [frontend/src/App.tsx](../../../../../../frontend/src/App.tsx)
+- Extended Storybook/MSW support:
+  - [frontend/src/storybook/notebookApiHandlers.ts](../../../../../../frontend/src/storybook/notebookApiHandlers.ts)
+  - [frontend/src/notebook/NotebookApp.stories.tsx](../../../../../../frontend/src/notebook/NotebookApp.stories.tsx)
+- Validation passed:
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+Remaining work after this slice:
+
+1. final end-to-end validation summary
+2. optional manual sqlite preset smoke pass
+3. closeout doc updates and final commit
+
 ## Usage Examples
 
 ### Review the current ticket state

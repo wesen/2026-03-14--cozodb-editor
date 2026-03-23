@@ -6,12 +6,18 @@ import {
   createCurrentJavaScriptNotebookStore,
   currentJavaScriptNotebookExperienceConfig,
 } from "./currentJavaScriptConfig";
+import {
+  createCurrentSQLiteNotebookStore,
+  currentSQLiteNotebookExperienceConfig,
+} from "./currentSQLiteConfig";
 import { registerCurrentCozoSemHandlers } from "./registerCurrentCozoSemHandlers";
 import { registerDefaultNotebookSemHandlers } from "./semHandlers";
 import {
   createJavaScriptNotebookApiHandlers,
   createNotebookFixture,
   createNotebookApiHandlers,
+  createSQLiteNotebookApiHandlers,
+  createSQLiteNotebookFixture,
 } from "../storybook/notebookApiHandlers";
 import { createStaticHintsSocket } from "../storybook/createStaticHintsSocket";
 
@@ -67,6 +73,32 @@ function EmbeddedJavaScriptNotebookHost() {
   );
 }
 
+function EmbeddedSQLiteNotebookHost() {
+  const [store] = useState(() => createCurrentSQLiteNotebookStore());
+
+  return (
+    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "220px minmax(0, 1fr)", background: "#c7c7c7" }}>
+      <aside style={{ borderRight: "2px solid #000", padding: 16, background: "#efefef" }}>
+        <h2 style={{ marginBottom: 12, fontSize: 18 }}>SQLite Host Shell</h2>
+        <p style={{ fontSize: 13, lineHeight: 1.5 }}>
+          This story mounts the reusable notebook package with the SQLite preset inside another host shell.
+        </p>
+      </aside>
+      <NotebookApp
+        confirmAction={() => true}
+        experienceConfig={currentSQLiteNotebookExperienceConfig}
+        registerSemHandlers={registerDefaultNotebookSemHandlers}
+        shellConfig={{
+          appName: "Embedded SQLite Notebook",
+          menuItems: ["Host", "Notebook", "Schema"],
+        }}
+        store={store}
+        ws={createStaticHintsSocket(true)}
+      />
+    </div>
+  );
+}
+
 const meta = {
   title: "Notebook/NotebookApp",
   component: EmbeddedNotebookHost,
@@ -94,6 +126,19 @@ export const EmbeddedJavaScript: Story = {
     msw: {
       handlers: {
         notebook: createJavaScriptNotebookApiHandlers(),
+      },
+    },
+  },
+};
+
+export const EmbeddedSQLite: Story = {
+  render: () => <EmbeddedSQLiteNotebookHost />,
+  parameters: {
+    msw: {
+      handlers: {
+        notebook: createSQLiteNotebookApiHandlers({
+          document: createSQLiteNotebookFixture(),
+        }),
       },
     },
   },

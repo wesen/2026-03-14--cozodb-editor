@@ -221,6 +221,87 @@ function getJavaScriptRuntimeForSource(cell: NotebookCell): CellRuntime {
   };
 }
 
+function getSQLiteRuntimeForSource(cell: NotebookCell): CellRuntime {
+  const source = cell.source.trim().toLowerCase();
+  const timestamp = nextTimestamp();
+
+  if (source === "") {
+    return {
+      run: {
+        id: `run_${cell.id}`,
+        cell_id: cell.id,
+        notebook_id: cell.notebook_id,
+        status: "complete",
+        execution_count: 1,
+        finished_at_ms: timestamp,
+      },
+      output: {
+        kind: "query_result",
+        headers: [],
+        rows: [],
+        took: 1,
+      },
+    };
+  }
+
+  if (source.includes("missing_table") || source.includes("syntax error")) {
+    return {
+      run: {
+        id: `run_${cell.id}`,
+        cell_id: cell.id,
+        notebook_id: cell.notebook_id,
+        status: "error",
+        execution_count: 1,
+        finished_at_ms: timestamp,
+      },
+      output: {
+        kind: "error_result",
+        display: "SQLite error: no such table: missing_table",
+        message: "SQLite error: no such table: missing_table",
+      },
+    };
+  }
+
+  if (source.includes("create table") || source.includes("insert into")) {
+    return {
+      run: {
+        id: `run_${cell.id}`,
+        cell_id: cell.id,
+        notebook_id: cell.notebook_id,
+        status: "complete",
+        execution_count: 1,
+        finished_at_ms: timestamp,
+      },
+      output: {
+        kind: "query_result",
+        headers: ["status", "rows_affected"],
+        rows: [["ok", 2]],
+        took: 2,
+      },
+    };
+  }
+
+  return {
+    run: {
+      id: `run_${cell.id}`,
+      cell_id: cell.id,
+      notebook_id: cell.notebook_id,
+      status: "complete",
+      execution_count: 1,
+      finished_at_ms: timestamp,
+    },
+    output: {
+      kind: "query_result",
+      headers: ["id", "name", "age"],
+      rows: [
+        [2, "Grace", 42],
+        [1, "Ada", 31],
+      ],
+      took: 3,
+    },
+  };
+}
+
 export function createNotebookFixture(): NotebookDocument {
   const notebookId = "nb_storybook";
   const now = Date.now();
@@ -309,6 +390,59 @@ export function createJavaScriptNotebookFixture(): NotebookDocument {
         notebook_id: notebookId,
         kind: "code",
         source: "notDefined + 1",
+        position: 3,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 900_000,
+      },
+    ],
+    runtime: {},
+  };
+}
+
+export function createSQLiteNotebookFixture(): NotebookDocument {
+  const notebookId = "nb_storybook_sqlite";
+  const now = Date.now();
+
+  return {
+    notebook: {
+      id: notebookId,
+      title: "SQLite Notebook",
+      created_at_ms: now - 86_400_000,
+      updated_at_ms: now - 3_600_000,
+    },
+    cells: [
+      {
+        id: "cell_intro",
+        notebook_id: notebookId,
+        kind: "markdown",
+        source: "## SQLite Notebook\n\nCreate tables, insert rows, and query them from SQL cells.",
+        position: 0,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 86_400_000,
+      },
+      {
+        id: "cell_setup",
+        notebook_id: notebookId,
+        kind: "code",
+        source: "create table users (id integer primary key, name text, age integer);\ninsert into users (name, age) values ('Ada', 31), ('Grace', 42);",
+        position: 1,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 3_600_000,
+      },
+      {
+        id: "cell_query",
+        notebook_id: notebookId,
+        kind: "code",
+        source: "select id, name, age from users order by age desc;",
+        position: 2,
+        created_at_ms: now - 86_400_000,
+        updated_at_ms: now - 1_800_000,
+      },
+      {
+        id: "cell_broken",
+        notebook_id: notebookId,
+        kind: "code",
+        source: "select * from missing_table;",
         position: 3,
         created_at_ms: now - 86_400_000,
         updated_at_ms: now - 900_000,
@@ -457,5 +591,12 @@ export function createJavaScriptNotebookApiHandlers() {
   return createNotebookApiHandlers({
     document: createJavaScriptNotebookFixture(),
     runtimeForSource: getJavaScriptRuntimeForSource,
+  });
+}
+
+export function createSQLiteNotebookApiHandlers(options?: Partial<NotebookApiFixture>) {
+  return createNotebookApiHandlers({
+    document: options?.document ?? createSQLiteNotebookFixture(),
+    runtimeForSource: options?.runtimeForSource ?? getSQLiteRuntimeForSource,
   });
 }
