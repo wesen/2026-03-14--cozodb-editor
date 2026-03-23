@@ -162,7 +162,7 @@ export function useNotebookPageController({ confirmAction, registerSemHandlers =
     }
 
     const target = event.target as HTMLElement;
-    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT";
+    const isInInput = target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.closest(".cm-editor") != null;
     const currentIndex = activeCellIndex < 0 ? 0 : activeCellIndex;
     const activeCell = activeCellId ? cellsById[activeCellId] || null : cells[currentIndex] || null;
 
@@ -206,12 +206,18 @@ export function useNotebookPageController({ confirmAction, registerSemHandlers =
 
     if (event.key === "Enter") {
       event.preventDefault();
-      const card = window.document.querySelector(".mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview");
+      const card = window.document.querySelector(
+        ".mac-cell-card.is-active textarea, .mac-cell-card.is-active .mac-md-preview, .mac-cell-card.is-active .cm-editor",
+      );
       if (card instanceof HTMLElement) {
         card.click();
       }
       if (card instanceof HTMLTextAreaElement) {
         card.focus();
+      }
+      const cmContent = card?.querySelector(".cm-content");
+      if (cmContent instanceof HTMLElement) {
+        cmContent.focus();
       }
       return;
     }

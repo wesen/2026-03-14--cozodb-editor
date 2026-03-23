@@ -154,6 +154,7 @@ const meta = {
     onMoveDown: noop,
     onMoveUp: noop,
     onRun: noop,
+    onRunAndInsertBelow: noop,
     onThreadAddToNotebook: noop,
     onThreadAskQuestion: noop,
     onThreadDismiss: noop,

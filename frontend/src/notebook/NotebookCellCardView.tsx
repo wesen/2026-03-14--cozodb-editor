@@ -30,6 +30,12 @@ function CellErrorCard({ errorText, onDiagnose }: CellErrorCardProps) {
   );
 }
 
+const ANSI_ESCAPE_PATTERN = new RegExp(String.raw`\x1b\[[0-9;]*m`, "g");
+
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_ESCAPE_PATTERN, "");
+}
+
 function formatRelativeTime(ms: number): string {
   const delta = Date.now() - ms;
   if (delta < 5000) return "just now";
@@ -73,6 +79,7 @@ export interface NotebookCellCardViewProps {
   onMoveDown: () => void;
   onMoveUp: () => void;
   onRun: () => void;
+  onRunAndInsertBelow: () => void;
   onThreadAddToNotebook: (markdown: string) => void;
   onThreadAskQuestion: (question: string) => void;
   onThreadDismiss: (threadId: string) => void;
@@ -123,6 +130,7 @@ export function NotebookCellCardView({
   onMoveDown,
   onMoveUp,
   onRun,
+  onRunAndInsertBelow,
   onThreadAddToNotebook,
   onThreadAskQuestion,
   onThreadDismiss,
@@ -147,7 +155,7 @@ export function NotebookCellCardView({
   const outputDimmed = isDirty || isStale;
   const hasAI = threads.length > 0 || Boolean(fallbackHint) || Boolean(diagnosisFix);
   const hintCollapsed = Boolean(collapsedThreadIds[`hint:${cell.id}`]);
-  const { SemThreadRenderer, codeCellPlaceholder } = useNotebookExperience();
+  const { CodeCellEditor, SemThreadRenderer, codeCellPlaceholder } = useNotebookExperience();
 
   return (
     <div
@@ -187,7 +195,18 @@ export function NotebookCellCardView({
       </div>
 
       <div className="mac-cell-body">
-        {isMarkdown && !isEditing ? (
+        {isCode && CodeCellEditor ? (
+          <CodeCellEditor
+            value={cell.source}
+            onChange={onEditorChange}
+            onRun={onRun}
+            onRunAndInsert={onRunAndInsertBelow}
+            onBlur={onEditorBlur}
+            onFocus={onEditorFocus}
+            placeholder={codeCellPlaceholder}
+            autoFocus={isActive}
+          />
+        ) : isMarkdown && !isEditing ? (
           <div
             className="mac-md-preview"
             onClick={onMarkdownPreviewClick}
@@ -254,14 +273,14 @@ export function NotebookCellCardView({
                   diagnosisFix ? (
                     <DiagnosisCard
                       diagnosing={false}
-                      error={runtime.output.display || runtime.output.message || "Unknown error"}
+                      error={stripAnsi(runtime.output.display || runtime.output.message || "Unknown error")}
                       fix={diagnosisFix}
                       onAddToNotebook={onDiagnosisAddToNotebook}
                       onApplyFix={diagnosisFix.code ? () => onDiagnosisApplyFix(diagnosisFix.code as string) : undefined}
                     />
                   ) : (
                     <CellErrorCard
-                      errorText={runtime.output.display || runtime.output.message || "Unknown error"}
+                      errorText={stripAnsi(runtime.output.display || runtime.output.message || "Unknown error")}
                       onDiagnose={onDiagnose}
                     />
                   )

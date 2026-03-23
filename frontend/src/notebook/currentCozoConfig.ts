@@ -1,4 +1,5 @@
 import { makeStore } from "../app/store";
+import { CozoScriptEditor } from "../editor/CozoScriptEditor";
 import { CozoSemRenderer } from "../features/cozo-sem/CozoSemRenderer";
 import { createHTTPNotebookTransport } from "../transport/httpClient";
 import { defaultNotebookShellConfig, type NotebookShellConfig } from "./config";
@@ -20,5 +21,6 @@ export function createCurrentCozoNotebookStore({ apiBase = "" }: { apiBase?: str
 export const currentCozoNotebookExperienceConfig: NotebookExperienceConfig = {
   codeCellPlaceholder: "-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)",
   codeFenceLanguage: "cozoscript",
+  CodeCellEditor: CozoScriptEditor,
   SemThreadRenderer: CozoSemRenderer,
 };

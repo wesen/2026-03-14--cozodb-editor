@@ -62,16 +62,16 @@ export function NotebookCellCard({
   const isActive = activeCellId === cellId;
 
   useEffect(() => {
-    const editing = cell?.kind === "code" || markdownEditing;
-    if (editing && isActive && editorRef.current) {
+    if (markdownEditing && isActive && editorRef.current) {
       editorRef.current.focus();
     }
-  }, [cell?.kind, isActive, markdownEditing]);
+  }, [isActive, markdownEditing]);
 
   useEffect(() => {
-    if (!editorRef.current) {
+    if (cell?.kind !== "markdown" || !editorRef.current) {
       return;
     }
+
     editorRef.current.style.height = "0px";
     editorRef.current.style.height = `${editorRef.current.scrollHeight}px`;
   }, [cell?.source, cell?.kind, markdownEditing]);
@@ -79,8 +79,8 @@ export function NotebookCellCard({
   if (!cell) {
     return null;
   }
-  const resolvedCell: NotebookCell = cell;
 
+  const resolvedCell: NotebookCell = cell;
   const streams = getStreamingEntriesForCell(semProjection, resolvedCell.id);
   const threads = getSemThreadsForCell(semProjection, resolvedCell.id).filter((thread) => !dismissedThreads[thread.id]);
   const fallbackHint = getHintResponseForCell(semProjection, resolvedCell.id);
@@ -107,11 +107,13 @@ export function NotebookCellCard({
       void onRunAndInsertBelow(resolvedCell.id);
       return;
     }
+
     if (event.key === "Enter" && event.shiftKey && isCode) {
       event.preventDefault();
       void dispatch(runNotebookCellById(resolvedCell.id));
       return;
     }
+
     if (event.key === "Escape" && isMarkdown) {
       event.preventDefault();
       setMarkdownEditing(false);
@@ -166,34 +168,61 @@ export function NotebookCellCard({
         onAskAI(resolvedCell.id, aiPrompt);
         setShowAIForm(false);
       }}
-      onDelete={() => { void dispatch(deleteNotebookCellById(resolvedCell.id)); }}
+      onDelete={() => {
+        void dispatch(deleteNotebookCellById(resolvedCell.id));
+      }}
       onDiagnose={() => onDiagnose(resolvedCell.id)}
-      onDiagnosisAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
-      onDiagnosisApplyFix={(source) => { void handleApplyFixToCurrentCell(source); }}
+      onDiagnosisAddToNotebook={(markdown) => {
+        void handleInsertBelow("markdown", markdown);
+      }}
+      onDiagnosisApplyFix={(source) => {
+        void handleApplyFixToCurrentCell(source);
+      }}
       onEditorBlur={handleEditorBlur}
       onEditorChange={(source) => dispatch(setCellSource({ cellId: resolvedCell.id, source }))}
       onEditorFocus={() => dispatch(setActiveCellId(resolvedCell.id))}
       onEditorKeyDown={handleKeyDown}
-      onHintAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
+      onHintAddToNotebook={(markdown) => {
+        void handleInsertBelow("markdown", markdown);
+      }}
       onHintChipClick={(chip) => {
         dispatch(setAIPrompt({ cellId: resolvedCell.id, value: chip }));
         setShowAIForm(true);
       }}
-      onHintInsert={(code) => { void handleInsertBelow("code", code); }}
+      onHintInsert={(code) => {
+        void handleInsertBelow("code", code);
+      }}
       onHintToggleCollapse={() => dispatch(toggleThreadCollapse(`hint:${resolvedCell.id}`))}
-      onInsertCodeBelow={() => { void handleInsertBelow("code"); }}
-      onInsertMarkdownBelow={() => { void handleInsertBelow("markdown"); }}
+      onInsertCodeBelow={() => {
+        void handleInsertBelow("code");
+      }}
+      onInsertMarkdownBelow={() => {
+        void handleInsertBelow("markdown");
+      }}
       onMarkdownPreviewClick={handleMarkdownClick}
-      onMoveDown={() => { void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex + 1)); }}
-      onMoveUp={() => { void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex - 1)); }}
-      onRun={() => { void dispatch(runNotebookCellById(resolvedCell.id)); }}
-      onThreadAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
+      onMoveDown={() => {
+        void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex + 1));
+      }}
+      onMoveUp={() => {
+        void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex - 1));
+      }}
+      onRun={() => {
+        void dispatch(runNotebookCellById(resolvedCell.id));
+      }}
+      onRunAndInsertBelow={() => {
+        void onRunAndInsertBelow(resolvedCell.id);
+      }}
+      onThreadAddToNotebook={(markdown) => {
+        void handleInsertBelow("markdown", markdown);
+      }}
       onThreadAskQuestion={(question) => {
         dispatch(setAIPrompt({ cellId: resolvedCell.id, value: question }));
         setShowAIForm(true);
       }}
       onThreadDismiss={(threadId) => dispatch(dismissThread(threadId))}
-      onThreadInsertCode={(code) => { void handleInsertBelow("code", code); }}
+      onThreadInsertCode={(code) => {
+        void handleInsertBelow("code", code);
+      }}
       onThreadToggleCollapse={(threadId) => dispatch(toggleThreadCollapse(threadId))}
       onToggleAIForm={() => setShowAIForm((current) => !current)}
       onToggleOutputCollapsed={() => setOutputCollapsed((current) => !current)}

@@ -15,15 +15,28 @@ function DefaultSemThreadRenderer() {
   return null;
 }
 
+export interface NotebookCodeCellEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  onRun?: () => void;
+  onRunAndInsert?: () => void;
+  onBlur?: () => void;
+  onFocus?: () => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+}
+
 export interface NotebookExperienceConfig {
   codeCellPlaceholder: string;
   codeFenceLanguage: string;
+  CodeCellEditor?: ComponentType<NotebookCodeCellEditorProps>;
   SemThreadRenderer: ComponentType<NotebookSemThreadRendererProps>;
 }
 
 export const defaultNotebookExperienceConfig: NotebookExperienceConfig = {
   codeCellPlaceholder: "// Enter code... (Shift+Enter run, Alt/Ctrl+Enter run+new)",
   codeFenceLanguage: "text",
+  CodeCellEditor: undefined,
   SemThreadRenderer: DefaultSemThreadRenderer,
 };
 

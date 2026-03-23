@@ -10,6 +10,7 @@ export function NotebookExperienceProvider({
   const resolvedValue: NotebookExperienceConfig = {
     ...defaultNotebookExperienceConfig,
     ...value,
+    CodeCellEditor: value?.CodeCellEditor ?? defaultNotebookExperienceConfig.CodeCellEditor,
     SemThreadRenderer: value?.SemThreadRenderer ?? defaultNotebookExperienceConfig.SemThreadRenderer,
   };
 

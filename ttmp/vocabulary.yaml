@@ -31,6 +31,10 @@ topics:
       description: JavaScript language/runtime and frontend/backend integration topics
     - slug: notebook
       description: Notebook packaging, runtime, and UI concerns
+    - slug: syntax-highlighting
+      description: Syntax highlighting, Lezer grammars, CodeMirror language packages
+    - slug: codemirror
+      description: CodeMirror 6 editor integration, extensions, and theming
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
