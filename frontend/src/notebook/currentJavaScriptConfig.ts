@@ -1,4 +1,5 @@
 import { makeStore } from "../app/store";
+import { JavaScriptNotebookEditor } from "../editor/JavaScriptNotebookEditor";
 import { createHTTPNotebookTransport } from "../transport/httpClient";
 import { defaultNotebookShellConfig, type NotebookShellConfig } from "./config";
 import { defaultNotebookExperienceConfig, type NotebookExperienceConfig } from "./experienceConfig";
@@ -20,4 +21,5 @@ export const currentJavaScriptNotebookExperienceConfig: NotebookExperienceConfig
   ...defaultNotebookExperienceConfig,
   codeCellPlaceholder: "// Enter JavaScript... (Shift+Enter run, Alt/Ctrl+Enter run+new)",
   codeFenceLanguage: "javascript",
+  CodeCellEditor: JavaScriptNotebookEditor,
 };
