@@ -2,7 +2,6 @@ import { HighlightStyle } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 
-// ── System 7 palette ──────────────────────────────────
 const s7 = {
   purple: "#6a1b9a",
   steelBlue: "#005599",
@@ -25,8 +24,7 @@ const s7 = {
   white: "#ffffff",
 };
 
-// ── Editor chrome ─────────────────────────────────────
-export const system7EditorTheme = EditorView.theme(
+export const notebookCodeMirrorTheme = EditorView.theme(
   {
     "&": {
       color: s7.black,
@@ -41,10 +39,9 @@ export const system7EditorTheme = EditorView.theme(
     ".cm-cursor, .cm-dropCursor": {
       borderLeftColor: s7.black,
     },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
-      {
-        backgroundColor: s7.bgSelection,
-      },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
+      backgroundColor: s7.bgSelection,
+    },
     ".cm-gutters": {
       backgroundColor: s7.bgGutter,
       color: s7.lightGray,
@@ -102,26 +99,18 @@ export const system7EditorTheme = EditorView.theme(
   { dark: false },
 );
 
-// ── Syntax highlighting ───────────────────────────────
-export const system7HighlightStyle = HighlightStyle.define([
-  // Keywords
+export const notebookCodeMirrorHighlightStyle = HighlightStyle.define([
   { tag: t.keyword, color: s7.purple, fontWeight: "bold" },
   { tag: t.controlKeyword, color: s7.purple, fontWeight: "bold" },
-
-  // Operators
   { tag: t.definitionOperator, color: s7.steelBlue },
   { tag: t.compareOperator, color: s7.darkGray },
   { tag: t.arithmeticOperator, color: s7.darkGray },
-
-  // Literals
   { tag: t.null, color: s7.red },
   { tag: t.bool, color: s7.orange },
   { tag: t.integer, color: s7.mediumBlue },
   { tag: t.float, color: s7.mediumBlue },
   { tag: t.string, color: s7.green },
   { tag: t.escape, color: s7.teal },
-
-  // Names
   { tag: t.definition(t.variableName), color: s7.navy, fontWeight: "bold" },
   { tag: t.function(t.variableName), color: s7.teal },
   { tag: t.special(t.variableName), color: s7.red, fontWeight: "bold" },
@@ -129,17 +118,9 @@ export const system7HighlightStyle = HighlightStyle.define([
   { tag: t.standard(t.className), color: s7.gold, fontWeight: "bold" },
   { tag: t.variableName, color: s7.black },
   { tag: t.typeName, color: s7.purple },
-
-  // System ops
   { tag: t.special(t.keyword), color: s7.red, fontWeight: "bold" },
-
-  // Comments
   { tag: t.lineComment, color: s7.gray, fontStyle: "italic" },
-
-  // Errors
   { tag: t.invalid, color: s7.white, backgroundColor: s7.red },
-
-  // Brackets
   { tag: t.paren, color: s7.mediumGray },
   { tag: t.squareBracket, color: s7.mediumGray },
   { tag: t.brace, color: s7.mediumGray },
