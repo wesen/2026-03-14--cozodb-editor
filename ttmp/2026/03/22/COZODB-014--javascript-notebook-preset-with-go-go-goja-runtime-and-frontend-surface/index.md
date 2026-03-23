@@ -57,6 +57,7 @@ Current focus:
 - current JavaScript backend preset exists beside the current Cozo preset
 - current JavaScript frontend preset exists beside the current Cozo preset
 - Storybook and build validation cover both preset families
+- detailed postmortem and intern analysis added in `design-doc/02-...`
 
 ## Topics
 
