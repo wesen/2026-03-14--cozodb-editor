@@ -35,6 +35,8 @@ topics:
       description: Syntax highlighting, Lezer grammars, CodeMirror language packages
     - slug: codemirror
       description: CodeMirror 6 editor integration, extensions, and theming
+    - slug: sqlite
+      description: SQLite runtime, SQL notebook preset, and related frontend/backend integration work
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
