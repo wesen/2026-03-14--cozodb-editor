@@ -1,3 +1,22 @@
+---
+Title: Raw CozoDB backend research report
+Ticket: COZODB-001
+Status: reference
+Topics:
+    - cozodb
+    - backend
+    - datalog
+DocType: various
+Intent: working-notes
+Owners: []
+RelatedFiles: []
+ExternalSources: []
+Summary: Raw research notes captured during the initial CozoDB backend investigation.
+LastUpdated: 2026-03-23T14:48:00-04:00
+WhatFor: Preserve the original research dump behind the cleaner backend guide.
+WhenToUse: Use when reviewing detailed raw notes that informed the polished COZODB-001 guides.
+---
+
 # CozoDB Research Report: Building a Go Backend Wrapper
 
 ## 1. Overview

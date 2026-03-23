@@ -1,13 +1,12 @@
 ---
 Title: Resolve origin-main merge conflicts between notebook modularization and CozoScript editor integration
 Ticket: COZODB-015
-Status: active
+Status: complete
 Topics:
-    - merge-conflict
     - frontend
     - notebook
     - codemirror
-    - packaging
+    - architecture
 DocType: index
 Intent: long-term
 Owners: []
@@ -24,7 +23,7 @@ RelatedFiles:
       Note: Current non-conflicted target that should absorb the remote page keyboard behavior
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-22T22:14:02.738075197-04:00
+LastUpdated: 2026-03-23T14:40:00-04:00
 WhatFor: Track the documentation and execution plan for resolving the current origin/main merge conflict between the notebook modularization line and the incoming CozoScript editor integration line.
 WhenToUse: Use when coordinating the current merge resolution, finding the relevant design and reference docs, or reviewing the intended semantic merge strategy before code changes begin.
 ---
@@ -47,9 +46,9 @@ This ticket documents how to resolve the current merge from `origin/main` withou
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
-Current conclusion: the merge is not catastrophic, but the two notebook file conflicts require a manual semantic merge because the incoming editor work landed on pre-refactor file shapes.
+Current conclusion: the merge was resolved semantically by preserving the modular notebook structure, porting the incoming editor behavior into the split surfaces, and validating the merged frontend stack.
 
 ## Topics
 

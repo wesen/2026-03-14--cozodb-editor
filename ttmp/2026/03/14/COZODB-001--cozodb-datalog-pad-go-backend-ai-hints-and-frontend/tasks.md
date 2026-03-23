@@ -10,4 +10,4 @@
 - [x] Write AI Hint Engine Guide document (pinocchio/geppetto + SEM)
 - [x] Write Frontend Architecture document
 - [x] Create CozoDB experiment scripts in scripts/ folder
-- [ ] Upload documents to reMarkable
+- [x] Upload documents to reMarkable

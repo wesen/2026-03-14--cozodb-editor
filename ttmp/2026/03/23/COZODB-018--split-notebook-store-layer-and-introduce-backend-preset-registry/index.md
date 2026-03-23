@@ -1,7 +1,7 @@
 ---
 Title: Split notebook store layer and introduce backend preset registry
 Ticket: COZODB-018
-Status: active
+Status: complete
 Topics:
     - architecture
     - backend
@@ -30,7 +30,7 @@ RelatedFiles:
       Note: Current SQLite preset constructor
 ExternalSources: []
 Summary: Cleanup/design ticket for splitting the backend notebook store by responsibility and replacing the hardcoded backend preset switch with a registry-backed startup path.
-LastUpdated: 2026-03-23T11:58:00-04:00
+LastUpdated: 2026-03-23T14:40:00-04:00
 WhatFor: Track and explain the backend cleanup phase that split store responsibilities and moved backend preset selection behind a registry for future extensibility.
 WhenToUse: Use when reviewing the cleanup, onboarding a new engineer to the backend preset system, or planning future language presets and startup registration.
 ---
@@ -57,7 +57,7 @@ The goal is to clean up those surfaces before the next backend feature or preset
 
 ## Status
 
-Current status: **completed**
+Current status: **complete**
 
 ## Topics
 
