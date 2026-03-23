@@ -146,6 +146,86 @@ After:
   CozoScriptEditor = language adapter
 ```
 
+## Step 2: Add isolated Storybook coverage for the shared editor surface
+
+Once the shared editor shell existed, the next useful slice was to expose it directly in Storybook. The goal here was not broad integration coverage. The goal was to make the reusable editor itself visible and reviewable without booting an entire notebook preset app.
+
+This step also gave a quick check that the generic shell can render both plain code and a configured Cozo language extension outside the full notebook page.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Quick Reference)
+
+**Assistant interpretation:** Continue implementing the ticket slice by slice and keep documenting progress in a way that makes the reusable editor easy to review.
+
+**Inferred user intent:** Make the extracted editor demonstrably reusable, not just abstract in code.
+
+**Commit (code):** `2220c0e` — `storybook: add notebook codemirror editor stories`
+
+### What I did
+
+- Added [frontend/src/editor/NotebookCodeMirrorEditor.stories.tsx](../../../../../../frontend/src/editor/NotebookCodeMirrorEditor.stories.tsx).
+- Added a plain story for the generic editor shell.
+- Added a Cozo-configured story that passes language extensions into the generic editor.
+- Validated with:
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build-storybook`
+
+### Why
+
+- Storybook is the fastest way to verify that the extracted editor can be reused outside the notebook app.
+- It also provides a direct review artifact for future language adapters.
+
+### What worked
+
+- Storybook built successfully with the new editor story.
+- The story structure supported both a plain editor mode and a language-configured mode.
+
+### What didn't work
+
+- The first pass of the story failed TypeScript because Storybook still needed the required `onChange` prop satisfied at the metadata level even though the render function handled local state.
+- The exact failure came from:
+  - `cd frontend && npx tsc --noEmit`
+- The fix was to provide a no-op `onChange` in the story args while keeping the stateful render wrapper.
+
+### What I learned
+
+- Storybook arg typing for controlled editors can be stricter than the runtime render path suggests.
+- The generic editor API is now simple enough to demonstrate directly in Storybook without notebook-specific scaffolding.
+
+### What was tricky to build
+
+- The only sharp edge in this slice was the Storybook typing model for a controlled component.
+- The story needed to satisfy the component prop contract statically even though the actual value updates happen inside the custom render function.
+
+### What warrants a second pair of eyes
+
+- The Storybook story currently validates editor rendering and configuration, but not user-event-level shortcut behavior. That is still something to verify in the app-level preset stories and live app.
+
+### What should be done in the future
+
+- Add JavaScript and SQLite adapters, then either extend this story file or add language-specific editor stories if the adapters gain distinct behavior.
+
+### Code review instructions
+
+- Read [frontend/src/editor/NotebookCodeMirrorEditor.stories.tsx](../../../../../../frontend/src/editor/NotebookCodeMirrorEditor.stories.tsx).
+- Confirm the story demonstrates both the plain shell and a language-configured editor.
+- Re-run:
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build-storybook`
+
+### Technical details
+
+```text
+Story structure:
+  args -> stateful StoryRender -> NotebookCodeMirrorEditor
+
+Configured story:
+  NotebookCodeMirrorEditor + cozo language extensions
+```
+
 ## Usage Examples
 
 ### Read the design guide
