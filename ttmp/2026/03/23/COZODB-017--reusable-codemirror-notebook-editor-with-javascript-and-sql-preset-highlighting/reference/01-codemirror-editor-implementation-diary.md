@@ -226,6 +226,92 @@ Configured story:
   NotebookCodeMirrorEditor + cozo language extensions
 ```
 
+## Step 3: Wire the JavaScript preset to the reusable CodeMirror editor
+
+With the shared editor shell and baseline stories in place, the next meaningful slice was to prove that a non-Cozo preset could adopt the same editor path. JavaScript was the best first candidate because it has a built-in CodeMirror language package and no custom completion system to preserve.
+
+This slice therefore added the JavaScript language package, created a thin JavaScript adapter, and connected the existing JavaScript preset config to that adapter. The JavaScript app stories already existed, so once the preset config changed, those stories automatically began exercising the highlighted editor path as well.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Quick Reference)
+
+**Assistant interpretation:** Continue working through the ticket tasks in order and move the JavaScript preset off the textarea path onto the reusable CodeMirror editor.
+
+**Inferred user intent:** Make preset behavior consistent so JavaScript benefits from the same modular editor architecture as Cozo.
+
+**Commit (code):** `e74535a` — `editor: add javascript notebook highlighting`
+
+### What I did
+
+- Installed `@codemirror/lang-javascript` in [frontend/package.json](../../../../../../frontend/package.json).
+- Added [frontend/src/editor/JavaScriptNotebookEditor.tsx](../../../../../../frontend/src/editor/JavaScriptNotebookEditor.tsx).
+- Added [frontend/src/editor/JavaScriptNotebookEditor.stories.tsx](../../../../../../frontend/src/editor/JavaScriptNotebookEditor.stories.tsx).
+- Updated [frontend/src/notebook/currentJavaScriptConfig.ts](../../../../../../frontend/src/notebook/currentJavaScriptConfig.ts) to set `CodeCellEditor: JavaScriptNotebookEditor`.
+- Validated with:
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm test`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `cd frontend && npm run build-storybook`
+
+### Why
+
+- JavaScript was the smallest non-Cozo language adapter to add first.
+- It verifies that the extracted shell really is reusable without Cozo-specific assumptions.
+- It also upgrades the current JavaScript preset app and preset stories without changing notebook core code.
+
+### What worked
+
+- The JavaScript adapter stayed very thin because almost all editor behavior now lives in the shared shell.
+- Existing JavaScript preset stories automatically became more valuable after the config change because they now exercise CodeMirror rather than textarea rendering.
+- All validation commands passed after the adapter landed.
+
+### What didn't work
+
+- `npm install` emitted the same existing Storybook/Vite peer warning that the repo already tolerates:
+  - `@joshwooding/vite-plugin-react-docgen-typescript` expects older Vite peer ranges than the current Storybook stack declares.
+- The install still completed successfully and did not block the slice.
+
+### What I learned
+
+- The preset seam is doing real work now. Changing the preset config alone was enough to upgrade the JavaScript notebook editing experience.
+- The extracted editor shell removed almost all of the complexity from adding the new language.
+
+### What was tricky to build
+
+- The only real sharp edge in this slice was dependency management rather than editor code.
+- The project’s existing Storybook/Vite dependency graph still produces peer warnings during `npm install`, so package additions need to be read carefully to distinguish warnings from actual blockers.
+
+### What warrants a second pair of eyes
+
+- Build output size increased after adding another CodeMirror language package, so chunk growth should be watched as more languages are added.
+- It is worth doing a live JavaScript preset smoke pass before closeout to confirm the shortcut handling feels right in the real notebook, not just in Storybook.
+
+### What should be done in the future
+
+- Repeat the same adapter pattern for SQLite.
+- Consider whether future language additions should lazy-load editor language packages if bundle growth becomes significant.
+
+### Code review instructions
+
+- Read [frontend/src/editor/JavaScriptNotebookEditor.tsx](../../../../../../frontend/src/editor/JavaScriptNotebookEditor.tsx) first.
+- Then read [frontend/src/notebook/currentJavaScriptConfig.ts](../../../../../../frontend/src/notebook/currentJavaScriptConfig.ts) to confirm the preset now opts into the editor.
+- Finally review [frontend/src/editor/JavaScriptNotebookEditor.stories.tsx](../../../../../../frontend/src/editor/JavaScriptNotebookEditor.stories.tsx).
+- Re-run:
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build-storybook`
+
+### Technical details
+
+```text
+JavaScript preset flow:
+  currentJavaScriptConfig
+    -> CodeCellEditor = JavaScriptNotebookEditor
+    -> NotebookCodeMirrorEditor
+    -> javascript() language extension
+```
+
 ## Usage Examples
 
 ### Read the design guide
