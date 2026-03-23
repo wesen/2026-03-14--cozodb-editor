@@ -2,19 +2,24 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/wesen/cozodb-editor/backend/pkg/api"
 	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
 func main() {
+	registry := notebook.DefaultPresetRegistry()
+	availablePresets := strings.Join(registry.Names(), ", ")
+
 	addr := flag.String("addr", ":8080", "HTTP listen address")
-	preset := flag.String("preset", "cozo", "Notebook preset to run (cozo, javascript, sqlite)")
+	preset := flag.String("preset", "cozo", fmt.Sprintf("Notebook preset to run (%s)", availablePresets))
 	engine := flag.String("engine", "mem", "CozoDB engine (mem, sqlite)")
 	dbPath := flag.String("db-path", "", "CozoDB database path (for sqlite engine)")
 	sqliteRuntimePath := flag.String("sqlite-db-path", "", "SQLite runtime database path for the sqlite preset (empty uses in-memory runtime)")
@@ -29,34 +34,14 @@ func main() {
 		err            error
 	)
 
-	switch *preset {
-	case "cozo":
-		log.Printf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", *engine, *dbPath)
-		notebookModule, err = notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
-			Engine:    *engine,
-			DBPath:    *dbPath,
-			AppDBPath: *appDBPath,
-			EnableAI:  enableAI,
-			Logf:      log.Printf,
-		})
-	case "javascript":
-		log.Printf("[MAIN] Opening current JavaScript notebook preset")
-		notebookModule, err = notebook.OpenCurrentJavaScriptModule(notebook.CurrentJavaScriptModuleConfig{
-			AppDBPath: *appDBPath,
-			EnableAI:  enableAI,
-			Logf:      log.Printf,
-		})
-	case "sqlite":
-		log.Printf("[MAIN] Opening current SQLite notebook preset (runtime path=%s)", *sqliteRuntimePath)
-		notebookModule, err = notebook.OpenCurrentSQLiteModule(notebook.CurrentSQLiteModuleConfig{
-			RuntimeDBPath: *sqliteRuntimePath,
-			AppDBPath:     *appDBPath,
-			EnableAI:      enableAI,
-			Logf:          log.Printf,
-		})
-	default:
-		log.Fatalf("Unknown preset %q", *preset)
-	}
+	notebookModule, err = registry.Open(*preset, notebook.PresetOptions{
+		AppDBPath:         *appDBPath,
+		CozoDBPath:        *dbPath,
+		CozoEngine:        *engine,
+		EnableAI:          enableAI,
+		Logf:              log.Printf,
+		SQLiteRuntimePath: *sqliteRuntimePath,
+	})
 
 	if err != nil {
 		log.Fatalf("Failed to open notebook preset %q: %v", *preset, err)
