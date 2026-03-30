@@ -13,7 +13,6 @@ type CurrentCozoModuleConfig struct {
 	Engine            string
 	DBPath            string
 	AppDBPath         string
-	EnableAI          bool
 	InferenceSettings *aisettings.InferenceSettings
 	BasePaths         BasePaths
 	Logf              func(format string, args ...any)
@@ -30,7 +29,7 @@ func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
 		return nil, fmt.Errorf("warm up cozo runtime: %w", err)
 	}
 
-	engine := newAIEngine("Cozo", config.EnableAI, config.InferenceSettings, config.logf)
+	engine := newAIEngine("Cozo", config.InferenceSettings, config.logf)
 
 	profile := currentCozoNotebookProfile()
 	store, err := OpenStoreWithConfig(StoreConfig{

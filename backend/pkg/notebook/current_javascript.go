@@ -10,7 +10,6 @@ import (
 
 type CurrentJavaScriptModuleConfig struct {
 	AppDBPath         string
-	EnableAI          bool
 	InferenceSettings *aisettings.InferenceSettings
 	BasePaths         BasePaths
 	Logf              func(format string, args ...any)
@@ -22,7 +21,7 @@ func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module,
 		return nil, fmt.Errorf("open javascript runtime: %w", err)
 	}
 
-	engine := newAIEngine("JavaScript", config.EnableAI, config.InferenceSettings, config.logf)
+	engine := newAIEngine("JavaScript", config.InferenceSettings, config.logf)
 
 	profile := currentJavaScriptNotebookProfile()
 	store, err := OpenStoreWithConfig(StoreConfig{

@@ -13,7 +13,6 @@ type PresetOptions struct {
 	BasePaths         BasePaths
 	CozoDBPath        string
 	CozoEngine        string
-	EnableAI          bool
 	InferenceSettings *aisettings.InferenceSettings
 	Logf              func(format string, args ...any)
 	SQLiteRuntimePath string
@@ -44,7 +43,6 @@ func DefaultPresetRegistry() *PresetRegistry {
 				Engine:            options.CozoEngine,
 				DBPath:            options.CozoDBPath,
 				AppDBPath:         options.AppDBPath,
-				EnableAI:          options.EnableAI,
 				InferenceSettings: options.InferenceSettings,
 				BasePaths:         options.BasePaths,
 				Logf:              options.Logf,
@@ -58,7 +56,6 @@ func DefaultPresetRegistry() *PresetRegistry {
 			options.logf("[MAIN] Opening current JavaScript notebook preset")
 			return OpenCurrentJavaScriptModule(CurrentJavaScriptModuleConfig{
 				AppDBPath:         options.AppDBPath,
-				EnableAI:          options.EnableAI,
 				InferenceSettings: options.InferenceSettings,
 				BasePaths:         options.BasePaths,
 				Logf:              options.Logf,
@@ -73,7 +70,6 @@ func DefaultPresetRegistry() *PresetRegistry {
 			return OpenCurrentSQLiteModule(CurrentSQLiteModuleConfig{
 				RuntimeDBPath:     options.SQLiteRuntimePath,
 				AppDBPath:         options.AppDBPath,
-				EnableAI:          options.EnableAI,
 				InferenceSettings: options.InferenceSettings,
 				BasePaths:         options.BasePaths,
 				Logf:              options.Logf,

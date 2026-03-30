@@ -11,7 +11,6 @@ import (
 type CurrentSQLiteModuleConfig struct {
 	RuntimeDBPath     string
 	AppDBPath         string
-	EnableAI          bool
 	InferenceSettings *aisettings.InferenceSettings
 	BasePaths         BasePaths
 	Logf              func(format string, args ...any)
@@ -23,7 +22,7 @@ func OpenCurrentSQLiteModule(config CurrentSQLiteModuleConfig) (*Module, error) 
 		return nil, fmt.Errorf("open sqlite runtime: %w", err)
 	}
 
-	engine := newAIEngine("SQLite", config.EnableAI, config.InferenceSettings, config.logf)
+	engine := newAIEngine("SQLite", config.InferenceSettings, config.logf)
 
 	profile := currentSQLiteNotebookProfile()
 	store, err := OpenStoreWithConfig(StoreConfig{

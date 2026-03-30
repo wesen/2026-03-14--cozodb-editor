@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	stdErrors "errors"
 	"io"
 	"log"
 	"net/http"
@@ -236,6 +237,13 @@ func applyApplicationProfileDefaults(parsed *values.Values) (*values.Values, err
 	if selection.Profile != "" || len(selection.ProfileRegistries) == 0 {
 		return parsed, nil
 	}
+	ok, err := defaultProfileAvailable(selection.ProfileRegistries)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return parsed, nil
+	}
 
 	profileSection, err := appBootstrapConfig().NewProfileSection()
 	if err != nil {
@@ -250,15 +258,43 @@ func applyApplicationProfileDefaults(parsed *values.Values) (*values.Values, err
 	return ret, nil
 }
 
+func defaultProfileAvailable(registries []string) (bool, error) {
+	specs, err := gepprofiles.ParseRegistrySourceSpecs(registries)
+	if err != nil {
+		return false, err
+	}
+	chain, err := gepprofiles.NewChainedRegistryFromSourceSpecs(context.Background(), specs)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		_ = chain.Close()
+	}()
+
+	profileSlug, err := gepprofiles.ParseEngineProfileSlug(defaultProfileSlug)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = chain.ResolveEngineProfile(context.Background(), gepprofiles.ResolveInput{
+		EngineProfileSlug: profileSlug,
+	})
+	if err == nil {
+		return true, nil
+	}
+	if stdErrors.Is(err, gepprofiles.ErrProfileNotFound) {
+		return false, nil
+	}
+	return false, err
+}
+
 func runServer(ctx context.Context, settings *ServerSettings, inferenceSettings *aisettings.InferenceSettings) error {
 	registry := notebook.DefaultPresetRegistry()
-	enableAI := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")) != "" || inferenceSettings != nil
 
 	notebookModule, err := registry.Open(settings.Preset, notebook.PresetOptions{
 		AppDBPath:         settings.AppDBPath,
 		CozoDBPath:        settings.DBPath,
 		CozoEngine:        settings.Engine,
-		EnableAI:          enableAI,
 		InferenceSettings: inferenceSettings,
 		Logf:              log.Printf,
 		SQLiteRuntimePath: settings.SQLiteRuntimePath,
