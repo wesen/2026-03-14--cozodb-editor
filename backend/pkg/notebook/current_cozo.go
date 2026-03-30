@@ -3,19 +3,19 @@ package notebook
 import (
 	"fmt"
 
+	aisettings "github.com/go-go-golems/geppetto/pkg/steps/ai/settings"
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
-	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 )
 
 const defaultWarmupScript = "?[] <- [[1, 'hello']]"
 
 type CurrentCozoModuleConfig struct {
-	Engine    string
-	DBPath    string
-	AppDBPath string
-	EnableAI  bool
-	BasePaths BasePaths
-	Logf      func(format string, args ...any)
+	Engine            string
+	DBPath            string
+	AppDBPath         string
+	InferenceSettings *aisettings.InferenceSettings
+	BasePaths         BasePaths
+	Logf              func(format string, args ...any)
 }
 
 func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
@@ -29,18 +29,7 @@ func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
 		return nil, fmt.Errorf("warm up cozo runtime: %w", err)
 	}
 
-	var engine AIEngine
-	if config.EnableAI {
-		hintEngine, err := hints.NewEngine()
-		if err != nil {
-			config.logf("[NOTEBOOK] AI hints disabled: %v", err)
-		} else {
-			engine = hintEngine
-			config.logf("[NOTEBOOK] AI hints enabled (Anthropic)")
-		}
-	} else {
-		config.logf("[NOTEBOOK] AI hints disabled (no ANTHROPIC_API_KEY)")
-	}
+	engine := newAIEngine("Cozo", config.InferenceSettings, config.logf)
 
 	profile := currentCozoNotebookProfile()
 	store, err := OpenStoreWithConfig(StoreConfig{

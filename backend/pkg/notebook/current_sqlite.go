@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	aisettings "github.com/go-go-golems/geppetto/pkg/steps/ai/settings"
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 )
 
 type CurrentSQLiteModuleConfig struct {
-	RuntimeDBPath string
-	AppDBPath     string
-	EnableAI      bool
-	BasePaths     BasePaths
-	Logf          func(format string, args ...any)
+	RuntimeDBPath     string
+	AppDBPath         string
+	InferenceSettings *aisettings.InferenceSettings
+	BasePaths         BasePaths
+	Logf              func(format string, args ...any)
 }
 
 func OpenCurrentSQLiteModule(config CurrentSQLiteModuleConfig) (*Module, error) {
@@ -21,18 +22,7 @@ func OpenCurrentSQLiteModule(config CurrentSQLiteModuleConfig) (*Module, error) 
 		return nil, fmt.Errorf("open sqlite runtime: %w", err)
 	}
 
-	var engine AIEngine
-	if config.EnableAI {
-		hintEngine, err := hints.NewEngine()
-		if err != nil {
-			config.logf("[NOTEBOOK] SQLite AI hints disabled: %v", err)
-		} else {
-			engine = hintEngine
-			config.logf("[NOTEBOOK] SQLite AI hints enabled (Anthropic)")
-		}
-	} else {
-		config.logf("[NOTEBOOK] SQLite AI hints disabled (no ANTHROPIC_API_KEY)")
-	}
+	engine := newAIEngine("SQLite", config.InferenceSettings, config.logf)
 
 	profile := currentSQLiteNotebookProfile()
 	store, err := OpenStoreWithConfig(StoreConfig{

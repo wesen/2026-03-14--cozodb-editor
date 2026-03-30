@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"strings"
 
+	aisettings "github.com/go-go-golems/geppetto/pkg/steps/ai/settings"
 	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 )
 
 type CurrentJavaScriptModuleConfig struct {
-	AppDBPath string
-	EnableAI  bool
-	BasePaths BasePaths
-	Logf      func(format string, args ...any)
+	AppDBPath         string
+	InferenceSettings *aisettings.InferenceSettings
+	BasePaths         BasePaths
+	Logf              func(format string, args ...any)
 }
 
 func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module, error) {
@@ -20,18 +21,7 @@ func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module,
 		return nil, fmt.Errorf("open javascript runtime: %w", err)
 	}
 
-	var engine AIEngine
-	if config.EnableAI {
-		hintEngine, err := hints.NewEngine()
-		if err != nil {
-			config.logf("[NOTEBOOK] JavaScript AI hints disabled: %v", err)
-		} else {
-			engine = hintEngine
-			config.logf("[NOTEBOOK] JavaScript AI hints enabled (Anthropic)")
-		}
-	} else {
-		config.logf("[NOTEBOOK] JavaScript AI hints disabled (no ANTHROPIC_API_KEY)")
-	}
+	engine := newAIEngine("JavaScript", config.InferenceSettings, config.logf)
 
 	profile := currentJavaScriptNotebookProfile()
 	store, err := OpenStoreWithConfig(StoreConfig{

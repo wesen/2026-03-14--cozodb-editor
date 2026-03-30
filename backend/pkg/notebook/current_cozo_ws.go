@@ -11,7 +11,7 @@ import (
 func currentCozoWebSocketConfig() WebSocketConfig {
 	return WebSocketConfig{
 		HintUnavailable: WebSocketFallbackResponse{
-			Text:  "AI hints are not available (ANTHROPIC_API_KEY not set). Try writing CozoScript directly!",
+			Text:  "AI hints are not available right now. Try writing CozoScript directly!",
 			Chips: []string{"show CozoScript syntax", "create a relation"},
 			Docs: []hints.DocRef{{
 				Title:   "CozoScript basics",
@@ -20,7 +20,7 @@ func currentCozoWebSocketConfig() WebSocketConfig {
 			}},
 		},
 		DiagnosisUnavailable: WebSocketFallbackResponse{
-			Text:  "AI diagnosis is not available (ANTHROPIC_API_KEY not set). Check the error message and CozoScript docs.",
+			Text:  "AI diagnosis is not available right now. Check the error message and CozoScript docs.",
 			Chips: []string{"CozoScript syntax help"},
 		},
 		SEMSinkFactory: func(writeJSON func(wsMessage)) gepevents.EventSink {

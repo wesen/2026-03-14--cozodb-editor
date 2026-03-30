@@ -1,64 +1,317 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"context"
+	"errors"
+	stdErrors "errors"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
+	clay "github.com/go-go-golems/clay/pkg"
+	geppettobootstrap "github.com/go-go-golems/geppetto/pkg/cli/bootstrap"
+	gepprofiles "github.com/go-go-golems/geppetto/pkg/engineprofiles"
+	geppettosections "github.com/go-go-golems/geppetto/pkg/sections"
+	aisettings "github.com/go-go-golems/geppetto/pkg/steps/ai/settings"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/fields"
+	"github.com/go-go-golems/glazed/pkg/cmds/logging"
+	"github.com/go-go-golems/glazed/pkg/cmds/schema"
+	cmd_sources "github.com/go-go-golems/glazed/pkg/cmds/sources"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	profilebootstrap "github.com/go-go-golems/pinocchio/pkg/cmds/profilebootstrap"
+	"github.com/spf13/cobra"
 	"github.com/wesen/cozodb-editor/backend/pkg/api"
 	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
+type ServerSettings struct {
+	Addr              string `glazed:"addr"`
+	Preset            string `glazed:"preset"`
+	Engine            string `glazed:"engine"`
+	DBPath            string `glazed:"db-path"`
+	SQLiteRuntimePath string `glazed:"sqlite-db-path"`
+	AppDBPath         string `glazed:"app-db-path"`
+	ViteURL           string `glazed:"vite"`
+}
+
+type ServerCommand struct {
+	*cmds.CommandDescription
+}
+
+var _ cmds.WriterCommand = &ServerCommand{}
+
+const (
+	serverCommandName  = "cozodb-editor-backend"
+	bootstrapAppName   = "cozodb-editor"
+	bootstrapEnvPrefix = "COZODB_EDITOR"
+	defaultProfileSlug = "gpt-5-mini"
+)
+
 func main() {
+	rootCmd, err := newRootCommand()
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+
+	cobra.CheckErr(rootCmd.Execute())
+}
+
+func newRootCommand() (*cobra.Command, error) {
+	command, err := newServerCommand()
+	if err != nil {
+		return nil, err
+	}
+
+	cobraCommand, err := cli.BuildCobraCommandFromCommand(command, cli.WithParserConfig(cli.CobraParserConfig{
+		MiddlewaresFunc: appCobraMiddlewares,
+	}), cli.WithCobraShortHelpSections(values.DefaultSlug, profilebootstrap.ProfileSettingsSectionSlug))
+	if err != nil {
+		return nil, err
+	}
+
+	cobraCommand.SilenceUsage = true
+	cobraCommand.SilenceErrors = true
+	cobraCommand.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		return logging.InitLoggerFromCobra(cmd)
+	}
+
+	if err := clay.InitGlazed(bootstrapAppName, cobraCommand); err != nil {
+		return nil, err
+	}
+
+	for _, name := range []string{"print-yaml", "print-parsed-fields", "print-schema"} {
+		if flag := cobraCommand.Flags().Lookup(name); flag != nil {
+			flag.Hidden = true
+		}
+	}
+
+	return cobraCommand, nil
+}
+
+func newServerCommand() (*ServerCommand, error) {
+	profileSettingsSection, err := appBootstrapConfig().NewProfileSection()
+	if err != nil {
+		return nil, err
+	}
+	debugSection, err := geppettobootstrap.NewInferenceDebugSection()
+	if err != nil {
+		return nil, err
+	}
+
 	registry := notebook.DefaultPresetRegistry()
 	availablePresets := strings.Join(registry.Names(), ", ")
 
-	addr := flag.String("addr", ":8080", "HTTP listen address")
-	preset := flag.String("preset", "cozo", fmt.Sprintf("Notebook preset to run (%s)", availablePresets))
-	engine := flag.String("engine", "mem", "CozoDB engine (mem, sqlite)")
-	dbPath := flag.String("db-path", "", "CozoDB database path (for sqlite engine)")
-	sqliteRuntimePath := flag.String("sqlite-db-path", "", "SQLite runtime database path for the sqlite preset (empty uses in-memory runtime)")
-	appDBPath := flag.String("app-db-path", "./data/cozodb-editor-app.sqlite", "Application SQLite database path for notebooks and timeline state")
-	viteURL := flag.String("vite", "http://localhost:5173", "Vite dev server URL (empty to disable proxy)")
-	flag.Parse()
+	return &ServerCommand{
+		CommandDescription: cmds.NewCommandDescription(
+			serverCommandName,
+			cmds.WithShort("Run the CozoDB editor backend"),
+			cmds.WithLong("Run the CozoDB editor backend with Glazed flags and shared Geppetto/Pinocchio profile bootstrap inference settings."),
+			cmds.WithFlags(
+				fields.New("addr", fields.TypeString, fields.WithDefault(":8080"), fields.WithHelp("HTTP listen address")),
+				fields.New("preset", fields.TypeString, fields.WithDefault("cozo"), fields.WithHelp("Notebook preset to run ("+availablePresets+")")),
+				fields.New("engine", fields.TypeString, fields.WithDefault("mem"), fields.WithHelp("CozoDB engine (mem, sqlite)")),
+				fields.New("db-path", fields.TypeString, fields.WithDefault(""), fields.WithHelp("CozoDB database path (for sqlite engine)")),
+				fields.New("sqlite-db-path", fields.TypeString, fields.WithDefault(""), fields.WithHelp("SQLite runtime database path for the sqlite preset (empty uses in-memory runtime)")),
+				fields.New("app-db-path", fields.TypeString, fields.WithDefault("./data/cozodb-editor-app.sqlite"), fields.WithHelp("Application SQLite database path for notebooks and timeline state")),
+				fields.New("vite", fields.TypeString, fields.WithDefault("http://localhost:5173"), fields.WithHelp("Vite dev server URL (empty to disable proxy)")),
+			),
+			cmds.WithSections(profileSettingsSection, debugSection),
+		),
+	}, nil
+}
 
-	enableAI := os.Getenv("ANTHROPIC_API_KEY") != ""
-
-	var (
-		notebookModule *notebook.Module
-		err            error
-	)
-
-	notebookModule, err = registry.Open(*preset, notebook.PresetOptions{
-		AppDBPath:         *appDBPath,
-		CozoDBPath:        *dbPath,
-		CozoEngine:        *engine,
-		EnableAI:          enableAI,
-		Logf:              log.Printf,
-		SQLiteRuntimePath: *sqliteRuntimePath,
-	})
-
+func appCobraMiddlewares(parsedCommandSections *values.Values, cmd *cobra.Command, args []string) ([]cmd_sources.Middleware, error) {
+	configFiles, err := geppettobootstrap.ResolveCLIConfigFiles(appBootstrapConfig(), parsedCommandSections)
 	if err != nil {
-		log.Fatalf("Failed to open notebook preset %q: %v", *preset, err)
+		return nil, err
+	}
+
+	return []cmd_sources.Middleware{
+		cmd_sources.FromCobra(cmd, fields.WithSource("cobra")),
+		cmd_sources.FromArgs(args, fields.WithSource("arguments")),
+		cmd_sources.FromEnv(bootstrapEnvPrefix, fields.WithSource("env")),
+		cmd_sources.FromFiles(
+			configFiles,
+			cmd_sources.WithConfigFileMapper(profilebootstrap.MapPinocchioConfigFile),
+			cmd_sources.WithParseOptions(fields.WithSource("config")),
+		),
+		cmd_sources.FromDefaults(fields.WithSource(fields.SourceDefaults)),
+	}, nil
+}
+
+func (c *ServerCommand) RunIntoWriter(ctx context.Context, parsed *values.Values, w io.Writer) error {
+	settings := &ServerSettings{}
+	if err := parsed.DecodeSectionInto(values.DefaultSlug, settings); err != nil {
+		return err
+	}
+
+	effectiveParsed, err := applyApplicationProfileDefaults(parsed)
+	if err != nil {
+		return err
+	}
+
+	profileSelection, err := geppettobootstrap.ResolveCLIProfileSelection(appBootstrapConfig(), effectiveParsed)
+	if err != nil {
+		return err
+	}
+	if profileSelection.Profile != "" && len(profileSelection.ProfileRegistries) == 0 {
+		return &gepprofiles.ValidationError{
+			Field:  "profile-settings.profile-registries",
+			Reason: "must be configured when profile-settings.profile is set",
+		}
+	}
+
+	resolved, err := geppettobootstrap.ResolveCLIEngineSettings(ctx, appBootstrapConfig(), effectiveParsed)
+	if err != nil {
+		return err
+	}
+	if resolved.Close != nil {
+		defer resolved.Close()
+	}
+
+	debugSettings := &geppettobootstrap.InferenceDebugSettings{}
+	if err := effectiveParsed.DecodeSectionInto(geppettobootstrap.InferenceDebugSectionSlug, debugSettings); err != nil {
+		return err
+	}
+	if debugSettings.PrintInferenceSettings {
+		_, err := geppettobootstrap.HandleInferenceDebugOutput(
+			w,
+			appBootstrapConfig(),
+			effectiveParsed,
+			*debugSettings,
+			resolved,
+			geppettobootstrap.InferenceDebugOutputOptions{},
+		)
+		return err
+	}
+
+	return runServer(ctx, settings, resolved.FinalInferenceSettings)
+}
+
+func appBootstrapConfig() geppettobootstrap.AppBootstrapConfig {
+	return geppettobootstrap.AppBootstrapConfig{
+		AppName:          bootstrapAppName,
+		EnvPrefix:        bootstrapEnvPrefix,
+		ConfigFileMapper: profilebootstrap.MapPinocchioConfigFile,
+		NewProfileSection: func() (schema.Section, error) {
+			opts := []geppettosections.ProfileSettingsSectionOption{}
+			if defaultRegistry := defaultPinocchioProfileRegistryIfPresent(); defaultRegistry != "" {
+				opts = append(opts, geppettosections.WithProfileRegistriesDefault(defaultRegistry))
+			}
+			return geppettosections.NewProfileSettingsSection(opts...)
+		},
+		BuildBaseSections: func() ([]schema.Section, error) {
+			return geppettosections.CreateGeppettoSections()
+		},
+	}
+}
+
+func defaultPinocchioProfileRegistryIfPresent() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || strings.TrimSpace(configDir) == "" {
+		return ""
+	}
+
+	path := filepath.Join(configDir, "pinocchio", "profiles.yaml")
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return ""
+	}
+
+	return path
+}
+
+func applyApplicationProfileDefaults(parsed *values.Values) (*values.Values, error) {
+	selection, err := geppettobootstrap.ResolveCLIProfileSelection(appBootstrapConfig(), parsed)
+	if err != nil {
+		return nil, err
+	}
+	if selection.Profile != "" || len(selection.ProfileRegistries) == 0 {
+		return parsed, nil
+	}
+	ok, err := defaultProfileAvailable(selection.ProfileRegistries)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return parsed, nil
+	}
+
+	profileSection, err := appBootstrapConfig().NewProfileSection()
+	if err != nil {
+		return nil, err
+	}
+
+	ret := parsed.Clone()
+	profileValues := ret.GetOrCreate(profileSection)
+	if err := values.WithFieldValue("profile", defaultProfileSlug, fields.WithSource("app-default"))(profileValues); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+func defaultProfileAvailable(registries []string) (bool, error) {
+	specs, err := gepprofiles.ParseRegistrySourceSpecs(registries)
+	if err != nil {
+		return false, err
+	}
+	chain, err := gepprofiles.NewChainedRegistryFromSourceSpecs(context.Background(), specs)
+	if err != nil {
+		return false, err
 	}
 	defer func() {
-		if err := notebookModule.Close(); err != nil {
-			log.Printf("[MAIN] notebook module close error: %v", err)
+		_ = chain.Close()
+	}()
+
+	profileSlug, err := gepprofiles.ParseEngineProfileSlug(defaultProfileSlug)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = chain.ResolveEngineProfile(context.Background(), gepprofiles.ResolveInput{
+		EngineProfileSlug: profileSlug,
+	})
+	if err == nil {
+		return true, nil
+	}
+	if stdErrors.Is(err, gepprofiles.ErrProfileNotFound) {
+		return false, nil
+	}
+	return false, err
+}
+
+func runServer(ctx context.Context, settings *ServerSettings, inferenceSettings *aisettings.InferenceSettings) error {
+	registry := notebook.DefaultPresetRegistry()
+
+	notebookModule, err := registry.Open(settings.Preset, notebook.PresetOptions{
+		AppDBPath:         settings.AppDBPath,
+		CozoDBPath:        settings.DBPath,
+		CozoEngine:        settings.Engine,
+		InferenceSettings: inferenceSettings,
+		Logf:              log.Printf,
+		SQLiteRuntimePath: settings.SQLiteRuntimePath,
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := notebookModule.Close(); closeErr != nil {
+			log.Printf("[MAIN] notebook module close error: %v", closeErr)
 		}
 	}()
 
 	srv := &api.Server{Runtime: notebookModule.Service.Runtime()}
 	mux := http.NewServeMux()
-
-	// API routes
 	mux.HandleFunc("/api/query", srv.HandleQuery)
 	mux.HandleFunc("/api/schema", func(w http.ResponseWriter, r *http.Request) {
-		// Route to detail handler if path has a name after /api/schema/
 		if r.URL.Path != "/api/schema" && r.URL.Path != "/api/schema/" {
 			srv.HandleSchemaDetail(w, r)
 			return
@@ -67,30 +320,40 @@ func main() {
 	})
 	mux.HandleFunc("/api/schema/", srv.HandleSchemaDetail)
 	notebookModule.MountHTTP(mux)
-
-	// WebSocket
 	notebookModule.MountWebSocket(mux)
 
-	// Proxy to Vite dev server for frontend
-	if *viteURL != "" {
-		viteTarget, err := url.Parse(*viteURL)
+	if strings.TrimSpace(settings.ViteURL) != "" {
+		viteTarget, err := url.Parse(settings.ViteURL)
 		if err != nil {
-			log.Fatalf("Invalid vite URL: %v", err)
+			return err
 		}
 		proxy := httputil.NewSingleHostReverseProxy(viteTarget)
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			proxy.ServeHTTP(w, r)
 		})
-		log.Printf("[MAIN] Proxying / to %s", *viteURL)
+		log.Printf("[MAIN] Proxying / to %s", settings.ViteURL)
 	}
 
-	// CORS middleware
-	handler := corsMiddleware(mux)
-
-	log.Printf("[MAIN] Listening on %s", *addr)
-	if err := http.ListenAndServe(*addr, handler); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	httpServer := &http.Server{
+		Addr:    settings.Addr,
+		Handler: corsMiddleware(mux),
 	}
+
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("[MAIN] server shutdown error: %v", err)
+		}
+	}()
+
+	log.Printf("[MAIN] Listening on %s", settings.Addr)
+	err = httpServer.ListenAndServe()
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

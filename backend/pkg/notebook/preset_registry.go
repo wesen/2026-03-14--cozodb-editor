@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	aisettings "github.com/go-go-golems/geppetto/pkg/steps/ai/settings"
 )
 
 type PresetOptions struct {
@@ -11,7 +13,7 @@ type PresetOptions struct {
 	BasePaths         BasePaths
 	CozoDBPath        string
 	CozoEngine        string
-	EnableAI          bool
+	InferenceSettings *aisettings.InferenceSettings
 	Logf              func(format string, args ...any)
 	SQLiteRuntimePath string
 }
@@ -38,12 +40,12 @@ func DefaultPresetRegistry() *PresetRegistry {
 		Open: func(options PresetOptions) (*Module, error) {
 			options.logf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", options.CozoEngine, options.CozoDBPath)
 			return OpenCurrentCozoModule(CurrentCozoModuleConfig{
-				Engine:    options.CozoEngine,
-				DBPath:    options.CozoDBPath,
-				AppDBPath: options.AppDBPath,
-				EnableAI:  options.EnableAI,
-				BasePaths: options.BasePaths,
-				Logf:      options.Logf,
+				Engine:            options.CozoEngine,
+				DBPath:            options.CozoDBPath,
+				AppDBPath:         options.AppDBPath,
+				InferenceSettings: options.InferenceSettings,
+				BasePaths:         options.BasePaths,
+				Logf:              options.Logf,
 			})
 		},
 	})
@@ -53,10 +55,10 @@ func DefaultPresetRegistry() *PresetRegistry {
 		Open: func(options PresetOptions) (*Module, error) {
 			options.logf("[MAIN] Opening current JavaScript notebook preset")
 			return OpenCurrentJavaScriptModule(CurrentJavaScriptModuleConfig{
-				AppDBPath: options.AppDBPath,
-				EnableAI:  options.EnableAI,
-				BasePaths: options.BasePaths,
-				Logf:      options.Logf,
+				AppDBPath:         options.AppDBPath,
+				InferenceSettings: options.InferenceSettings,
+				BasePaths:         options.BasePaths,
+				Logf:              options.Logf,
 			})
 		},
 	})
@@ -66,11 +68,11 @@ func DefaultPresetRegistry() *PresetRegistry {
 		Open: func(options PresetOptions) (*Module, error) {
 			options.logf("[MAIN] Opening current SQLite notebook preset (runtime path=%s)", options.SQLiteRuntimePath)
 			return OpenCurrentSQLiteModule(CurrentSQLiteModuleConfig{
-				RuntimeDBPath: options.SQLiteRuntimePath,
-				AppDBPath:     options.AppDBPath,
-				EnableAI:      options.EnableAI,
-				BasePaths:     options.BasePaths,
-				Logf:          options.Logf,
+				RuntimeDBPath:     options.SQLiteRuntimePath,
+				AppDBPath:         options.AppDBPath,
+				InferenceSettings: options.InferenceSettings,
+				BasePaths:         options.BasePaths,
+				Logf:              options.Logf,
 			})
 		},
 	})
