@@ -28,17 +28,17 @@ import (
 	profilebootstrap "github.com/go-go-golems/pinocchio/pkg/cmds/profilebootstrap"
 	"github.com/spf13/cobra"
 	"github.com/wesen/cozodb-editor/backend/pkg/api"
-	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
-	"github.com/wesen/cozodb-editor/backend/pkg/hints"
 	"github.com/wesen/cozodb-editor/backend/pkg/notebook"
 )
 
 type ServerSettings struct {
-	Addr      string `glazed:"addr"`
-	Engine    string `glazed:"engine"`
-	DBPath    string `glazed:"db-path"`
-	AppDBPath string `glazed:"app-db-path"`
-	ViteURL   string `glazed:"vite"`
+	Addr              string `glazed:"addr"`
+	Preset            string `glazed:"preset"`
+	Engine            string `glazed:"engine"`
+	DBPath            string `glazed:"db-path"`
+	SQLiteRuntimePath string `glazed:"sqlite-db-path"`
+	AppDBPath         string `glazed:"app-db-path"`
+	ViteURL           string `glazed:"vite"`
 }
 
 type ServerCommand struct {
@@ -105,6 +105,9 @@ func newServerCommand() (*ServerCommand, error) {
 		return nil, err
 	}
 
+	registry := notebook.DefaultPresetRegistry()
+	availablePresets := strings.Join(registry.Names(), ", ")
+
 	return &ServerCommand{
 		CommandDescription: cmds.NewCommandDescription(
 			serverCommandName,
@@ -112,8 +115,10 @@ func newServerCommand() (*ServerCommand, error) {
 			cmds.WithLong("Run the CozoDB editor backend with Glazed flags and shared Geppetto/Pinocchio profile bootstrap inference settings."),
 			cmds.WithFlags(
 				fields.New("addr", fields.TypeString, fields.WithDefault(":8080"), fields.WithHelp("HTTP listen address")),
+				fields.New("preset", fields.TypeString, fields.WithDefault("cozo"), fields.WithHelp("Notebook preset to run ("+availablePresets+")")),
 				fields.New("engine", fields.TypeString, fields.WithDefault("mem"), fields.WithHelp("CozoDB engine (mem, sqlite)")),
 				fields.New("db-path", fields.TypeString, fields.WithDefault(""), fields.WithHelp("CozoDB database path (for sqlite engine)")),
+				fields.New("sqlite-db-path", fields.TypeString, fields.WithDefault(""), fields.WithHelp("SQLite runtime database path for the sqlite preset (empty uses in-memory runtime)")),
 				fields.New("app-db-path", fields.TypeString, fields.WithDefault("./data/cozodb-editor-app.sqlite"), fields.WithHelp("Application SQLite database path for notebooks and timeline state")),
 				fields.New("vite", fields.TypeString, fields.WithDefault("http://localhost:5173"), fields.WithHelp("Vite dev server URL (empty to disable proxy)")),
 			),
@@ -246,40 +251,28 @@ func applyApplicationProfileDefaults(parsed *values.Values) (*values.Values, err
 }
 
 func runServer(ctx context.Context, settings *ServerSettings, inferenceSettings *aisettings.InferenceSettings) error {
-	log.Printf("[MAIN] Opening CozoDB (engine=%s, path=%s)", settings.Engine, settings.DBPath)
-	runtime, err := cozo.NewManager(settings.Engine, settings.DBPath)
-	if err != nil {
-		return err
-	}
-	defer runtime.Close()
+	registry := notebook.DefaultPresetRegistry()
+	enableAI := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")) != "" || inferenceSettings != nil
 
-	result, err := runtime.Query("?[] <- [[1, 'hello']]", nil)
-	if err != nil {
-		return err
-	}
-	log.Printf("[MAIN] CozoDB ready: %v", result.OK)
-
-	var hintEngine *hints.Engine
-	hintEngine, err = hints.NewEngineFromSettings(inferenceSettings)
-	if err != nil {
-		log.Printf("[MAIN] AI hints disabled: %v", err)
-	} else {
-		log.Printf("[MAIN] AI hints enabled (%s)", hints.DescribeInferenceSettings(inferenceSettings))
-	}
-
-	notebookSvc, err := notebook.OpenService(settings.AppDBPath, runtime)
+	notebookModule, err := registry.Open(settings.Preset, notebook.PresetOptions{
+		AppDBPath:         settings.AppDBPath,
+		CozoDBPath:        settings.DBPath,
+		CozoEngine:        settings.Engine,
+		EnableAI:          enableAI,
+		InferenceSettings: inferenceSettings,
+		Logf:              log.Printf,
+		SQLiteRuntimePath: settings.SQLiteRuntimePath,
+	})
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if closeErr := notebookSvc.Close(); closeErr != nil {
-			log.Printf("[MAIN] notebook service close error: %v", closeErr)
+		if closeErr := notebookModule.Close(); closeErr != nil {
+			log.Printf("[MAIN] notebook module close error: %v", closeErr)
 		}
 	}()
 
-	srv := &api.Server{Runtime: runtime, Notebook: notebookSvc}
-	wsHandler := &api.WSHandler{Runtime: runtime, Engine: hintEngine}
-
+	srv := &api.Server{Runtime: notebookModule.Service.Runtime()}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/query", srv.HandleQuery)
 	mux.HandleFunc("/api/schema", func(w http.ResponseWriter, r *http.Request) {
@@ -290,12 +283,8 @@ func runServer(ctx context.Context, settings *ServerSettings, inferenceSettings 
 		srv.HandleSchema(w, r)
 	})
 	mux.HandleFunc("/api/schema/", srv.HandleSchemaDetail)
-	mux.HandleFunc("/api/notebooks", srv.HandleCreateNotebook)
-	mux.HandleFunc("/api/notebooks/bootstrap", srv.HandleBootstrapNotebook)
-	mux.HandleFunc("/api/notebooks/", srv.HandleNotebook)
-	mux.HandleFunc("/api/notebook-cells/", srv.HandleNotebookCell)
-	mux.HandleFunc("/api/runtime/reset-kernel", srv.HandleResetKernel)
-	mux.HandleFunc("/ws/hints", wsHandler.HandleWS)
+	notebookModule.MountHTTP(mux)
+	notebookModule.MountWebSocket(mux)
 
 	if strings.TrimSpace(settings.ViteURL) != "" {
 		viteTarget, err := url.Parse(settings.ViteURL)

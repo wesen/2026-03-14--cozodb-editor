@@ -1,14 +1,12 @@
-const API_BASE = "";
-
 interface APIError {
   ok: false;
   message: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function requestJSON<T = Record<string, any>>(path: string, options: RequestInit = {}): Promise<T | APIError> {
+async function requestJSON<T = Record<string, any>>(apiBase: string, path: string, options: RequestInit = {}): Promise<T | APIError> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, options);
+    const res = await fetch(`${apiBase}${path}`, options);
     const rawText = await res.text();
     let data: Record<string, unknown> = {};
     if (rawText) {
@@ -34,7 +32,7 @@ export interface QueryResult {
 }
 
 export async function executeQuery(script: string, params: Record<string, unknown> = {}) {
-  return requestJSON<QueryResult>("/api/query", {
+  return requestJSON<QueryResult>("", "/api/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ script, params }),
@@ -42,7 +40,7 @@ export async function executeQuery(script: string, params: Record<string, unknow
 }
 
 export async function fetchSchema() {
-  const res = await fetch(`${API_BASE}/api/schema`);
+  const res = await fetch("/api/schema");
   if (!res.ok) {
     throw new Error(`schema request failed: ${res.status}`);
   }
@@ -106,16 +104,86 @@ export interface ResetKernelResponse {
   ok: true;
 }
 
+export interface NotebookTransport {
+  bootstrapNotebook(): Promise<NotebookDocument | APIError>;
+  updateNotebookTitle(notebookId: string, title: string): Promise<NotebookDocument | APIError>;
+  insertNotebookCell(notebookId: string, payload: InsertCellPayload): Promise<NotebookMutationResult | APIError>;
+  clearNotebook(notebookId: string): Promise<NotebookDocument | APIError>;
+  updateNotebookCell(cellId: string, payload: UpdateCellPayload): Promise<NotebookCell | APIError>;
+  moveNotebookCell(cellId: string, targetIndex: number): Promise<NotebookMutationResult | APIError>;
+  deleteNotebookCell(cellId: string): Promise<NotebookMutationResult | APIError>;
+  runNotebookCell(cellId: string): Promise<CellRuntime | APIError>;
+  resetNotebookKernel(): Promise<ResetKernelResponse | APIError>;
+}
+
+export interface HTTPNotebookTransportOptions {
+  apiBase?: string;
+}
+
+export function createHTTPNotebookTransport({ apiBase = "" }: HTTPNotebookTransportOptions = {}): NotebookTransport {
+  return {
+    bootstrapNotebook() {
+      return requestJSON<NotebookDocument>(apiBase, "/api/notebooks/bootstrap");
+    },
+    updateNotebookTitle(notebookId: string, title: string) {
+      return requestJSON<NotebookDocument>(apiBase, `/api/notebooks/${notebookId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+    },
+    insertNotebookCell(notebookId: string, payload: InsertCellPayload) {
+      return requestJSON<NotebookMutationResult>(apiBase, `/api/notebooks/${notebookId}/cells`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+    clearNotebook(notebookId: string) {
+      return requestJSON<NotebookDocument>(apiBase, `/api/notebooks/${notebookId}/clear`, {
+        method: "POST",
+      });
+    },
+    updateNotebookCell(cellId: string, payload: UpdateCellPayload) {
+      return requestJSON<NotebookCell>(apiBase, `/api/notebook-cells/${cellId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+    moveNotebookCell(cellId: string, targetIndex: number) {
+      return requestJSON<NotebookMutationResult>(apiBase, `/api/notebook-cells/${cellId}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_index: targetIndex }),
+      });
+    },
+    deleteNotebookCell(cellId: string) {
+      return requestJSON<NotebookMutationResult>(apiBase, `/api/notebook-cells/${cellId}`, {
+        method: "DELETE",
+      });
+    },
+    runNotebookCell(cellId: string) {
+      return requestJSON<CellRuntime>(apiBase, `/api/notebook-cells/${cellId}/run`, {
+        method: "POST",
+      });
+    },
+    resetNotebookKernel() {
+      return requestJSON<ResetKernelResponse>(apiBase, "/api/runtime/reset-kernel", {
+        method: "POST",
+      });
+    },
+  };
+}
+
+export const defaultNotebookTransport = createHTTPNotebookTransport();
+
 export async function bootstrapNotebook() {
-  return requestJSON<NotebookDocument>("/api/notebooks/bootstrap");
+  return defaultNotebookTransport.bootstrapNotebook();
 }
 
 export async function updateNotebookTitle(notebookId: string, title: string) {
-  return requestJSON<NotebookDocument>(`/api/notebooks/${notebookId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
-  });
+  return defaultNotebookTransport.updateNotebookTitle(notebookId, title);
 }
 
 export interface InsertCellPayload {
@@ -125,17 +193,11 @@ export interface InsertCellPayload {
 }
 
 export async function insertNotebookCell(notebookId: string, payload: InsertCellPayload) {
-  return requestJSON<NotebookMutationResult>(`/api/notebooks/${notebookId}/cells`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return defaultNotebookTransport.insertNotebookCell(notebookId, payload);
 }
 
 export async function clearNotebook(notebookId: string) {
-  return requestJSON<NotebookDocument>(`/api/notebooks/${notebookId}/clear`, {
-    method: "POST",
-  });
+  return defaultNotebookTransport.clearNotebook(notebookId);
 }
 
 export interface UpdateCellPayload {
@@ -144,35 +206,21 @@ export interface UpdateCellPayload {
 }
 
 export async function updateNotebookCell(cellId: string, payload: UpdateCellPayload) {
-  return requestJSON<NotebookCell>(`/api/notebook-cells/${cellId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return defaultNotebookTransport.updateNotebookCell(cellId, payload);
 }
 
 export async function moveNotebookCell(cellId: string, targetIndex: number) {
-  return requestJSON<NotebookMutationResult>(`/api/notebook-cells/${cellId}/move`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target_index: targetIndex }),
-  });
+  return defaultNotebookTransport.moveNotebookCell(cellId, targetIndex);
 }
 
 export async function deleteNotebookCell(cellId: string) {
-  return requestJSON<NotebookMutationResult>(`/api/notebook-cells/${cellId}`, {
-    method: "DELETE",
-  });
+  return defaultNotebookTransport.deleteNotebookCell(cellId);
 }
 
 export async function runNotebookCell(cellId: string) {
-  return requestJSON<CellRuntime>(`/api/notebook-cells/${cellId}/run`, {
-    method: "POST",
-  });
+  return defaultNotebookTransport.runNotebookCell(cellId);
 }
 
 export async function resetNotebookKernel() {
-  return requestJSON<ResetKernelResponse>("/api/runtime/reset-kernel", {
-    method: "POST",
-  });
+  return defaultNotebookTransport.resetNotebookKernel();
 }

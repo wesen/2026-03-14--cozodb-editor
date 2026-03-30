@@ -1,7 +1,7 @@
 ---
 Title: Notebook clear and kernel reset
 Ticket: COZODB-009
-Status: active
+Status: complete
 Topics:
     - frontend
     - backend
@@ -12,7 +12,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-19T10:40:19.19692504-04:00
+LastUpdated: 2026-03-23T14:40:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -30,7 +30,7 @@ WhenToUse: ""
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 

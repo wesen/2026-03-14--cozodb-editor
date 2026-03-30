@@ -1,0 +1,127 @@
+# JavaScript Preset Inventory
+
+## Current notebook preset files
+backend/pkg/notebook/module.go:12:	WebSocketConfig   WebSocketConfig
+backend/pkg/notebook/module.go:31:		WebSocketConfig: config.WebSocket,
+backend/pkg/notebook/module.go:45:		WebSocketConfig: DefaultWebSocketConfig(),
+backend/pkg/notebook/module.go:75:	MountWebSocketRoutesWithConfig(mux, m.Service.runtime, m.AI, m.BasePaths, m.WebSocketConfig)
+backend/pkg/notebook/profile.go:8:type NotebookProfile struct {
+backend/pkg/notebook/profile.go:14:func DefaultNotebookProfile() NotebookProfile {
+backend/pkg/notebook/profile.go:15:	return NotebookProfile{
+backend/pkg/notebook/profile.go:31:func (p NotebookProfile) withDefaults() NotebookProfile {
+backend/pkg/notebook/profile.go:32:	defaults := DefaultNotebookProfile()
+backend/pkg/notebook/store_test.go:11:func TestOpenStoreWithConfigUsesNotebookProfileForDefaultNotebook(t *testing.T) {
+backend/pkg/notebook/store_test.go:14:		Profile: NotebookProfile{
+backend/pkg/notebook/current_cozo.go:21:func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
+backend/pkg/notebook/current_cozo.go:45:	profile := currentCozoNotebookProfile()
+backend/pkg/notebook/current_cozo.go:72:		WebSocket: currentCozoWebSocketConfig(),
+backend/pkg/notebook/current_cozo.go:88:func currentCozoNotebookProfile() NotebookProfile {
+backend/pkg/notebook/current_cozo.go:89:	return NotebookProfile{
+backend/pkg/notebook/current_cozo_ws.go:11:func currentCozoWebSocketConfig() WebSocketConfig {
+backend/pkg/notebook/current_cozo_ws.go:12:	return WebSocketConfig{
+backend/pkg/notebook/websocket_test.go:63:	MountWebSocketRoutesWithConfig(mux, runtime, nil, DefaultBasePaths(), WebSocketConfig{
+backend/pkg/notebook/ws_config.go:14:type WebSocketConfig struct {
+backend/pkg/notebook/ws_config.go:20:func DefaultWebSocketConfig() WebSocketConfig {
+backend/pkg/notebook/ws_config.go:21:	return WebSocketConfig{
+backend/pkg/notebook/ws_config.go:33:func (c WebSocketConfig) withDefaults() WebSocketConfig {
+backend/pkg/notebook/ws_config.go:34:	defaults := DefaultWebSocketConfig()
+backend/pkg/notebook/store.go:20:	Profile NotebookProfile
+backend/pkg/notebook/store.go:26:	profile NotebookProfile
+backend/pkg/notebook/store.go:618:func initialDefaultNotebookCells(now int64, profile NotebookProfile) []NotebookCell {
+backend/pkg/notebook/store.go:642:func starterCellsForNotebook(notebookID string, now int64, profile NotebookProfile) []NotebookCell {
+backend/pkg/notebook/config.go:33:	WebSocket     WebSocketConfig
+backend/pkg/notebook/http_test.go:35:		Profile: currentCozoNotebookProfile(),
+backend/pkg/notebook/websocket.go:60:	config    WebSocketConfig
+backend/pkg/notebook/websocket.go:64:	MountWebSocketRoutesWithConfig(mux, runtime, engine, DefaultBasePaths(), DefaultWebSocketConfig())
+backend/pkg/notebook/websocket.go:68:	MountWebSocketRoutesWithConfig(mux, runtime, engine, basePaths, DefaultWebSocketConfig())
+backend/pkg/notebook/websocket.go:71:func MountWebSocketRoutesWithConfig(mux *http.ServeMux, runtime Runtime, engine AIEngine, basePaths BasePaths, config WebSocketConfig) {
+backend/pkg/notebook/service_test.go:25:		Profile: currentCozoNotebookProfile(),
+backend/pkg/notebook/current_cozo_test.go:12:func TestOpenCurrentCozoModuleMountsCustomPaths(t *testing.T) {
+backend/pkg/notebook/current_cozo_test.go:13:	module, err := OpenCurrentCozoModule(CurrentCozoModuleConfig{
+backend/main.go:25:	notebookModule, err := notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
+frontend/src/notebook/experience.tsx:2:import { NotebookExperienceContext, defaultNotebookExperienceConfig, type NotebookExperienceConfig } from "./experienceConfig";
+frontend/src/notebook/experience.tsx:8:  value?: Partial<NotebookExperienceConfig>;
+frontend/src/notebook/experience.tsx:10:  const resolvedValue: NotebookExperienceConfig = {
+frontend/src/notebook/experience.tsx:11:    ...defaultNotebookExperienceConfig,
+frontend/src/notebook/experience.tsx:13:    SemThreadRenderer: value?.SemThreadRenderer ?? defaultNotebookExperienceConfig.SemThreadRenderer,
+frontend/src/notebook/NotebookApp.tsx:7:import type { NotebookExperienceConfig } from "./experienceConfig";
+frontend/src/notebook/NotebookApp.tsx:12:  experienceConfig?: Partial<NotebookExperienceConfig>;
+frontend/src/notebook/experienceConfig.ts:18:export interface NotebookExperienceConfig {
+frontend/src/notebook/experienceConfig.ts:24:export const defaultNotebookExperienceConfig: NotebookExperienceConfig = {
+frontend/src/notebook/experienceConfig.ts:30:export const NotebookExperienceContext = createContext<NotebookExperienceConfig>(defaultNotebookExperienceConfig);
+frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx:2:import { CurrentCozoNotebookApp } from "./currentCozo";
+frontend/src/notebook/index.ts:5:} from "./currentCozo";
+frontend/src/notebook/index.ts:8:  currentCozoNotebookExperienceConfig,
+frontend/src/notebook/index.ts:9:  currentCozoNotebookShellConfig,
+frontend/src/notebook/index.ts:10:} from "./currentCozoConfig";
+frontend/src/notebook/index.ts:20:  defaultNotebookExperienceConfig,
+frontend/src/notebook/index.ts:22:  type NotebookExperienceConfig,
+frontend/src/notebook/NotebookApp.stories.tsx:4:import { createCurrentCozoNotebookStore, currentCozoNotebookExperienceConfig } from "./currentCozoConfig";
+frontend/src/notebook/NotebookApp.stories.tsx:22:        experienceConfig={currentCozoNotebookExperienceConfig}
+frontend/src/notebook/currentCozo.tsx:8:  currentCozoNotebookExperienceConfig,
+frontend/src/notebook/currentCozo.tsx:9:  currentCozoNotebookShellConfig,
+frontend/src/notebook/currentCozo.tsx:10:} from "./currentCozoConfig";
+frontend/src/notebook/currentCozo.tsx:46:      experienceConfig={currentCozoNotebookExperienceConfig}
+frontend/src/notebook/currentCozo.tsx:48:      shellConfig={{ ...currentCozoNotebookShellConfig, ...shellConfig }}
+frontend/src/notebook/currentCozoConfig.ts:5:import type { NotebookExperienceConfig } from "./experienceConfig";
+frontend/src/notebook/currentCozoConfig.ts:7:export const currentCozoNotebookShellConfig: NotebookShellConfig = {
+frontend/src/notebook/currentCozoConfig.ts:20:export const currentCozoNotebookExperienceConfig: NotebookExperienceConfig = {
+
+## go-go-goja engine files
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/modules/fs/fs.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/modules/exports.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/modules/exports.go.orig
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/modules/exec/exec.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/modules/common.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/modules/database/database.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/cmd/bun-demo/js/src/split/modules/metrics.ts
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/pkg/repl/evaluators/javascript/evaluator_test.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/pkg/repl/evaluators/javascript/docs_resolver_test.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/pkg/repl/evaluators/javascript/example_test.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/pkg/repl/evaluators/javascript/evaluator.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/pkg/repl/evaluators/javascript/docs_resolver.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/options.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/module_roots_test.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/module_specs.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/factory.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/runtime.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/runtime_test.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/factory_test.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/runtime_modules.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/runtime.go.orig
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/config.go.orig
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/module_roots.go
+/home/manuel/code/wesen/corporate-headquarters/go-go-goja/engine/runtime_modules_test.go
+
+## Runtime interface references
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:32:func (m *Manager) Query(script string, params map[string]any) (*QueryResult, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:35:	return m.db.Query(script, params)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:38:func (m *Manager) ListRelations() ([]string, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:41:	return m.db.ListRelations()
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:44:func (m *Manager) DescribeRelation(name string) (*RelationInfo, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:47:	return m.db.DescribeRelation(name)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:50:func (m *Manager) GetSchema() (string, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:53:	return m.db.GetSchema()
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/manager.go:62:func (m *Manager) Reset() (int64, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:76:func (db *DB) Query(script string, params map[string]any) (*QueryResult, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:113:func (db *DB) RawQuery(script string, params map[string]any) (string, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:146:func (db *DB) ListRelations() ([]string, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:147:	result, err := db.Query("::relations", nil)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:168:func (db *DB) DescribeRelation(name string) (*RelationInfo, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:169:	result, err := db.Query(fmt.Sprintf("::columns %s", name), nil)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:205:func (db *DB) GetSchema() (string, error) {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:206:	names, err := db.ListRelations()
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/cozo/db.go:216:		info, err := db.DescribeRelation(name)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/runtime.go:5:type Runtime interface {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/runtime.go:6:	DescribeRelation(name string) (*cozo.RelationInfo, error)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/runtime.go:7:	GetSchema() (string, error)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/runtime.go:8:	ListRelations() ([]string, error)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/runtime.go:9:	Query(script string, params map[string]any) (*cozo.QueryResult, error)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/runtime.go:10:	Reset() (int64, error)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/current_cozo.go:27:	if _, err := runtime.Query(defaultWarmupScript, nil); err != nil {
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/service.go:154:	generation, err := s.runtime.Reset()
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/service.go:195:	result, err := s.runtime.Query(cell.Source, nil)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/websocket.go:362:	return h.runtime.GetSchema()
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/service_test.go:118:	_, err = runtime.Query(":create users {name: String => age: Int}", nil)
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/service_test.go:120:	beforeResetRelations, err := runtime.ListRelations()
+/home/manuel/code/wesen/2026-03-14--cozodb-editor/backend/pkg/notebook/service_test.go:132:	afterResetRelations, err := runtime.ListRelations()

@@ -1,7 +1,7 @@
 ---
 Title: CozoDB Datalog Pad — Go Backend, AI Hints, and Frontend
 Ticket: COZODB-001
-Status: active
+Status: complete
 Topics:
     - cozodb
     - ai-completion
@@ -13,13 +13,13 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: ../../../../../../corporate-headquarters/pinocchio:Pinocchio/Geppetto — Go LLM streaming, SEM structured extraction
+    - Path: /home/manuel/code/wesen/corporate-headquarters/pinocchio
+      Note: Pinocchio/Geppetto Go streaming and SEM extraction reference repo
     - Path: imports/query2.jsx
       Note: Frontend prototype — DatalogPad React component with AI blocks
-    - Path: imports/query2.jsx:Frontend prototype JSX — DatalogPad component with AI blocks, chips, doc previews, error diagnosis
 ExternalSources: []
 Summary: 'Build a Datalog query UI (DatalogPad) with inline AI assistance: #?? comment triggers → streaming AI answers, clickable suggestion chips, expandable doc previews, auto error diagnosis. Go backend wraps CozoDB for query execution. Pinocchio/Geppetto provides streaming LLM completions with structured data extraction (SEM) over WebSocket.'
-LastUpdated: 2026-03-14T14:50:24.288665009-04:00
+LastUpdated: 2026-03-23T14:40:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -60,7 +60,7 @@ assistant responds inline with:
 
 ## Status
 
-Current status: **active** — Research phase
+Current status: **complete** — Research phase documented and uploaded
 
 ## Tasks
 

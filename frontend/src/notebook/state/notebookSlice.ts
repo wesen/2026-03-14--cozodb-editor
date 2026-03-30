@@ -1,14 +1,5 @@
 import { createSelector, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
-  bootstrapNotebook,
-  clearNotebook,
-  deleteNotebookCell,
-  insertNotebookCell,
-  moveNotebookCell,
-  resetNotebookKernel,
-  runNotebookCell,
-  updateNotebookCell,
-  updateNotebookTitle,
   type CellRuntime,
   type Notebook,
   type NotebookCell,
@@ -250,9 +241,9 @@ export const {
 
 export const notebookReducer = notebookSlice.reducer;
 
-export const loadNotebook = (): AppThunk<Promise<void>> => async (dispatch) => {
+export const loadNotebook = (): AppThunk<Promise<void>> => async (dispatch, _getState, { notebookTransport }) => {
   dispatch(notebookLoadStarted());
-  const response = await bootstrapNotebook();
+  const response = await notebookTransport.bootstrapNotebook();
   if ("notebook" in response) {
     dispatch(notebookLoaded(response as NotebookDocument));
     return;
@@ -261,7 +252,7 @@ export const loadNotebook = (): AppThunk<Promise<void>> => async (dispatch) => {
   dispatch(notebookLoadFailed(getErrorMessage(response, "Failed to load notebook")));
 };
 
-export const persistNotebookCell = (cellId: string): AppThunk<Promise<NotebookCell | null>> => async (dispatch, getState) => {
+export const persistNotebookCell = (cellId: string): AppThunk<Promise<NotebookCell | null>> => async (dispatch, getState, { notebookTransport }) => {
   const state = getState().notebook;
   const cell = state.cellsById[cellId];
   if (!cell) {
@@ -273,7 +264,7 @@ export const persistNotebookCell = (cellId: string): AppThunk<Promise<NotebookCe
     return cell;
   }
 
-  const response = await updateNotebookCell(cellId, {
+  const response = await notebookTransport.updateNotebookCell(cellId, {
     kind: cell.kind,
     source: cell.source,
   });
@@ -286,13 +277,13 @@ export const persistNotebookCell = (cellId: string): AppThunk<Promise<NotebookCe
   return null;
 };
 
-export const persistNotebookTitle = (title: string): AppThunk<Promise<void>> => async (dispatch, getState) => {
+export const persistNotebookTitle = (title: string): AppThunk<Promise<void>> => async (dispatch, getState, { notebookTransport }) => {
   const notebookId = getState().notebook.notebook?.id;
   if (!notebookId) {
     return;
   }
 
-  const response = await updateNotebookTitle(notebookId, title);
+  const response = await notebookTransport.updateNotebookTitle(notebookId, title);
   if ("notebook" in response) {
     dispatch(notebookTitleUpdated(response as NotebookDocument));
     return;
@@ -305,13 +296,13 @@ export const insertNotebookCellBelow = (
   afterCellId: string,
   kind: "code" | "markdown",
   source = "",
-): AppThunk<Promise<NotebookCell | null>> => async (dispatch, getState) => {
+): AppThunk<Promise<NotebookCell | null>> => async (dispatch, getState, { notebookTransport }) => {
   const notebookId = getState().notebook.notebook?.id;
   if (!notebookId) {
     return null;
   }
 
-  const response = await insertNotebookCell(notebookId, {
+  const response = await notebookTransport.insertNotebookCell(notebookId, {
     after_cell_id: afterCellId,
     kind,
     source,
@@ -325,13 +316,13 @@ export const insertNotebookCellBelow = (
   return null;
 };
 
-export const clearCurrentNotebook = (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+export const clearCurrentNotebook = (): AppThunk<Promise<void>> => async (dispatch, getState, { notebookTransport }) => {
   const notebookId = getState().notebook.notebook?.id;
   if (!notebookId) {
     return;
   }
 
-  const response = await clearNotebook(notebookId);
+  const response = await notebookTransport.clearNotebook(notebookId);
   if ("notebook" in response) {
     dispatch(notebookCleared(response as NotebookDocument));
     return;
@@ -343,14 +334,14 @@ export const clearCurrentNotebook = (): AppThunk<Promise<void>> => async (dispat
 export const moveNotebookCellToIndex = (
   cellId: string,
   targetIndex: number,
-): AppThunk<Promise<void>> => async (dispatch, getState) => {
+): AppThunk<Promise<void>> => async (dispatch, getState, { notebookTransport }) => {
   const state = getState().notebook;
   if (!state.cellsById[cellId]) {
     dispatch(setNotebookError("Cell not found"));
     return;
   }
 
-  const response = await moveNotebookCell(cellId, targetIndex);
+  const response = await notebookTransport.moveNotebookCell(cellId, targetIndex);
   if ("document" in response) {
     dispatch(mutationResultApplied(response as NotebookMutationResult));
     return;
@@ -359,14 +350,14 @@ export const moveNotebookCellToIndex = (
   dispatch(setNotebookError(getErrorMessage(response, "Failed to move cell")));
 };
 
-export const deleteNotebookCellById = (cellId: string): AppThunk<Promise<void>> => async (dispatch, getState) => {
+export const deleteNotebookCellById = (cellId: string): AppThunk<Promise<void>> => async (dispatch, getState, { notebookTransport }) => {
   const state = getState().notebook;
   if (!state.cellsById[cellId]) {
     dispatch(setNotebookError("Cell not found"));
     return;
   }
 
-  const response = await deleteNotebookCell(cellId);
+  const response = await notebookTransport.deleteNotebookCell(cellId);
   if ("document" in response) {
     dispatch(mutationResultApplied(response as NotebookMutationResult));
     return;
@@ -375,7 +366,7 @@ export const deleteNotebookCellById = (cellId: string): AppThunk<Promise<void>> 
   dispatch(setNotebookError(getErrorMessage(response, "Failed to delete cell")));
 };
 
-export const runNotebookCellById = (cellId: string): AppThunk<Promise<CellRuntime | null>> => async (dispatch, getState) => {
+export const runNotebookCellById = (cellId: string): AppThunk<Promise<CellRuntime | null>> => async (dispatch, getState, { notebookTransport }) => {
   const state = getState().notebook;
   if (!state.cellsById[cellId]) {
     dispatch(setNotebookError("Cell not found"));
@@ -389,7 +380,7 @@ export const runNotebookCellById = (cellId: string): AppThunk<Promise<CellRuntim
     }
   }
 
-  const response = await runNotebookCell(cellId);
+  const response = await notebookTransport.runNotebookCell(cellId);
   if ("run" in response || "output" in response) {
     dispatch(runtimeUpdated({ cellId, runtime: response as CellRuntime }));
     return response as CellRuntime;
@@ -399,8 +390,8 @@ export const runNotebookCellById = (cellId: string): AppThunk<Promise<CellRuntim
   return null;
 };
 
-export const resetNotebookKernelState = (): AppThunk<Promise<void>> => async (dispatch) => {
-  const response = await resetNotebookKernel();
+export const resetNotebookKernelState = (): AppThunk<Promise<void>> => async (dispatch, _getState, { notebookTransport }) => {
+  const response = await notebookTransport.resetNotebookKernel();
   if ("ok" in response && response.ok === true) {
     dispatch(kernelResetApplied((response as ResetKernelResponse).kernel_generation));
     return;

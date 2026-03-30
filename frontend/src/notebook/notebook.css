@@ -15,6 +15,21 @@
   width: 100%;
 }
 
+.mac-notebook-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.mac-notebook-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mac-notebook-empty-actions {
+  flex-wrap: wrap;
+}
+
 .mac-status-msg {
   padding: 8px 12px;
   border: 1px solid #999;
@@ -295,6 +310,31 @@
   display: flex;
   gap: 8px;
   justify-content: center;
+}
+
+@media (max-width: 960px) {
+  .mac-notebook-body {
+    padding: 10px 12px 20px;
+  }
+
+  .mac-menubar__hint {
+    display: none;
+  }
+
+  .mac-window__titlebar {
+    min-height: 24px;
+    height: auto;
+    flex-wrap: wrap;
+  }
+
+  .mac-window__titlebar-left,
+  .mac-window__titlebar-right {
+    flex-wrap: wrap;
+  }
+
+  .mac-window__title-input {
+    min-width: 140px;
+  }
 }
 
 /* ===== Legacy compat ===== */

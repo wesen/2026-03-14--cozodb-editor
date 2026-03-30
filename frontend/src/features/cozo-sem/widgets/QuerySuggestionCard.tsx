@@ -1,4 +1,5 @@
 import { buildQuerySuggestionMarkdownNote } from "../../../notebook/aiNoteMarkdown";
+import { useNotebookExperience } from "../../../notebook/experienceConfig";
 import type { SemEntity } from "../../../sem/semProjection";
 import type { QuerySuggestionViewModel } from "../view-models/toQuerySuggestionViewModel";
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function QuerySuggestionCard({ entity, onAddToNotebook, onInsertCode, viewModel }: Props) {
+  const { codeFenceLanguage } = useNotebookExperience();
   const isErrored = entity?.status === "error";
 
   return (
@@ -47,6 +49,7 @@ export function QuerySuggestionCard({ entity, onAddToNotebook, onInsertCode, vie
               className="mac-btn"
               onClick={() => onAddToNotebook?.(buildQuerySuggestionMarkdownNote({
                 code: viewModel.code,
+                codeFenceLanguage,
                 label: viewModel.label,
                 reason: viewModel.reason,
               }))}

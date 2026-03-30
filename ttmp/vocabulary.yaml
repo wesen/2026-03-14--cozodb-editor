@@ -27,10 +27,16 @@ topics:
       description: Semantic event model work and related integration
     - slug: architecture
       description: Architecture analysis and design work
+    - slug: javascript
+      description: JavaScript language/runtime and frontend/backend integration topics
+    - slug: notebook
+      description: Notebook packaging, runtime, and UI concerns
     - slug: syntax-highlighting
       description: Syntax highlighting, Lezer grammars, CodeMirror language packages
     - slug: codemirror
       description: CodeMirror 6 editor integration, extensions, and theming
+    - slug: sqlite
+      description: SQLite runtime, SQL notebook preset, and related frontend/backend integration work
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

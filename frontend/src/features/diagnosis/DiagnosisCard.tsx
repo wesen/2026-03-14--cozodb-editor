@@ -1,4 +1,6 @@
+import { ActionRow, CodePanel, MacButton, SectionLabel } from "../../components/primitives";
 import { buildDiagnosisMarkdownNote } from "../../notebook/aiNoteMarkdown";
+import { useNotebookExperience } from "../../notebook/experienceConfig";
 
 interface DiagnosisFix {
   text: string;
@@ -15,6 +17,8 @@ interface Props {
 }
 
 export function DiagnosisCard({ diagnosing, error, fix, onAddToNotebook, onApplyFix, onDiagnose }: Props) {
+  const { codeFenceLanguage } = useNotebookExperience();
+
   return (
     <div className="cozo-diagnosis-card">
       <div style={{
@@ -45,37 +49,33 @@ export function DiagnosisCard({ diagnosing, error, fix, onAddToNotebook, onApply
           background: "var(--bg-ai)",
           borderTop: "1px solid var(--border-error-dim)",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 10, letterSpacing: "0.04em" }}>
+          <SectionLabel style={{ marginBottom: 10 }}>
             AI SUGGESTED FIX
-          </div>
+          </SectionLabel>
           <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-primary)", marginBottom: 12 }}>
             {fix.text}
           </div>
           {fix.code && (
-            <div className="cozo-code-panel" style={{
-              padding: "10px 14px",
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5, lineHeight: 1.6,
-              color: "var(--text-code)", marginBottom: 10, whiteSpace: "pre",
-            }}>
+            <CodePanel preserveWhitespace={false} style={{ marginBottom: 10, whiteSpace: "pre" }}>
               {fix.code}
-            </div>
+            </CodePanel>
           )}
           {fix.code ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className="mac-btn" onClick={onApplyFix}>
+            <ActionRow>
+              <MacButton onClick={onApplyFix}>
                 Apply fix
-              </button>
-              <button
-                className="mac-btn"
+              </MacButton>
+              <MacButton
                 onClick={() => onAddToNotebook?.(buildDiagnosisMarkdownNote({
+                  codeFenceLanguage,
                   error,
                   fixCode: fix.code,
                   fixText: fix.text,
                 }))}
               >
                 Add to notebook
-              </button>
-            </div>
+              </MacButton>
+            </ActionRow>
           ) : null}
         </div>
       ) : onDiagnose ? (
@@ -84,9 +84,9 @@ export function DiagnosisCard({ diagnosing, error, fix, onAddToNotebook, onApply
           background: "var(--bg-ai)",
           borderTop: "1px solid var(--border-error-dim)",
         }}>
-          <button className="mac-btn" onClick={onDiagnose} disabled={diagnosing}>
+          <MacButton onClick={onDiagnose} disabled={diagnosing}>
             {diagnosing ? "Diagnosing..." : "Ask AI to diagnose"}
-          </button>
+          </MacButton>
         </div>
       ) : null}
     </div>

@@ -1,0 +1,497 @@
+== date ==
+2026-03-23T00:45:19-04:00
+
+== preset surfaces ==
+frontend/src/App.tsx:1:import { CurrentCozoNotebookApp, CurrentJavaScriptNotebookApp } from "./notebook";
+frontend/src/App.tsx:3:const NOTEBOOK_PRESET = import.meta.env.VITE_NOTEBOOK_PRESET;
+frontend/src/App.tsx:7:    return <CurrentJavaScriptNotebookApp />;
+frontend/src/App.tsx:10:  return <CurrentCozoNotebookApp />;
+backend/main.go:17:	preset := flag.String("preset", "cozo", "Notebook preset to run (cozo, javascript)")
+backend/main.go:31:	switch *preset {
+backend/main.go:33:		log.Printf("[MAIN] Opening current Cozo notebook preset (engine=%s, path=%s)", *engine, *dbPath)
+backend/main.go:34:		notebookModule, err = notebook.OpenCurrentCozoModule(notebook.CurrentCozoModuleConfig{
+backend/main.go:42:		log.Printf("[MAIN] Opening current JavaScript notebook preset")
+backend/main.go:43:		notebookModule, err = notebook.OpenCurrentJavaScriptModule(notebook.CurrentJavaScriptModuleConfig{
+backend/main.go:49:		log.Fatalf("Unknown preset %q", *preset)
+backend/main.go:53:		log.Fatalf("Failed to open notebook preset %q: %v", *preset, err)
+frontend/src/notebook/registerCurrentCozoSemHandlers.ts:5:export const registerCurrentCozoSemHandlers: NotebookSemHandlerRegistrar = (socket, { onProject } = {}) => ([
+backend/pkg/notebook/current_cozo.go:12:type CurrentCozoModuleConfig struct {
+backend/pkg/notebook/current_cozo.go:21:func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
+backend/pkg/notebook/current_cozo.go:45:	profile := currentCozoNotebookProfile()
+backend/pkg/notebook/current_cozo.go:72:		WebSocket: currentCozoWebSocketConfig(),
+backend/pkg/notebook/current_cozo.go:88:func currentCozoNotebookProfile() NotebookProfile {
+backend/pkg/notebook/current_cozo.go:105:func (c CurrentCozoModuleConfig) logf(format string, args ...any) {
+backend/pkg/notebook/current_cozo_ws.go:11:func currentCozoWebSocketConfig() WebSocketConfig {
+frontend/src/notebook/currentJavaScriptConfig.ts:6:export const currentJavaScriptNotebookShellConfig: NotebookShellConfig = {
+frontend/src/notebook/currentJavaScriptConfig.ts:11:export function createCurrentJavaScriptNotebookStore({ apiBase = "" }: { apiBase?: string } = {}) {
+frontend/src/notebook/currentJavaScriptConfig.ts:19:export const currentJavaScriptNotebookExperienceConfig: NotebookExperienceConfig = {
+frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx:2:import { CurrentCozoNotebookApp } from "./currentCozo";
+frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx:7:  title: "Notebook/CurrentCozoNotebookApp",
+frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx:8:  component: CurrentCozoNotebookApp,
+frontend/src/notebook/CurrentCozoNotebookApp.stories.tsx:23:} satisfies Meta<typeof CurrentCozoNotebookApp>;
+backend/pkg/notebook/http_test.go:35:		Profile: currentCozoNotebookProfile(),
+frontend/src/notebook/CurrentJavaScriptNotebookApp.stories.tsx:2:import { CurrentJavaScriptNotebookApp } from "./currentJavaScript";
+frontend/src/notebook/CurrentJavaScriptNotebookApp.stories.tsx:7:  title: "Notebook/CurrentJavaScriptNotebookApp",
+frontend/src/notebook/CurrentJavaScriptNotebookApp.stories.tsx:8:  component: CurrentJavaScriptNotebookApp,
+frontend/src/notebook/CurrentJavaScriptNotebookApp.stories.tsx:21:} satisfies Meta<typeof CurrentJavaScriptNotebookApp>;
+frontend/src/notebook/index.ts:3:  CurrentCozoNotebookApp,
+frontend/src/notebook/index.ts:4:  type CurrentCozoNotebookAppProps,
+frontend/src/notebook/index.ts:5:} from "./currentCozo";
+frontend/src/notebook/index.ts:7:  CurrentJavaScriptNotebookApp,
+frontend/src/notebook/index.ts:8:  type CurrentJavaScriptNotebookAppProps,
+frontend/src/notebook/index.ts:9:} from "./currentJavaScript";
+frontend/src/notebook/index.ts:11:  createCurrentCozoNotebookStore,
+frontend/src/notebook/index.ts:12:  currentCozoNotebookExperienceConfig,
+frontend/src/notebook/index.ts:13:  currentCozoNotebookShellConfig,
+frontend/src/notebook/index.ts:14:} from "./currentCozoConfig";
+frontend/src/notebook/index.ts:16:  createCurrentJavaScriptNotebookStore,
+frontend/src/notebook/index.ts:17:  currentJavaScriptNotebookExperienceConfig,
+frontend/src/notebook/index.ts:18:  currentJavaScriptNotebookShellConfig,
+frontend/src/notebook/index.ts:19:} from "./currentJavaScriptConfig";
+frontend/src/notebook/index.ts:40:  registerCurrentCozoSemHandlers,
+frontend/src/notebook/index.ts:41:} from "./registerCurrentCozoSemHandlers";
+backend/pkg/notebook/current_javascript_test.go:12:func TestOpenCurrentJavaScriptModuleMountsCustomPaths(t *testing.T) {
+backend/pkg/notebook/current_javascript_test.go:13:	module, err := OpenCurrentJavaScriptModule(CurrentJavaScriptModuleConfig{
+backend/pkg/notebook/current_javascript_test.go:16:			Notebooks:     "/preset/notebooks",
+backend/pkg/notebook/current_javascript_test.go:17:			NotebookCells: "/preset/notebook-cells",
+backend/pkg/notebook/current_javascript_test.go:18:			ResetKernel:   "/preset/runtime/reset-kernel",
+backend/pkg/notebook/current_javascript_test.go:19:			HintsWS:       "/preset/ws/hints",
+backend/pkg/notebook/current_javascript_test.go:29:	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/preset/notebooks/bootstrap", nil))
+backend/pkg/notebook/service_test.go:25:		Profile: currentCozoNotebookProfile(),
+backend/pkg/notebook/current_javascript.go:10:type CurrentJavaScriptModuleConfig struct {
+backend/pkg/notebook/current_javascript.go:17:func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module, error) {
+backend/pkg/notebook/current_javascript.go:36:	profile := currentJavaScriptNotebookProfile()
+backend/pkg/notebook/current_javascript.go:63:		WebSocket: currentJavaScriptWebSocketConfig(),
+backend/pkg/notebook/current_javascript.go:78:func currentJavaScriptNotebookProfile() NotebookProfile {
+backend/pkg/notebook/current_javascript.go:102:func currentJavaScriptWebSocketConfig() WebSocketConfig {
+backend/pkg/notebook/current_javascript.go:125:func (c CurrentJavaScriptModuleConfig) logf(format string, args ...any) {
+frontend/src/notebook/NotebookApp.stories.tsx:4:import { createCurrentCozoNotebookStore, currentCozoNotebookExperienceConfig } from "./currentCozoConfig";
+frontend/src/notebook/NotebookApp.stories.tsx:6:  createCurrentJavaScriptNotebookStore,
+frontend/src/notebook/NotebookApp.stories.tsx:7:  currentJavaScriptNotebookExperienceConfig,
+frontend/src/notebook/NotebookApp.stories.tsx:8:} from "./currentJavaScriptConfig";
+frontend/src/notebook/NotebookApp.stories.tsx:9:import { registerCurrentCozoSemHandlers } from "./registerCurrentCozoSemHandlers";
+frontend/src/notebook/NotebookApp.stories.tsx:19:  const [store] = useState(() => createCurrentCozoNotebookStore());
+frontend/src/notebook/NotebookApp.stories.tsx:31:        experienceConfig={currentCozoNotebookExperienceConfig}
+frontend/src/notebook/NotebookApp.stories.tsx:32:        registerSemHandlers={registerCurrentCozoSemHandlers}
+frontend/src/notebook/NotebookApp.stories.tsx:45:  const [store] = useState(() => createCurrentJavaScriptNotebookStore());
+frontend/src/notebook/NotebookApp.stories.tsx:52:          This story mounts the reusable notebook package with the JavaScript preset, without the current Cozo app wrapper.
+frontend/src/notebook/NotebookApp.stories.tsx:57:        experienceConfig={currentJavaScriptNotebookExperienceConfig}
+backend/pkg/notebook/current_cozo_test.go:12:func TestOpenCurrentCozoModuleMountsCustomPaths(t *testing.T) {
+backend/pkg/notebook/current_cozo_test.go:13:	module, err := OpenCurrentCozoModule(CurrentCozoModuleConfig{
+backend/pkg/notebook/current_cozo_test.go:17:			Notebooks:     "/preset/notebooks",
+backend/pkg/notebook/current_cozo_test.go:18:			NotebookCells: "/preset/notebook-cells",
+backend/pkg/notebook/current_cozo_test.go:19:			ResetKernel:   "/preset/runtime/reset-kernel",
+backend/pkg/notebook/current_cozo_test.go:20:			HintsWS:       "/preset/ws/hints",
+backend/pkg/notebook/current_cozo_test.go:30:	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/preset/notebooks/bootstrap", nil))
+frontend/src/notebook/currentCozo.tsx:7:  createCurrentCozoNotebookStore,
+frontend/src/notebook/currentCozo.tsx:8:  currentCozoNotebookExperienceConfig,
+frontend/src/notebook/currentCozo.tsx:9:  currentCozoNotebookShellConfig,
+frontend/src/notebook/currentCozo.tsx:10:} from "./currentCozoConfig";
+frontend/src/notebook/currentCozo.tsx:11:import { registerCurrentCozoSemHandlers } from "./registerCurrentCozoSemHandlers";
+frontend/src/notebook/currentCozo.tsx:19:export interface CurrentCozoNotebookAppProps {
+frontend/src/notebook/currentCozo.tsx:28:interface CurrentCozoNotebookAppBaseProps {
+frontend/src/notebook/currentCozo.tsx:35:function CurrentCozoNotebookAppBase({
+frontend/src/notebook/currentCozo.tsx:40:}: CurrentCozoNotebookAppBaseProps) {
+frontend/src/notebook/currentCozo.tsx:41:  const [resolvedStore] = useState(() => store ?? createCurrentCozoNotebookStore());
+frontend/src/notebook/currentCozo.tsx:46:      experienceConfig={currentCozoNotebookExperienceConfig}
+frontend/src/notebook/currentCozo.tsx:47:      registerSemHandlers={registerCurrentCozoSemHandlers}
+frontend/src/notebook/currentCozo.tsx:48:      shellConfig={{ ...currentCozoNotebookShellConfig, ...shellConfig }}
+frontend/src/notebook/currentCozo.tsx:55:function CurrentCozoNotebookAppWithLiveSocket({
+frontend/src/notebook/currentCozo.tsx:61:}: Omit<CurrentCozoNotebookAppProps, "ws">) {
+frontend/src/notebook/currentCozo.tsx:62:  const [resolvedStore] = useState(() => store ?? createCurrentCozoNotebookStore({ apiBase }));
+frontend/src/notebook/currentCozo.tsx:66:    <CurrentCozoNotebookAppBase
+frontend/src/notebook/currentCozo.tsx:75:export function CurrentCozoNotebookApp(props: CurrentCozoNotebookAppProps) {
+frontend/src/notebook/currentCozo.tsx:78:      <CurrentCozoNotebookAppBase
+frontend/src/notebook/currentCozo.tsx:88:    <CurrentCozoNotebookAppWithLiveSocket
+frontend/src/notebook/currentJavaScript.tsx:7:  createCurrentJavaScriptNotebookStore,
+frontend/src/notebook/currentJavaScript.tsx:8:  currentJavaScriptNotebookExperienceConfig,
+frontend/src/notebook/currentJavaScript.tsx:9:  currentJavaScriptNotebookShellConfig,
+frontend/src/notebook/currentJavaScript.tsx:10:} from "./currentJavaScriptConfig";
+frontend/src/notebook/currentJavaScript.tsx:19:export interface CurrentJavaScriptNotebookAppProps {
+frontend/src/notebook/currentJavaScript.tsx:28:interface CurrentJavaScriptNotebookAppBaseProps {
+frontend/src/notebook/currentJavaScript.tsx:35:function CurrentJavaScriptNotebookAppBase({
+frontend/src/notebook/currentJavaScript.tsx:40:}: CurrentJavaScriptNotebookAppBaseProps) {
+frontend/src/notebook/currentJavaScript.tsx:41:  const [resolvedStore] = useState(() => store ?? createCurrentJavaScriptNotebookStore());
+frontend/src/notebook/currentJavaScript.tsx:46:      experienceConfig={currentJavaScriptNotebookExperienceConfig}
+frontend/src/notebook/currentJavaScript.tsx:48:      shellConfig={{ ...currentJavaScriptNotebookShellConfig, ...shellConfig }}
+frontend/src/notebook/currentJavaScript.tsx:55:function CurrentJavaScriptNotebookAppWithLiveSocket({
+frontend/src/notebook/currentJavaScript.tsx:61:}: Omit<CurrentJavaScriptNotebookAppProps, "ws">) {
+frontend/src/notebook/currentJavaScript.tsx:62:  const [resolvedStore] = useState(() => store ?? createCurrentJavaScriptNotebookStore({ apiBase }));
+frontend/src/notebook/currentJavaScript.tsx:66:    <CurrentJavaScriptNotebookAppBase
+frontend/src/notebook/currentJavaScript.tsx:75:export function CurrentJavaScriptNotebookApp(props: CurrentJavaScriptNotebookAppProps) {
+frontend/src/notebook/currentJavaScript.tsx:78:      <CurrentJavaScriptNotebookAppBase
+frontend/src/notebook/currentJavaScript.tsx:88:    <CurrentJavaScriptNotebookAppWithLiveSocket
+frontend/src/notebook/currentCozoConfig.ts:8:export const currentCozoNotebookShellConfig: NotebookShellConfig = {
+frontend/src/notebook/currentCozoConfig.ts:13:export function createCurrentCozoNotebookStore({ apiBase = "" }: { apiBase?: string } = {}) {
+frontend/src/notebook/currentCozoConfig.ts:21:export const currentCozoNotebookExperienceConfig: NotebookExperienceConfig = {
+
+== runtime seam ==
+package notebook
+
+type RuntimeColumnInfo struct {
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	HasDefault bool   `json:"has_default"`
+}
+
+type RuntimeRelationInfo struct {
+	Name   string              `json:"name"`
+	Keys   []RuntimeColumnInfo `json:"keys"`
+	Values []RuntimeColumnInfo `json:"values"`
+}
+
+type RuntimeQueryResult struct {
+	OK      bool     `json:"ok"`
+	Headers []string `json:"headers,omitempty"`
+	Rows    [][]any  `json:"rows,omitempty"`
+	Took    float64  `json:"took,omitempty"`
+	Code    string   `json:"code,omitempty"`
+	Message string   `json:"message,omitempty"`
+	Display string   `json:"display,omitempty"`
+}
+
+type Runtime interface {
+	DescribeRelation(name string) (*RuntimeRelationInfo, error)
+	GetSchema() (string, error)
+	ListRelations() ([]string, error)
+	Query(script string, params map[string]any) (*RuntimeQueryResult, error)
+	Reset() (int64, error)
+}
+
+== profile seam ==
+package notebook
+
+type StarterCellTemplate struct {
+	Kind   string
+	Source string
+}
+
+type NotebookProfile struct {
+	DefaultLanguage      string
+	DefaultNotebookTitle string
+	StarterCells         []StarterCellTemplate
+}
+
+func DefaultNotebookProfile() NotebookProfile {
+	return NotebookProfile{
+		DefaultLanguage:      "notebook",
+		DefaultNotebookTitle: "Notebook",
+		StarterCells: []StarterCellTemplate{
+			{
+				Kind:   "markdown",
+				Source: "## Notebook\n\nWrite notes or code in the cells below.",
+			},
+			{
+				Kind:   "code",
+				Source: "",
+			},
+		},
+	}
+}
+
+func (p NotebookProfile) withDefaults() NotebookProfile {
+	defaults := DefaultNotebookProfile()
+	if p.DefaultLanguage == "" {
+		p.DefaultLanguage = defaults.DefaultLanguage
+	}
+	if p.DefaultNotebookTitle == "" {
+		p.DefaultNotebookTitle = defaults.DefaultNotebookTitle
+	}
+	if len(p.StarterCells) == 0 {
+		p.StarterCells = defaults.StarterCells
+	}
+	return p
+}
+
+== existing preset constructors ==
+package notebook
+
+import (
+	"fmt"
+
+	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
+	"github.com/wesen/cozodb-editor/backend/pkg/hints"
+)
+
+const defaultWarmupScript = "?[] <- [[1, 'hello']]"
+
+type CurrentCozoModuleConfig struct {
+	Engine    string
+	DBPath    string
+	AppDBPath string
+	EnableAI  bool
+	BasePaths BasePaths
+	Logf      func(format string, args ...any)
+}
+
+func OpenCurrentCozoModule(config CurrentCozoModuleConfig) (*Module, error) {
+	runtime, err := cozo.NewManager(config.Engine, config.DBPath)
+	if err != nil {
+		return nil, fmt.Errorf("open cozo runtime: %w", err)
+	}
+
+	if _, err := runtime.Query(defaultWarmupScript, nil); err != nil {
+		runtime.Close()
+		return nil, fmt.Errorf("warm up cozo runtime: %w", err)
+	}
+
+	var engine AIEngine
+	if config.EnableAI {
+		hintEngine, err := hints.NewEngine()
+		if err != nil {
+			config.logf("[NOTEBOOK] AI hints disabled: %v", err)
+		} else {
+			engine = hintEngine
+			config.logf("[NOTEBOOK] AI hints enabled (Anthropic)")
+		}
+	} else {
+		config.logf("[NOTEBOOK] AI hints disabled (no ANTHROPIC_API_KEY)")
+	}
+
+	profile := currentCozoNotebookProfile()
+	store, err := OpenStoreWithConfig(StoreConfig{
+		DBPath:  config.AppDBPath,
+		Profile: profile,
+	})
+	if err != nil {
+		runtime.Close()
+		return nil, err
+	}
+
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
+	if err != nil {
+		_ = store.Close()
+		runtime.Close()
+		return nil, err
+	}
+
+	module, err := NewModule(ModuleConfig{
+		ServiceConfig: ServiceConfig{
+			Runtime:    newCozoRuntime(runtime),
+			SessionID:  "cozo-notebook-session",
+			RuntimeKey: "cozo-runtime",
+			Store:      store,
+			Timeline:   timeline,
+		},
+		AI:        engine,
+		BasePaths: config.BasePaths,
+		WebSocket: currentCozoWebSocketConfig(),
+	})
+	if err != nil {
+		_ = timeline.Close()
+		_ = store.Close()
+		runtime.Close()
+		return nil, err
+	}
+
+	module.additionalClosers = append(module.additionalClosers, func() error {
+		runtime.Close()
+		return nil
+	})
+	return module, nil
+}
+
+func currentCozoNotebookProfile() NotebookProfile {
+	return NotebookProfile{
+		DefaultLanguage:      "cozoscript",
+		DefaultNotebookTitle: "Notebook Playground",
+		StarterCells: []StarterCellTemplate{
+			{
+				Kind:   "markdown",
+				Source: "## Cozo Notebook\n\nWrite a query in the next cell and run it.",
+			},
+			{
+				Kind:   "code",
+				Source: "?[x] <- [[1], [2], [3]]",
+			},
+		},
+	}
+}
+
+func (c CurrentCozoModuleConfig) logf(format string, args ...any) {
+	if c.Logf != nil {
+		c.Logf(format, args...)
+	}
+}
+
+package notebook
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/wesen/cozodb-editor/backend/pkg/hints"
+)
+
+type CurrentJavaScriptModuleConfig struct {
+	AppDBPath string
+	EnableAI  bool
+	BasePaths BasePaths
+	Logf      func(format string, args ...any)
+}
+
+func OpenCurrentJavaScriptModule(config CurrentJavaScriptModuleConfig) (*Module, error) {
+	runtime, err := OpenJavaScriptRuntime(JavaScriptRuntimeConfig{})
+	if err != nil {
+		return nil, fmt.Errorf("open javascript runtime: %w", err)
+	}
+
+	var engine AIEngine
+	if config.EnableAI {
+		hintEngine, err := hints.NewEngine()
+		if err != nil {
+			config.logf("[NOTEBOOK] JavaScript AI hints disabled: %v", err)
+		} else {
+			engine = hintEngine
+			config.logf("[NOTEBOOK] JavaScript AI hints enabled (Anthropic)")
+		}
+	} else {
+		config.logf("[NOTEBOOK] JavaScript AI hints disabled (no ANTHROPIC_API_KEY)")
+	}
+
+	profile := currentJavaScriptNotebookProfile()
+	store, err := OpenStoreWithConfig(StoreConfig{
+		DBPath:  config.AppDBPath,
+		Profile: profile,
+	})
+	if err != nil {
+		_ = runtime.Close()
+		return nil, err
+	}
+
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
+	if err != nil {
+		_ = store.Close()
+		_ = runtime.Close()
+		return nil, err
+	}
+
+	module, err := NewModule(ModuleConfig{
+		ServiceConfig: ServiceConfig{
+			Runtime:    runtime,
+			SessionID:  "javascript-notebook-session",
+			RuntimeKey: "javascript-runtime",
+			Store:      store,
+			Timeline:   timeline,
+		},
+		AI:        engine,
+		BasePaths: config.BasePaths,
+		WebSocket: currentJavaScriptWebSocketConfig(),
+	})
+	if err != nil {
+		_ = timeline.Close()
+		_ = store.Close()
+		_ = runtime.Close()
+		return nil, err
+	}
+
+	module.additionalClosers = append(module.additionalClosers, func() error {
+		return runtime.Close()
+	})
+	return module, nil
+}
+
+func currentJavaScriptNotebookProfile() NotebookProfile {
+	return NotebookProfile{
+		DefaultLanguage:      "javascript",
+		DefaultNotebookTitle: "JavaScript Notebook",
+		StarterCells: []StarterCellTemplate{
+			{
+				Kind:   "markdown",
+				Source: "## JavaScript Notebook\n\nWrite JavaScript in the next cell and run it. Values persist until you reset the runtime.",
+			},
+			{
+				Kind: "code",
+				Source: strings.TrimSpace(`
+globalThis.users = [
+  { name: "Ada", age: 31 },
+  { name: "Grace", age: 42 },
+]
+
+globalThis.users
+`),
+			},
+		},
+	}
+}
+
+func currentJavaScriptWebSocketConfig() WebSocketConfig {
+	return WebSocketConfig{
+		HintUnavailable: WebSocketFallbackResponse{
+			Text:  "AI hints are unavailable right now. Try asking for a smaller JavaScript explanation, or inspect the current value directly in the notebook output.",
+			Chips: []string{"explain this code", "show async example", "inspect this value"},
+			Docs: []hints.DocRef{{
+				Title:   "JavaScript guide",
+				Section: "MDN",
+				Body:    "Start with expressions and arrays of objects so notebook results stay easy to inspect and tabulate.",
+			}},
+		},
+		DiagnosisUnavailable: WebSocketFallbackResponse{
+			Text:  "AI diagnosis is unavailable right now. Check the exception text, re-run a smaller snippet, or inspect the current globals and returned value.",
+			Chips: []string{"explain this exception", "show safer version", "how do I debug this"},
+			Docs: []hints.DocRef{{
+				Title:   "JavaScript debugging reference",
+				Section: "MDN",
+				Body:    "Reduce the snippet, inspect returned values, and reset the runtime if a previous cell polluted global state.",
+			}},
+		},
+	}
+}
+
+func (c CurrentJavaScriptModuleConfig) logf(format string, args ...any) {
+	if c.Logf != nil {
+		c.Logf(format, args...)
+	}
+}
+
+== frontend preset configs ==
+import { makeStore } from "../app/store";
+import { CozoScriptEditor } from "../editor/CozoScriptEditor";
+import { CozoSemRenderer } from "../features/cozo-sem/CozoSemRenderer";
+import { createHTTPNotebookTransport } from "../transport/httpClient";
+import { defaultNotebookShellConfig, type NotebookShellConfig } from "./config";
+import type { NotebookExperienceConfig } from "./experienceConfig";
+
+export const currentCozoNotebookShellConfig: NotebookShellConfig = {
+  ...defaultNotebookShellConfig,
+  appName: "CozoDB Notebook",
+};
+
+export function createCurrentCozoNotebookStore({ apiBase = "" }: { apiBase?: string } = {}) {
+  return makeStore({
+    services: {
+      notebookTransport: createHTTPNotebookTransport({ apiBase }),
+    },
+  });
+}
+
+export const currentCozoNotebookExperienceConfig: NotebookExperienceConfig = {
+  codeCellPlaceholder: "-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)",
+  codeFenceLanguage: "cozoscript",
+  CodeCellEditor: CozoScriptEditor,
+  SemThreadRenderer: CozoSemRenderer,
+};
+
+import { makeStore } from "../app/store";
+import { createHTTPNotebookTransport } from "../transport/httpClient";
+import { defaultNotebookShellConfig, type NotebookShellConfig } from "./config";
+import { defaultNotebookExperienceConfig, type NotebookExperienceConfig } from "./experienceConfig";
+
+export const currentJavaScriptNotebookShellConfig: NotebookShellConfig = {
+  ...defaultNotebookShellConfig,
+  appName: "JavaScript Notebook",
+};
+
+export function createCurrentJavaScriptNotebookStore({ apiBase = "" }: { apiBase?: string } = {}) {
+  return makeStore({
+    services: {
+      notebookTransport: createHTTPNotebookTransport({ apiBase }),
+    },
+  });
+}
+
+export const currentJavaScriptNotebookExperienceConfig: NotebookExperienceConfig = {
+  ...defaultNotebookExperienceConfig,
+  codeCellPlaceholder: "// Enter JavaScript... (Shift+Enter run, Alt/Ctrl+Enter run+new)",
+  codeFenceLanguage: "javascript",
+};

@@ -34,6 +34,17 @@ vi.mock("../../transport/httpClient", () => ({
   runNotebookCell: vi.fn(),
   updateNotebookCell: vi.fn(),
   updateNotebookTitle: vi.fn(),
+  createHTTPNotebookTransport: vi.fn(() => ({
+    bootstrapNotebook: vi.fn(),
+    clearNotebook: vi.fn(),
+    deleteNotebookCell: vi.fn(),
+    insertNotebookCell: vi.fn(),
+    moveNotebookCell: vi.fn(),
+    resetNotebookKernel: vi.fn(),
+    runNotebookCell: vi.fn(),
+    updateNotebookCell: vi.fn(),
+    updateNotebookTitle: vi.fn(),
+  })),
 }));
 
 const baseDocument: NotebookDocument = {
@@ -58,6 +69,24 @@ const baseDocument: NotebookDocument = {
 };
 
 describe("notebookSlice", () => {
+  function makeTestStore() {
+    return makeStore({
+      services: {
+        notebookTransport: {
+          bootstrapNotebook: vi.mocked(bootstrapNotebook),
+          clearNotebook: vi.mocked(clearNotebook),
+          deleteNotebookCell: vi.fn(),
+          insertNotebookCell: vi.mocked(insertNotebookCell),
+          moveNotebookCell: vi.fn(),
+          resetNotebookKernel: vi.mocked(resetNotebookKernel),
+          runNotebookCell: vi.mocked(runNotebookCell),
+          updateNotebookCell: vi.mocked(updateNotebookCell),
+          updateNotebookTitle: vi.fn(),
+        },
+      },
+    });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(bootstrapNotebook).mockResolvedValue(structuredClone(baseDocument));
@@ -66,7 +95,7 @@ describe("notebookSlice", () => {
   });
 
   it("loads notebook state into normalized selectors", async () => {
-    const store = makeStore();
+    const store = makeTestStore();
 
     await store.dispatch(loadNotebook());
 
@@ -74,7 +103,7 @@ describe("notebookSlice", () => {
   });
 
   it("persists dirty cell source before running", async () => {
-    const store = makeStore();
+    const store = makeTestStore();
     const persistedCell = {
       ...baseDocument.cells[0]!,
       source: "?[x] := [[42]]",
@@ -114,7 +143,7 @@ describe("notebookSlice", () => {
   });
 
   it("preserves dirty local drafts when an insert response replaces notebook order", async () => {
-    const store = makeStore();
+    const store = makeTestStore();
     const insertedCell = {
       id: "cell_2",
       notebook_id: "nb_1",
@@ -147,7 +176,7 @@ describe("notebookSlice", () => {
   });
 
   it("clears notebook cells back to the server starter document", async () => {
-    const store = makeStore();
+    const store = makeTestStore();
     const clearedDocument: NotebookDocument = {
       notebook: structuredClone(baseDocument.notebook),
       cells: [
@@ -185,7 +214,7 @@ describe("notebookSlice", () => {
   });
 
   it("clears runtime and sem state on kernel reset while preserving cells", async () => {
-    const store = makeStore();
+    const store = makeTestStore();
 
     await store.dispatch(loadNotebook());
     store.dispatch(runtimeUpdated({

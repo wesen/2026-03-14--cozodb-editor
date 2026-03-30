@@ -1,0 +1,144 @@
+== date ==
+2026-03-22T22:15:17-04:00
+
+== repo ==
+/home/manuel/code/wesen/2026-03-14--cozodb-editor
+
+== merge heads ==
+95a99f7
+136a956
+084ce54fb1a56be7bba6c5cf2df4dc0619545168
+
+== status ==
+UU frontend/package-lock.json
+M  frontend/package.json
+A  frontend/src/editor/CozoScriptEditor.tsx
+A  frontend/src/editor/codemirror/complete.js
+A  frontend/src/editor/codemirror/cozoscript.grammar
+A  frontend/src/editor/codemirror/highlight.js
+A  frontend/src/editor/codemirror/index.d.ts
+A  frontend/src/editor/codemirror/index.js
+A  frontend/src/editor/codemirror/parser.js
+A  frontend/src/editor/codemirror/parser.terms.js
+A  frontend/src/editor/cozoscriptSystem7Theme.ts
+UU frontend/src/notebook/NotebookCellCard.tsx
+UU frontend/src/notebook/NotebookPage.tsx
+M  frontend/src/notebook/notebook.css
+A  ttmp/2026/03/19/COZODB-010--cozoscript-syntax-highlighting-for-notebook-editor-system-7-theme/README.md
+A  ttmp/2026/03/19/COZODB-010--cozoscript-syntax-highlighting-for-notebook-editor-system-7-theme/analysis/01-implementation-diary-cozoscript-syntax-highlighting-integration.md
+A  ttmp/2026/03/19/COZODB-010--cozoscript-syntax-highlighting-for-notebook-editor-system-7-theme/changelog.md
+A  ttmp/2026/03/19/COZODB-010--cozoscript-syntax-highlighting-for-notebook-editor-system-7-theme/design-doc/01-cozoscript-syntax-highlighting-complete-design-and-implementation-guide.md
+A  ttmp/2026/03/19/COZODB-010--cozoscript-syntax-highlighting-for-notebook-editor-system-7-theme/index.md
+A  ttmp/2026/03/19/COZODB-010--cozoscript-syntax-highlighting-for-notebook-editor-system-7-theme/tasks.md
+UU ttmp/vocabulary.yaml
+?? ttmp/2026/03/22/COZODB-015--resolve-origin-main-merge-conflicts-between-notebook-modularization-and-cozoscript-editor-integration/
+
+== unmerged files ==
+frontend/package-lock.json
+frontend/src/notebook/NotebookCellCard.tsx
+frontend/src/notebook/NotebookPage.tsx
+ttmp/vocabulary.yaml
+
+== conflict markers ==
+ttmp/vocabulary.yaml:30:<<<<<<< HEAD
+ttmp/vocabulary.yaml:36:=======
+ttmp/vocabulary.yaml:41:>>>>>>> origin/main
+frontend/src/notebook/NotebookPage.tsx:31:<<<<<<< HEAD
+frontend/src/notebook/NotebookPage.tsx:276:=======
+frontend/src/notebook/NotebookPage.tsx:526:>>>>>>> origin/main
+frontend/src/notebook/NotebookCellCard.tsx:3:<<<<<<< HEAD
+frontend/src/notebook/NotebookCellCard.tsx:10:=======
+frontend/src/notebook/NotebookCellCard.tsx:17:>>>>>>> origin/main
+frontend/src/notebook/NotebookCellCard.tsx:45:<<<<<<< HEAD
+frontend/src/notebook/NotebookCellCard.tsx:78:=======
+frontend/src/notebook/NotebookCellCard.tsx:115:>>>>>>> origin/main
+frontend/src/notebook/NotebookCellCard.tsx:234:<<<<<<< HEAD
+frontend/src/notebook/NotebookCellCard.tsx:463:=======
+frontend/src/notebook/NotebookCellCard.tsx:644:>>>>>>> origin/main
+frontend/package-lock.json:1445:<<<<<<< HEAD
+frontend/package-lock.json:1483:=======
+frontend/package-lock.json:1514:>>>>>>> origin/main
+frontend/package-lock.json:3221:<<<<<<< HEAD
+frontend/package-lock.json:3237:=======
+frontend/package-lock.json:3244:>>>>>>> origin/main
+
+== commits unique to local ==
+95a99f7 (HEAD -> main) docs: add language preset playbook
+018a6a4 docs: add COZODB-014 postmortem and project report
+5b09433 docs: close COZODB-014 javascript preset ticket
+10f2094 frontend: add javascript notebook preset and stories
+ccedfbb backend: add javascript notebook preset with goja runtime
+fb965e2 backend: make notebook runtime contract package-owned
+9ed62a8 docs: close COZODB-013 packaging ticket
+2d7fe22 notebook: move cozo experience into preset config
+3885c14 docs: record COZODB-013 frontend packaging progress
+9f657e1 frontend: add notebook package smoke coverage
+073ba4e frontend: add notebook app and current cozo preset
+3b69ec1 frontend: inject notebook transport through store services
+a96d31d docs: record COZODB-013 backend packaging progress
+a9a362c backend: add current cozo notebook preset
+ee21331 backend: add notebook module api and base path config
+5aff62f docs: add COZODB-013 packaging api design guide
+a594867 docs: finalize COZODB-012 backend cutover
+1e13d38 backend: move notebook websocket routes into notebook package
+58424d1 docs: record COZODB-012 rest route cutover
+d7360dd backend: move notebook rest routes into notebook package
+1a1c64a docs: record COZODB-012 service inversion slice
+f5d575b backend: invert notebook service runtime and timeline deps
+cfb178a docs: finalize COZODB-011 notebook page refactor notes
+b5715bf frontend: add interactive notebook page stories with msw
+8f1fc82 docs: record COZODB-011 frontend modularization progress
+ea9b9c6 frontend: split notebook cell card into view and container
+cf623a2 frontend: add storybook and reusable notebook primitives
+
+== commits unique to merge head ==
+136a956 (origin/main, task/cozo-autocomplete-notebook) Merge pull request #1 from wesen/task/cozo-autocomplete-notebook
+3717f14 (origin/task/cozo-autocomplete-notebook) :art: Restore enter shortcut
+a3e01e4 fix(notebook): strip ANSI escape codes from error output
+17553da fix(notebook): use monospace font in error body for alignment
+fe4306f docs(COZODB-010): add diary entry for double-execution bugfix
+edb3159 fix(editor): prevent double cell execution on Shift+Enter
+dcfbcc0 docs(COZODB-010): update diary with implementation details
+c6d424a feat(editor): add CozoScript syntax highlighting with System 7 theme
+
+== merge-head diff stat ==
+ frontend/package-lock.json                         |  126 ++
+ frontend/package.json                              |    8 +
+ frontend/src/editor/CozoScriptEditor.tsx           |  210 ++++
+ frontend/src/editor/codemirror/complete.js         |  409 ++++++
+ frontend/src/editor/codemirror/cozoscript.grammar  |  395 ++++++
+ frontend/src/editor/codemirror/highlight.js        |   73 ++
+ frontend/src/editor/codemirror/index.d.ts          |    7 +
+ frontend/src/editor/codemirror/index.js            |   35 +
+ frontend/src/editor/codemirror/parser.js           |   21 +
+ frontend/src/editor/codemirror/parser.terms.js     |  197 +++
+ frontend/src/editor/cozoscriptSystem7Theme.ts      |  146 +++
+ frontend/src/notebook/NotebookCellCard.tsx         |   34 +-
+ frontend/src/notebook/NotebookPage.tsx             |   11 +-
+ frontend/src/notebook/notebook.css                 |   21 +
+ .../README.md                                      |   21 +
+ ...y-cozoscript-syntax-highlighting-integration.md |  304 +++++
+ .../changelog.md                                   |   16 +
+ ...ing-complete-design-and-implementation-guide.md | 1307 ++++++++++++++++++++
+ .../index.md                                       |   73 ++
+ .../tasks.md                                       |   14 +
+ ttmp/vocabulary.yaml                               |    4 +
+ 21 files changed, 3422 insertions(+), 10 deletions(-)
+
+== notebook-targeted merge-head diff stat ==
+ frontend/package-lock.json                        | 126 +++++++
+ frontend/package.json                             |   8 +
+ frontend/src/editor/CozoScriptEditor.tsx          | 210 +++++++++++
+ frontend/src/editor/codemirror/complete.js        | 409 ++++++++++++++++++++++
+ frontend/src/editor/codemirror/cozoscript.grammar | 395 +++++++++++++++++++++
+ frontend/src/editor/codemirror/highlight.js       |  73 ++++
+ frontend/src/editor/codemirror/index.d.ts         |   7 +
+ frontend/src/editor/codemirror/index.js           |  35 ++
+ frontend/src/editor/codemirror/parser.js          |  21 ++
+ frontend/src/editor/codemirror/parser.terms.js    | 197 +++++++++++
+ frontend/src/editor/cozoscriptSystem7Theme.ts     | 146 ++++++++
+ frontend/src/notebook/NotebookCellCard.tsx        |  34 +-
+ frontend/src/notebook/NotebookPage.tsx            |  11 +-
+ frontend/src/notebook/notebook.css                |  21 ++
+ ttmp/vocabulary.yaml                              |   4 +
+ 15 files changed, 1687 insertions(+), 10 deletions(-)

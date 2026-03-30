@@ -1,18 +1,12 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { CozoScriptEditor } from "../editor/CozoScriptEditor";
-import { CozoSemRenderer } from "../features/cozo-sem/CozoSemRenderer";
-import { DiagnosisCard } from "../features/diagnosis/DiagnosisCard";
-import { HintResponseCard } from "../features/hints/HintResponseCard";
-import { QueryResultsTable } from "../features/query-results/QueryResultsTable";
-import { StreamingMessageCard } from "../features/hints/StreamingMessageCard";
 import {
   getDiagnosisForCell,
   getHintResponseForCell,
   getSemThreadsForCell,
   getStreamingEntriesForCell,
 } from "../sem/semProjection";
-import type { CellRunOutput, NotebookCell } from "../transport/httpClient";
+import type { NotebookCell } from "../transport/httpClient";
 import {
   deleteNotebookCellById,
   dismissThread,
@@ -33,42 +27,7 @@ import {
   setCellSource,
   toggleThreadCollapse,
 } from "./state/notebookSlice";
-import { renderMarkdown } from "./renderMarkdown";
-
-interface CellErrorCardProps {
-  output: CellRunOutput;
-  onDiagnose: () => void;
-}
-
-// Strip ANSI escape codes (e.g. [31m, [0m) from CozoDB error output
-function stripAnsi(text: string): string {
-  return text.replace(/\x1b\[[0-9;]*m/g, "");
-}
-
-function CellErrorCard({ output, onDiagnose }: CellErrorCardProps) {
-  const raw = output.display || output.message || "Unknown error";
-  return (
-    <div className="mac-cell-error">
-      <div className="mac-cell-error__header">
-        ERROR
-      </div>
-      <div className="mac-cell-error__body">
-        {stripAnsi(raw)}
-      </div>
-      <div className="mac-cell-error__actions">
-        <button className="mac-btn" onClick={onDiagnose}>Diagnose with AI</button>
-      </div>
-    </div>
-  );
-}
-
-function formatRelativeTime(ms: number): string {
-  const delta = Date.now() - ms;
-  if (delta < 5000) return "just now";
-  if (delta < 60_000) return `${Math.floor(delta / 1000)}s ago`;
-  if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m ago`;
-  return `${Math.floor(delta / 3_600_000)}h ago`;
-}
+import { NotebookCellCardView } from "./NotebookCellCardView";
 
 export interface NotebookCellCardProps {
   cellId: string;
@@ -108,11 +67,11 @@ export function NotebookCellCard({
     }
   }, [isActive, markdownEditing]);
 
-  // Auto-resize markdown textarea only (CodeMirror handles its own sizing)
   useEffect(() => {
     if (cell?.kind !== "markdown" || !editorRef.current) {
       return;
     }
+
     editorRef.current.style.height = "0px";
     editorRef.current.style.height = `${editorRef.current.scrollHeight}px`;
   }, [cell?.source, cell?.kind, markdownEditing]);
@@ -120,8 +79,8 @@ export function NotebookCellCard({
   if (!cell) {
     return null;
   }
-  const resolvedCell: NotebookCell = cell;
 
+  const resolvedCell: NotebookCell = cell;
   const streams = getStreamingEntriesForCell(semProjection, resolvedCell.id);
   const threads = getSemThreadsForCell(semProjection, resolvedCell.id).filter((thread) => !dismissedThreads[thread.id]);
   const fallbackHint = getHintResponseForCell(semProjection, resolvedCell.id);
@@ -130,17 +89,16 @@ export function NotebookCellCard({
   const isCode = resolvedCell.kind === "code";
   const isMarkdown = resolvedCell.kind === "markdown";
   const editing = isCode || markdownEditing;
-  const runStatus = runtime?.run?.status || "idle";
   const executionCount = runtime?.run?.execution_count;
+  const finishedAt = runtime?.run?.finished_at_ms;
   const isDirty = Boolean(executionState?.dirty);
   const isStale = Boolean(executionState?.stale);
-  const hasAI = threads.length > 0 || Boolean(fallbackHint) || Boolean(diagnosisEntity);
-  const finishedAt = runtime?.run?.finished_at_ms;
-  const rowCount = runtime?.output?.rows?.length ?? 0;
-  const showCollapseToggle = rowCount > 10 || threads.length > 2;
-  const statusClass = runStatus === "complete" ? "is-ok" : runStatus === "error" ? "is-error" : "";
-  const activeClass = isActive ? "is-active" : "";
-  const outputDimmed = isDirty || isStale;
+  const diagnosisFix = diagnosisEntity
+    ? {
+        text: typeof diagnosisResponse.text === "string" ? diagnosisResponse.text : "See the suggested fix.",
+        code: typeof diagnosisResponse.code === "string" ? diagnosisResponse.code : undefined,
+      }
+    : null;
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && (event.altKey || event.ctrlKey) && isCode) {
@@ -149,11 +107,13 @@ export function NotebookCellCard({
       void onRunAndInsertBelow(resolvedCell.id);
       return;
     }
+
     if (event.key === "Enter" && event.shiftKey && isCode) {
       event.preventDefault();
       void dispatch(runNotebookCellById(resolvedCell.id));
       return;
     }
+
     if (event.key === "Escape" && isMarkdown) {
       event.preventDefault();
       setMarkdownEditing(false);
@@ -188,185 +148,90 @@ export function NotebookCellCard({
   }
 
   return (
-    <div
-      className={`mac-window mac-cell-card ${activeClass}`}
-      onClick={() => dispatch(setActiveCellId(resolvedCell.id))}
-    >
-      <div className="mac-window__titlebar">
-        <div className="mac-window__titlebar-left">
-          <span className="mac-window__close" onClick={(event) => { event.stopPropagation(); void dispatch(deleteNotebookCellById(resolvedCell.id)); }} />
-          <span className="mac-cell-label">
-            {isCode ? `[${executionCount ?? " "}]` : ""} {resolvedCell.kind.toUpperCase()}
-          </span>
-          {isCode ? (
-            <span className={`mac-cell-status ${statusClass}`}>
-              {runStatus}
-            </span>
-          ) : null}
-          {isDirty ? <span className="mac-cell-status is-dirty">dirty</span> : null}
-          {isStale ? <span className="mac-cell-status is-stale">stale</span> : null}
-          {hasAI ? <span className="mac-cell-status is-ai">AI</span> : null}
-          {finishedAt ? (
-            <span className="mac-cell-timestamp">{formatRelativeTime(finishedAt)}</span>
-          ) : null}
-        </div>
-        <div className="mac-window__titlebar-right">
-          {isCode ? <button className="mac-btn" onClick={(event) => { event.stopPropagation(); void dispatch(runNotebookCellById(resolvedCell.id)); }}>Run</button> : null}
-          {isCode ? (
-            <button className="mac-btn" onClick={(event) => { event.stopPropagation(); setShowAIForm((current) => !current); }}>
-              Ask AI
-            </button>
-          ) : null}
-          <button className="mac-btn" onClick={(event) => { event.stopPropagation(); void handleInsertBelow("code"); }}>+Code</button>
-          <button className="mac-btn" onClick={(event) => { event.stopPropagation(); void handleInsertBelow("markdown"); }}>+MD</button>
-          <button className="mac-btn" onClick={(event) => { event.stopPropagation(); void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex - 1)); }} disabled={cellIndex === 0}>^</button>
-          <button className="mac-btn" onClick={(event) => { event.stopPropagation(); void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex + 1)); }}>v</button>
-        </div>
-      </div>
-
-      <div className="mac-cell-body">
-        {isCode ? (
-          <CozoScriptEditor
-            value={resolvedCell.source}
-            onChange={(source) => dispatch(setCellSource({ cellId: resolvedCell.id, source }))}
-            onRun={() => { void dispatch(runNotebookCellById(resolvedCell.id)); }}
-            onRunAndInsert={() => { void onRunAndInsertBelow(resolvedCell.id); }}
-            onBlur={handleEditorBlur}
-            onFocus={() => dispatch(setActiveCellId(resolvedCell.id))}
-            placeholder="-- Enter Datalog query... (Shift+Enter run, Alt/Ctrl+Enter run+new)"
-            autoFocus={isActive}
-          />
-        ) : isMarkdown && !editing ? (
-          <div
-            className="mac-md-preview"
-            onClick={handleMarkdownClick}
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(resolvedCell.source || "_Click to edit..._") }}
-          />
-        ) : (
-          <textarea
-            ref={editorRef}
-            className="mac-cell-editor"
-            value={resolvedCell.source}
-            onChange={(event) => dispatch(setCellSource({ cellId: resolvedCell.id, source: event.target.value }))}
-            onBlur={handleEditorBlur}
-            onFocus={() => dispatch(setActiveCellId(resolvedCell.id))}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter markdown... (Esc to preview)"
-            rows={1}
-            spellCheck={false}
-          />
-        )}
-
-        {showAIForm ? (
-          <div className="mac-ai-form">
-            <input
-              className="mac-ai-input"
-              value={aiPrompt}
-              onChange={(event) => dispatch(setAIPrompt({ cellId: resolvedCell.id, value: event.target.value }))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  onAskAI(resolvedCell.id, aiPrompt);
-                  setShowAIForm(false);
-                }
-              }}
-              placeholder={wsConnected ? "Ask about this cell... (Enter to send)" : "WebSocket offline"}
-            />
-            <button
-              className="mac-btn"
-              disabled={!wsConnected}
-              onClick={() => {
-                onAskAI(resolvedCell.id, aiPrompt);
-                setShowAIForm(false);
-              }}
-            >
-              Send
-            </button>
-          </div>
-        ) : null}
-
-        {(runtime?.output || streams.length > 0 || threads.length > 0 || fallbackHint) ? (
-          <div className={`mac-cell-output ${outputDimmed ? "is-dimmed" : ""}`}>
-            {showCollapseToggle ? (
-              <div className="mac-cell-output__toggle">
-                <button className="mac-btn" onClick={(event) => { event.stopPropagation(); setOutputCollapsed(!outputCollapsed); }}>
-                  {outputCollapsed ? "Show output" : "Hide output"}
-                </button>
-              </div>
-            ) : null}
-
-            {outputCollapsed ? null : (
-              <>
-                {runtime?.output?.kind === "query_result" ? (
-                  <div style={{ marginTop: 8 }}>
-                    <QueryResultsTable result={{
-                      columns: runtime.output.headers || [],
-                      rows: runtime.output.rows || [],
-                      took: runtime.output.took,
-                    }} />
-                  </div>
-                ) : null}
-
-                {runtime?.output?.kind === "error_result" ? (
-                  diagnosisEntity ? (
-                    <DiagnosisCard
-                      diagnosing={false}
-                      error={stripAnsi(runtime.output.display || runtime.output.message || "Unknown error")}
-                      fix={{
-                        text: typeof diagnosisResponse.text === "string" ? diagnosisResponse.text : "See the suggested fix.",
-                        code: typeof diagnosisResponse.code === "string" ? diagnosisResponse.code : undefined,
-                      }}
-                      onAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
-                      onApplyFix={typeof diagnosisResponse.code === "string" ? () => { void handleApplyFixToCurrentCell(diagnosisResponse.code as string); } : undefined}
-                    />
-                  ) : (
-                    <CellErrorCard output={runtime.output} onDiagnose={() => onDiagnose(resolvedCell.id)} />
-                  )
-                ) : null}
-
-                {streams.map(([id, text]) => (
-                  <div key={id} style={{ marginTop: 8 }}>
-                    <StreamingMessageCard text={text} />
-                  </div>
-                ))}
-
-                {!diagnosisEntity && threads.length === 0 && fallbackHint ? (
-                  <div style={{ marginTop: 8 }}>
-                    <HintResponseCard
-                      onAddToNotebook={(markdown) => { void handleInsertBelow("markdown", markdown); }}
-                      collapsed={Boolean(collapsedThreads[`hint:${resolvedCell.id}`])}
-                      onChipClick={(chip) => {
-                        dispatch(setAIPrompt({ cellId: resolvedCell.id, value: chip }));
-                        setShowAIForm(true);
-                      }}
-                      onInsert={(code) => { void handleInsertBelow("code", code); }}
-                      onToggleCollapse={() => dispatch(toggleThreadCollapse(`hint:${resolvedCell.id}`))}
-                      response={{ ...fallbackHint, code: fallbackHint.code ?? undefined }}
-                    />
-                  </div>
-                ) : null}
-
-                {threads.map((thread) => (
-                  <div key={thread.id} style={{ marginTop: 8 }}>
-                    <CozoSemRenderer
-                      onAddToNotebook={(markdown: string) => { void handleInsertBelow("markdown", markdown); }}
-                      collapsed={Boolean(collapsedThreads[thread.id])}
-                      onAskQuestion={(question: string) => {
-                        dispatch(setAIPrompt({ cellId: resolvedCell.id, value: question }));
-                        setShowAIForm(true);
-                      }}
-                      onDismiss={() => dispatch(dismissThread(thread.id))}
-                      onInsertCode={(code: string) => { void handleInsertBelow("code", code); }}
-                      onToggleCollapse={() => dispatch(toggleThreadCollapse(thread.id))}
-                      thread={thread}
-                    />
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-        ) : null}
-      </div>
-    </div>
+    <NotebookCellCardView
+      aiPrompt={aiPrompt}
+      cell={resolvedCell}
+      cellIndex={cellIndex}
+      collapsedThreadIds={collapsedThreads}
+      diagnosisFix={diagnosisFix}
+      editorRef={editorRef}
+      executionCount={executionCount}
+      fallbackHint={fallbackHint}
+      finishedAt={finishedAt}
+      isActive={isActive}
+      isDirty={isDirty}
+      isEditing={editing}
+      isStale={isStale}
+      onActivate={() => dispatch(setActiveCellId(resolvedCell.id))}
+      onAIInputChange={(value) => dispatch(setAIPrompt({ cellId: resolvedCell.id, value }))}
+      onAIInputSubmit={() => {
+        onAskAI(resolvedCell.id, aiPrompt);
+        setShowAIForm(false);
+      }}
+      onDelete={() => {
+        void dispatch(deleteNotebookCellById(resolvedCell.id));
+      }}
+      onDiagnose={() => onDiagnose(resolvedCell.id)}
+      onDiagnosisAddToNotebook={(markdown) => {
+        void handleInsertBelow("markdown", markdown);
+      }}
+      onDiagnosisApplyFix={(source) => {
+        void handleApplyFixToCurrentCell(source);
+      }}
+      onEditorBlur={handleEditorBlur}
+      onEditorChange={(source) => dispatch(setCellSource({ cellId: resolvedCell.id, source }))}
+      onEditorFocus={() => dispatch(setActiveCellId(resolvedCell.id))}
+      onEditorKeyDown={handleKeyDown}
+      onHintAddToNotebook={(markdown) => {
+        void handleInsertBelow("markdown", markdown);
+      }}
+      onHintChipClick={(chip) => {
+        dispatch(setAIPrompt({ cellId: resolvedCell.id, value: chip }));
+        setShowAIForm(true);
+      }}
+      onHintInsert={(code) => {
+        void handleInsertBelow("code", code);
+      }}
+      onHintToggleCollapse={() => dispatch(toggleThreadCollapse(`hint:${resolvedCell.id}`))}
+      onInsertCodeBelow={() => {
+        void handleInsertBelow("code");
+      }}
+      onInsertMarkdownBelow={() => {
+        void handleInsertBelow("markdown");
+      }}
+      onMarkdownPreviewClick={handleMarkdownClick}
+      onMoveDown={() => {
+        void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex + 1));
+      }}
+      onMoveUp={() => {
+        void dispatch(moveNotebookCellToIndex(resolvedCell.id, cellIndex - 1));
+      }}
+      onRun={() => {
+        void dispatch(runNotebookCellById(resolvedCell.id));
+      }}
+      onRunAndInsertBelow={() => {
+        void onRunAndInsertBelow(resolvedCell.id);
+      }}
+      onThreadAddToNotebook={(markdown) => {
+        void handleInsertBelow("markdown", markdown);
+      }}
+      onThreadAskQuestion={(question) => {
+        dispatch(setAIPrompt({ cellId: resolvedCell.id, value: question }));
+        setShowAIForm(true);
+      }}
+      onThreadDismiss={(threadId) => dispatch(dismissThread(threadId))}
+      onThreadInsertCode={(code) => {
+        void handleInsertBelow("code", code);
+      }}
+      onThreadToggleCollapse={(threadId) => dispatch(toggleThreadCollapse(threadId))}
+      onToggleAIForm={() => setShowAIForm((current) => !current)}
+      onToggleOutputCollapsed={() => setOutputCollapsed((current) => !current)}
+      outputCollapsed={outputCollapsed}
+      runtime={runtime}
+      showAIForm={showAIForm}
+      streams={streams}
+      threads={threads}
+      wsConnected={wsConnected}
+    />
   );
 }

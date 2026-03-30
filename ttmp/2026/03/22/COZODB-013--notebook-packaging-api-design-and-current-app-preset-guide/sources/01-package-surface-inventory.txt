@@ -1,0 +1,55 @@
+# Backend notebook package files
+backend/pkg/notebook/config.go
+backend/pkg/notebook/http.go
+backend/pkg/notebook/http_test.go
+backend/pkg/notebook/runtime.go
+backend/pkg/notebook/service.go
+backend/pkg/notebook/service_test.go
+backend/pkg/notebook/store.go
+backend/pkg/notebook/store_mutation_test.go
+backend/pkg/notebook/timeline.go
+backend/pkg/notebook/types.go
+backend/pkg/notebook/websocket.go
+backend/pkg/notebook/websocket_test.go
+backend/pkg/notebook/ws_sem_sink.go
+
+# Frontend notebook package files
+frontend/src/notebook/NotebookCellCard.stories.tsx
+frontend/src/notebook/NotebookCellCard.test.tsx
+frontend/src/notebook/NotebookCellCard.tsx
+frontend/src/notebook/NotebookCellCardView.stories.tsx
+frontend/src/notebook/NotebookCellCardView.tsx
+frontend/src/notebook/NotebookPage.stories.tsx
+frontend/src/notebook/NotebookPage.tsx
+frontend/src/notebook/NotebookPageView.stories.tsx
+frontend/src/notebook/NotebookPageView.tsx
+frontend/src/notebook/aiNoteMarkdown.ts
+frontend/src/notebook/notebook.css
+frontend/src/notebook/renderMarkdown.ts
+frontend/src/notebook/runtimeState.test.ts
+frontend/src/notebook/runtimeState.ts
+frontend/src/notebook/state/notebookSlice.test.ts
+frontend/src/notebook/state/notebookSlice.ts
+frontend/src/notebook/useNotebookPageController.ts
+
+# Frontend transport files
+frontend/src/transport/README.md
+frontend/src/transport/hintsSocket.ts
+frontend/src/transport/httpClient.ts
+
+# Frontend theme files
+frontend/src/theme/README.md
+frontend/src/theme/cards.css
+frontend/src/theme/layout.css
+frontend/src/theme/tokens.css
+
+# Key exported mount points and hooks
+frontend/src/notebook/state/notebookSlice.ts:251:export const notebookReducer = notebookSlice.reducer;
+backend/pkg/notebook/http.go:42:func MountHTTPRoutes(mux *http.ServeMux, service *Service) {
+backend/pkg/notebook/service.go:24:func NewService(config ServiceConfig) (*Service, error) {
+backend/pkg/notebook/service.go:39:func OpenService(appDBPath string, runtime Runtime) (*Service, error) {
+backend/pkg/notebook/websocket.go:61:func MountWebSocketRoutes(mux *http.ServeMux, runtime Runtime, engine AIEngine) {
+frontend/src/transport/hintsSocket.ts:38:export function useHintsSocket(path = "/ws/hints"): HintsSocket {
+frontend/src/notebook/NotebookPage.tsx:17:export function NotebookPageContainer({ confirmAction, ws }: NotebookPageContainerProps) {
+frontend/src/notebook/NotebookPage.tsx:76:export default function NotebookPage() {
+frontend/src/notebook/state/notebookSlice.ts:251:export const notebookReducer = notebookSlice.reducer;

@@ -1,9 +1,10 @@
 /* ===== System 7 Window Chrome ===== */
 
-.mac-menubar {
+.mac-menubar,
+:where([data-part="notebook-menubar"]) {
   height: 20px;
-  background: #fff;
-  border-bottom: 2px solid #000;
+  background: var(--bg-window);
+  border-bottom: 2px solid var(--border-window);
   display: flex;
   align-items: center;
   padding: 0 8px;
@@ -91,7 +92,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #fff;
+  background: var(--bg-window);
   padding: 0 4px;
   z-index: 1;
 }
@@ -100,7 +101,7 @@
   width: 12px;
   height: 12px;
   border: 1px solid #000;
-  background: #fff;
+  background: var(--bg-window);
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -134,7 +135,7 @@
   padding: 1px 8px;
   border: 1px solid #000;
   border-radius: 3px;
-  background: #fff;
+  background: var(--bg-window);
   color: #000;
   cursor: pointer;
   white-space: nowrap;

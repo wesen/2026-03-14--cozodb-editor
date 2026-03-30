@@ -10,6 +10,37 @@ import (
 	"github.com/wesen/cozodb-editor/backend/pkg/cozo"
 )
 
+func openMemCozoRuntimeManager() (*cozo.Manager, error) {
+	return cozo.NewManager("mem", "")
+}
+
+func openTestService(t *testing.T) (*Service, Runtime) {
+	t.Helper()
+
+	manager, err := openMemCozoRuntimeManager()
+	require.NoError(t, err)
+
+	store, err := OpenStoreWithConfig(StoreConfig{
+		DBPath:  filepath.Join(t.TempDir(), "app.sqlite"),
+		Profile: currentCozoNotebookProfile(),
+	})
+	require.NoError(t, err)
+
+	timeline, err := OpenSQLiteTimelineStore(store.DBPath())
+	require.NoError(t, err)
+
+	svc, err := NewService(ServiceConfig{
+		Runtime:  newCozoRuntime(manager),
+		Store:    store,
+		Timeline: timeline,
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = svc.Close() })
+	t.Cleanup(func() { manager.Close() })
+	return svc, svc.Runtime()
+}
+
 func TestEnsureDefaultNotebookCreatesExpectedCells(t *testing.T) {
 	store, err := OpenStore(filepath.Join(t.TempDir(), "notebook.sqlite"))
 	require.NoError(t, err)
@@ -24,19 +55,15 @@ func TestEnsureDefaultNotebookCreatesExpectedCells(t *testing.T) {
 }
 
 func TestServiceRunCellHydratesLatestRuntime(t *testing.T) {
-	runtime, err := cozo.NewManager("mem", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
-
-	svc, err := OpenService(filepath.Join(t.TempDir(), "app.sqlite"), runtime)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
+	svc, _ := openTestService(t)
+	notebookID := svc.DefaultNotebookID()
 
 	doc, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
 	require.Len(t, doc.Cells, 2)
+	queryCellID := doc.Cells[1].ID
 
-	cellRuntime, err := svc.RunCell(context.Background(), "cell_query")
+	cellRuntime, err := svc.RunCell(context.Background(), queryCellID)
 	require.NoError(t, err)
 	require.NotNil(t, cellRuntime.Run)
 	require.Equal(t, "complete", cellRuntime.Run.Status)
@@ -44,35 +71,31 @@ func TestServiceRunCellHydratesLatestRuntime(t *testing.T) {
 	require.Equal(t, "query_result", cellRuntime.Output.Kind)
 	require.Len(t, cellRuntime.Output.Rows, 3)
 
-	reloaded, err := svc.GetNotebook(context.Background(), defaultNotebookID)
+	reloaded, err := svc.GetNotebook(context.Background(), notebookID)
 	require.NoError(t, err)
-	require.Contains(t, reloaded.Runtime, "cell_query")
-	require.NotNil(t, reloaded.Runtime["cell_query"].Output)
-	require.Equal(t, "query_result", reloaded.Runtime["cell_query"].Output.Kind)
-	require.Len(t, reloaded.Runtime["cell_query"].Output.Rows, 3)
+	require.Contains(t, reloaded.Runtime, queryCellID)
+	require.NotNil(t, reloaded.Runtime[queryCellID].Output)
+	require.Equal(t, "query_result", reloaded.Runtime[queryCellID].Output.Kind)
+	require.Len(t, reloaded.Runtime[queryCellID].Output.Rows, 3)
 }
 
 func TestServiceClearNotebookRestoresStarterCellsAndClearsRuntime(t *testing.T) {
-	runtime, err := cozo.NewManager("mem", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
-
-	svc, err := OpenService(filepath.Join(t.TempDir(), "app.sqlite"), runtime)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
+	svc, _ := openTestService(t)
+	notebookID := svc.DefaultNotebookID()
 
 	doc, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
 	require.Len(t, doc.Cells, 2)
+	queryCellID := doc.Cells[1].ID
 
-	inserted, err := svc.InsertCell(context.Background(), defaultNotebookID, doc.Cells[1].ID, "code", "?[x] <- [[42]]")
+	inserted, err := svc.InsertCell(context.Background(), notebookID, doc.Cells[1].ID, "code", "?[x] <- [[42]]")
 	require.NoError(t, err)
 	require.Len(t, inserted.Document.Cells, 3)
 
-	_, err = svc.RunCell(context.Background(), "cell_query")
+	_, err = svc.RunCell(context.Background(), queryCellID)
 	require.NoError(t, err)
 
-	cleared, err := svc.ClearNotebook(context.Background(), defaultNotebookID)
+	cleared, err := svc.ClearNotebook(context.Background(), notebookID)
 	require.NoError(t, err)
 	require.Len(t, cleared.Cells, 2)
 	require.Equal(t, "markdown", cleared.Cells[0].Kind)
@@ -80,27 +103,23 @@ func TestServiceClearNotebookRestoresStarterCellsAndClearsRuntime(t *testing.T) 
 	require.Empty(t, cleared.Runtime)
 
 	var runCount int
-	err = svc.store.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM nb_runs WHERE notebook_id = ?`, defaultNotebookID).Scan(&runCount)
+	err = svc.store.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM nb_runs WHERE notebook_id = ?`, notebookID).Scan(&runCount)
 	require.NoError(t, err)
 	require.Zero(t, runCount)
 
 	var snapshotCount int
-	err = svc.store.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM nb_link_timeline_snapshots WHERE notebook_id = ?`, defaultNotebookID).Scan(&snapshotCount)
+	err = svc.store.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM nb_link_timeline_snapshots WHERE notebook_id = ?`, notebookID).Scan(&snapshotCount)
 	require.NoError(t, err)
 	require.Zero(t, snapshotCount)
 }
 
 func TestServiceResetKernelSwapsRuntimeAndClearsPersistedOutputs(t *testing.T) {
-	runtime, err := cozo.NewManager("mem", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { runtime.Close() })
+	svc, runtime := openTestService(t)
+	notebookID := svc.DefaultNotebookID()
 
-	svc, err := OpenService(filepath.Join(t.TempDir(), "app.sqlite"), runtime)
+	_, err := svc.EnsureDefaultNotebook(context.Background())
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
-
-	_, err = svc.EnsureDefaultNotebook(context.Background())
-	require.NoError(t, err)
+	queryCellID := defaultNotebookQueryCellID(notebookID)
 
 	_, err = runtime.Query(":create users {name: String => age: Int}", nil)
 	require.NoError(t, err)
@@ -108,7 +127,7 @@ func TestServiceResetKernelSwapsRuntimeAndClearsPersistedOutputs(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, beforeResetRelations, "users")
 
-	_, err = svc.RunCell(context.Background(), "cell_query")
+	_, err = svc.RunCell(context.Background(), queryCellID)
 	require.NoError(t, err)
 
 	result, err := svc.ResetKernel(context.Background())
@@ -120,7 +139,7 @@ func TestServiceResetKernelSwapsRuntimeAndClearsPersistedOutputs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, afterResetRelations, "users")
 
-	reloaded, err := svc.GetNotebook(context.Background(), defaultNotebookID)
+	reloaded, err := svc.GetNotebook(context.Background(), notebookID)
 	require.NoError(t, err)
 	require.Empty(t, reloaded.Runtime)
 

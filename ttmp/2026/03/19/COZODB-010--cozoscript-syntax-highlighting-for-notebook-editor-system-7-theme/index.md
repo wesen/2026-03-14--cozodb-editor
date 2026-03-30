@@ -1,7 +1,7 @@
 ---
 Title: CozoScript Syntax Highlighting for Notebook Editor (System 7 Theme)
 Ticket: COZODB-010
-Status: active
+Status: complete
 Topics:
     - syntax-highlighting
     - codemirror
@@ -11,23 +11,23 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: 2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/complete.js
+    - Path: /home/manuel/code/wesen/2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/complete.js
       Note: Context-aware autocomplete with 200+ completions (reuse as-is)
-    - Path: 2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/cozoscript.grammar
-      Note: Lezer grammar defining CozoScript syntax (396 lines
-    - Path: 2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/highlight.js
+    - Path: /home/manuel/code/wesen/2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/cozoscript.grammar
+      Note: Lezer grammar defining CozoScript syntax
+    - Path: /home/manuel/code/wesen/2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/highlight.js
       Note: styleTags mapping 73 node types to highlight tags (reuse as-is)
-    - Path: 2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/index.js
+    - Path: /home/manuel/code/wesen/2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/index.js
       Note: Language package entry point with cozoLanguage export
-    - Path: 2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/theme.js
+    - Path: /home/manuel/code/wesen/2026-02-24--cozoscript-treesitter-autocomplete/lang-cozoscript/src/theme.js
       Note: Catppuccin Mocha theme (reference for System 7 theme)
-    - Path: 2026-03-14--cozodb-editor/frontend/src/notebook/NotebookCellCard.tsx
+    - Path: frontend/src/notebook/NotebookCellCard.tsx
       Note: Cell component with textarea to replace with CodeMirror
-    - Path: 2026-03-14--cozodb-editor/frontend/src/theme/tokens.css
+    - Path: frontend/src/theme/tokens.css
       Note: System 7 design tokens that new theme must match
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-19T22:40:08.155333799-04:00
+LastUpdated: 2026-03-23T14:46:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -46,7 +46,7 @@ WhenToUse: ""
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 ## Topics
 
